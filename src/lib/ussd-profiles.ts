@@ -5,6 +5,12 @@ export interface AmountPreset {
   price: number;
 }
 
+export interface OperatorCredentials {
+  mtnSecret: string;       // الرمز السري لشريحة MTN
+  syriatelSerial: string;  // الرقم السيري لشريحة سيريتيل
+  syriatelDistributor: string; // كود الموزع سيريتيل
+}
+
 export const DEFAULT_MTN_PRESETS: AmountPreset[] = [
   { amount: 5000, price: 5500 },
   { amount: 10000, price: 11000 },
@@ -23,9 +29,11 @@ export const DEFAULT_SYRIATEL_PRESETS: AmountPreset[] = [
   { amount: 50000, price: 55000 },
 ];
 
+// MTN: *150*{secret}*{phone}*{amount}#
+// Syriatel: *150*1*{serial}*1*{amount}*{phone}*{phone}#
 const USSD_TEMPLATES: Record<Operator, string> = {
-  mtn: "*150*{amount}*{phone}*{amount}#",
-  syriatel: "*150*1*{amount}*1*{amount}*{phone}*{phone}#",
+  mtn: "*150*{secret}*{phone}*{amount}#",
+  syriatel: "*150*1*{serial}*1*{amount}*{phone}*{phone}#",
 };
 
 // MTN: 093, 094, 095, 096
@@ -41,10 +49,17 @@ export function detectOperator(phone: string): Operator | null {
   return null;
 }
 
-export function buildUssdCode(operator: Operator, phone: string, amount: string): string {
+export function buildUssdCode(
+  operator: Operator,
+  phone: string,
+  amount: string,
+  credentials: OperatorCredentials
+): string {
   return USSD_TEMPLATES[operator]
     .replace(/\{phone\}/g, phone)
-    .replace(/\{amount\}/g, amount);
+    .replace(/\{amount\}/g, amount)
+    .replace(/\{secret\}/g, credentials.mtnSecret)
+    .replace(/\{serial\}/g, credentials.syriatelSerial);
 }
 
 export function dialUssd(ussdCode: string) {
@@ -54,6 +69,7 @@ export function dialUssd(ussdCode: string) {
 
 // Preset persistence
 const STORAGE_KEY = "ussd-presets";
+const CREDENTIALS_KEY = "ussd-credentials";
 
 export function getPresets(): Record<Operator, AmountPreset[]> {
   try {
@@ -65,4 +81,16 @@ export function getPresets(): Record<Operator, AmountPreset[]> {
 
 export function savePresets(presets: Record<Operator, AmountPreset[]>) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
+}
+
+export function getCredentials(): OperatorCredentials {
+  try {
+    const stored = localStorage.getItem(CREDENTIALS_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return { mtnSecret: "", syriatelSerial: "", syriatelDistributor: "" };
+}
+
+export function saveCredentials(credentials: OperatorCredentials) {
+  localStorage.setItem(CREDENTIALS_KEY, JSON.stringify(credentials));
 }

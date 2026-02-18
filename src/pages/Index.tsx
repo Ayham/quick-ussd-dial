@@ -5,8 +5,10 @@ import {
   buildUssdCode,
   dialUssd,
   getPresets,
+  getCredentials,
   type Operator,
   type AmountPreset,
+  type OperatorCredentials,
 } from "@/lib/ussd-profiles";
 import {
   addToHistory,
@@ -24,6 +26,7 @@ const Index = () => {
   const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState("");
   const [presets, setPresets] = useState(() => getPresets());
+  const [credentials, setCredentials] = useState<OperatorCredentials>(() => getCredentials());
   const [showContacts, setShowContacts] = useState(false);
   const [phoneHistory, setPhoneHistory] = useState<TransferRecord[]>([]);
   const contactsRef = useRef<HTMLDivElement>(null);
@@ -65,7 +68,7 @@ const Index = () => {
       toast.error("الرجاء إدخال المبلغ");
       return;
     }
-    const ussd = buildUssdCode(operator, phone.trim(), amount.trim());
+    const ussd = buildUssdCode(operator, phone.trim(), amount.trim(), credentials);
 
     // Save to history
     addToHistory({
@@ -85,12 +88,12 @@ const Index = () => {
 
   const ussdPreview =
     operator && phone && amount
-      ? buildUssdCode(operator, phone, amount)
+      ? buildUssdCode(operator, phone, amount, credentials)
       : null;
 
   // Refresh presets when returning from settings
   useEffect(() => {
-    const handleFocus = () => setPresets(getPresets());
+    const handleFocus = () => { setPresets(getPresets()); setCredentials(getCredentials()); };
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
   }, []);
