@@ -1,13 +1,16 @@
 import { useState } from "react";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Key } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   getPresets,
   savePresets,
+  getCredentials,
+  saveCredentials,
   DEFAULT_MTN_PRESETS,
   DEFAULT_SYRIATEL_PRESETS,
   type Operator,
   type AmountPreset,
+  type OperatorCredentials,
 } from "@/lib/ussd-profiles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +19,7 @@ import { toast } from "sonner";
 const Settings = () => {
   const navigate = useNavigate();
   const [presets, setPresets] = useState(() => getPresets());
+  const [credentials, setCredentials] = useState<OperatorCredentials>(() => getCredentials());
   const [activeTab, setActiveTab] = useState<Operator>("mtn");
 
   const handleAdd = () => {
@@ -39,7 +43,17 @@ const Settings = () => {
   };
 
   const handleSave = () => {
+    // Validate credentials
+    if (!credentials.mtnSecret.trim()) {
+      toast.error("الرجاء إدخال الرمز السري لشريحة MTN");
+      return;
+    }
+    if (!credentials.syriatelSerial.trim()) {
+      toast.error("الرجاء إدخال الرقم السيري لشريحة سيريتيل");
+      return;
+    }
     savePresets(presets);
+    saveCredentials(credentials);
     toast.success("تم الحفظ بنجاح");
     navigate("/");
   };
@@ -59,12 +73,71 @@ const Settings = () => {
         <button onClick={() => navigate("/")} className="text-primary-foreground">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-primary-foreground text-xl font-bold">إعدادات القوائم</h1>
+        <h1 className="text-primary-foreground text-xl font-bold">الإعدادات</h1>
       </header>
 
       <main className="flex-1 p-4 max-w-md mx-auto w-full">
+        {/* Credentials Section */}
+        <div className="mt-4 mb-6 space-y-4">
+          <h2 className="text-foreground font-bold flex items-center gap-2">
+            <Key className="w-4 h-4" />
+            بيانات الشريحة
+          </h2>
+
+          <div className="space-y-3 bg-card border border-border rounded-xl p-4">
+            {/* MTN Secret */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-muted-foreground">
+                الرمز السري لشريحة MTN
+              </label>
+              <Input
+                type="number"
+                placeholder="مثال: 20326"
+                value={credentials.mtnSecret}
+                onChange={(e) => setCredentials({ ...credentials, mtnSecret: e.target.value })}
+                className="text-left h-10"
+                dir="ltr"
+                inputMode="numeric"
+              />
+            </div>
+
+            {/* Syriatel Serial */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-muted-foreground">
+                الرقم السيري لشريحة سيريتيل
+              </label>
+              <Input
+                type="number"
+                placeholder="مثال: 32362"
+                value={credentials.syriatelSerial}
+                onChange={(e) => setCredentials({ ...credentials, syriatelSerial: e.target.value })}
+                className="text-left h-10"
+                dir="ltr"
+                inputMode="numeric"
+              />
+            </div>
+
+            {/* Syriatel Distributor */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-muted-foreground">
+                كود الموزع سيريتيل
+              </label>
+              <Input
+                type="number"
+                placeholder="مثال: 640322"
+                value={credentials.syriatelDistributor}
+                onChange={(e) => setCredentials({ ...credentials, syriatelDistributor: e.target.value })}
+                className="text-left h-10"
+                dir="ltr"
+                inputMode="numeric"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Tabs */}
-        <div className="flex gap-2 mt-4 mb-6">
+        <h2 className="text-foreground font-bold mb-3">قوائم المبالغ</h2>
+        <div className="flex gap-2 mb-6">
           {(["mtn", "syriatel"] as Operator[]).map((op) => (
             <button
               key={op}
@@ -84,7 +157,6 @@ const Settings = () => {
 
         {/* Presets list */}
         <div className="space-y-3">
-          {/* Header */}
           <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
             <span className="flex-1">المبلغ</span>
             <span className="flex-1">السعر (ل.س)</span>
