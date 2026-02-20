@@ -1,9 +1,5 @@
 {
   "appId": "app.lovable.d8f5ea8ed86449c9b0842c093fa293c0",
   "appName": "تحويل رصيد",
-  "webDir": "dist",
-  "server": {
-    "url": "https://d8f5ea8e-d864-49c9-b084-2c093fa293c0.lovableproject.com?forceHideBadge=true",
-    "cleartext": true
-  }
+  "webDir": "dist"
 }
