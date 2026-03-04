@@ -14,7 +14,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        tajawal: ["Tajawal", "sans-serif"],
+        tajawal: ["Noto Sans Arabic", "Tahoma", "Arial", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
