@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>License Generator - Admin Tool</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; padding: 20px; max-width: 700px; margin: 0 auto; }
+    h1 { text-align: center; margin-bottom: 24px; color: #38bdf8; }
+    h2 { margin: 24px 0 12px; color: #94a3b8; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+    .card { background: #1e293b; border-radius: 12px; padding: 20px; margin-bottom: 16px; border: 1px solid #334155; }
+    label { display: block; font-size: 14px; color: #94a3b8; margin-bottom: 6px; }
+    input, textarea { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; font-family: monospace; font-size: 14px; }
+    textarea { min-height: 80px; resize: vertical; }
+    button { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; font-size: 14px; margin: 4px; }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-success { background: #16a34a; color: white; }
+    .btn-success:hover { background: #15803d; }
+    .btn-copy { background: #475569; color: white; font-size: 12px; padding: 6px 12px; }
+    .output { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; word-break: break-all; margin-top: 8px; min-height: 40px; }
+    .row { display: flex; gap: 12px; margin-bottom: 12px; }
+    .row > * { flex: 1; }
+    .status { padding: 8px 12px; border-radius: 8px; font-size: 13px; margin-top: 8px; }
+    .status.ok { background: #16a34a22; color: #4ade80; border: 1px solid #16a34a44; }
+    .status.err { background: #dc262622; color: #f87171; border: 1px solid #dc262644; }
+    .status.warn { background: #ca8a0422; color: #fbbf24; border: 1px solid #ca8a0444; }
+  </style>
+</head>
+<body>
+  <h1>🔐 أداة توليد التراخيص</h1>
+
+  <!-- Key Management -->
+  <div class="card">
+    <h2>1. مفاتيح RSA</h2>
+    <div id="keyStatus"></div>
+    <div style="margin-top: 12px;">
+      <button class="btn-primary" onclick="generateKeys()">توليد مفاتيح جديدة</button>
+      <button class="btn-copy" onclick="exportPublicKey()">نسخ المفتاح العام (للتطبيق)</button>
+    </div>
+    <div id="publicKeyOutput" style="display:none; margin-top: 12px;">
+      <label>المفتاح العام (JWK) - انسخه إلى ملف src/lib/license.ts</label>
+      <textarea id="pubKeyText" readonly></textarea>
+    </div>
+  </div>
+
+  <!-- License Generator -->
+  <div class="card">
+    <h2>2. توليد ترخيص</h2>
+    <div class="row">
+      <div>
+        <label>Device ID</label>
+        <input type="text" id="deviceId" placeholder="أدخل معرف الجهاز" dir="ltr" />
+      </div>
+      <div>
+        <label>تاريخ الانتهاء</label>
+        <input type="date" id="expiryDate" dir="ltr" />
+      </div>
+    </div>
+    <div style="margin-bottom: 12px;">
+      <label>الإصدار (اختياري)</label>
+      <input type="text" id="version" placeholder="1.0" dir="ltr" />
+    </div>
+    <button class="btn-success" onclick="generateLicense()">توليد الترخيص</button>
+    <div id="licenseOutput" style="display:none; margin-top: 12px;">
+      <label>مفتاح الترخيص (License Key)</label>
+      <div class="output" id="licenseKey"></div>
+      <button class="btn-copy" onclick="copyLicense()" style="margin-top: 8px;">نسخ الترخيص</button>
+    </div>
+    <div id="genStatus"></div>
+  </div>
+
+  <!-- Backup -->
+  <div class="card">
+    <h2>3. نسخ احتياطي</h2>
+    <p style="font-size: 13px; color: #94a3b8; margin-bottom: 12px;">
+      احفظ نسخة احتياطية من المفتاح الخاص. إذا فقدته، لن تتمكن من توليد تراخيص جديدة.
+    </p>
+    <button class="btn-copy" onclick="exportPrivateKey()">تصدير المفتاح الخاص</button>
+    <div style="margin-top: 12px;">
+      <label>استيراد مفتاح خاص</label>
+      <textarea id="importKeyArea" placeholder="الصق JWK المفتاح الخاص هنا..."></textarea>
+      <button class="btn-primary" onclick="importPrivateKey()" style="margin-top: 8px;">استيراد</button>
+    </div>
+  </div>
+
+  <script>
+    const DB_NAME = 'LicenseAdminDB';
+    const STORE_NAME = 'keys';
+
+    // IndexedDB helpers
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = () => req.result.createObjectStore(STORE_NAME);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function saveKey(name, jwk) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).put(jwk, name);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function loadKey(name) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).get(name);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function checkKeys() {
+      const priv = await loadKey('privateKey');
+      const pub = await loadKey('publicKey');
+      const el = document.getElementById('keyStatus');
+      if (priv && pub) {
+        el.innerHTML = '<div class="status ok">✅ المفاتيح موجودة وجاهزة</div>';
+        return true;
+      } else {
+        el.innerHTML = '<div class="status warn">⚠️ لم يتم توليد المفاتيح بعد</div>';
+        return false;
+      }
+    }
+
+    async function generateKeys() {
+      try {
+        const keyPair = await crypto.subtle.generateKey(
+          { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+          true,
+          ['sign', 'verify']
+        );
+        const privJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
+        const pubJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
+        await saveKey('privateKey', privJwk);
+        await saveKey('publicKey', pubJwk);
+        await checkKeys();
+        alert('تم توليد المفاتيح بنجاح!\nتأكد من نسخ المفتاح العام إلى التطبيق.');
+      } catch (e) {
+        alert('خطأ: ' + e.message);
+      }
+    }
+
+    async function exportPublicKey() {
+      const pub = await loadKey('publicKey');
+      if (!pub) { alert('لم يتم توليد المفاتيح بعد'); return; }
+      const filtered = { kty: pub.kty, e: pub.e, n: pub.n, alg: pub.alg, ext: pub.ext };
+      const json = JSON.stringify(filtered, null, 2);
+      document.getElementById('pubKeyText').value = json;
+      document.getElementById('publicKeyOutput').style.display = 'block';
+      navigator.clipboard.writeText(json).then(() => alert('تم نسخ المفتاح العام!'));
+    }
+
+    async function exportPrivateKey() {
+      const priv = await loadKey('privateKey');
+      if (!priv) { alert('لم يتم توليد المفاتيح بعد'); return; }
+      const json = JSON.stringify(priv);
+      navigator.clipboard.writeText(json).then(() => alert('تم نسخ المفتاح الخاص! احفظه في مكان آمن.'));
+    }
+
+    async function importPrivateKey() {
+      try {
+        const text = document.getElementById('importKeyArea').value.trim();
+        if (!text) { alert('الصق المفتاح الخاص أولاً'); return; }
+        const jwk = JSON.parse(text);
+        // Validate by importing
+        await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, true, ['sign']);
+        await saveKey('privateKey', jwk);
+        // Derive public key
+        const pubJwk = { kty: jwk.kty, e: jwk.e, n: jwk.n, alg: jwk.alg, ext: true };
+        await saveKey('publicKey', pubJwk);
+        await checkKeys();
+        alert('تم استيراد المفتاح بنجاح!');
+      } catch (e) {
+        alert('خطأ في الاستيراد: ' + e.message);
+      }
+    }
+
+    async function generateLicense() {
+      const statusEl = document.getElementById('genStatus');
+      try {
+        const privJwk = await loadKey('privateKey');
+        if (!privJwk) { statusEl.innerHTML = '<div class="status err">❌ لم يتم توليد المفاتيح بعد</div>'; return; }
+
+        const deviceId = document.getElementById('deviceId').value.trim();
+        const expiryDate = document.getElementById('expiryDate').value;
+        const version = document.getElementById('version').value.trim();
+
+        if (!deviceId) { statusEl.innerHTML = '<div class="status err">❌ أدخل معرف الجهاز</div>'; return; }
+        if (!expiryDate) { statusEl.innerHTML = '<div class="status err">❌ اختر تاريخ الانتهاء</div>'; return; }
+
+        const payload = { deviceId, expiryDate };
+        if (version) payload.version = version;
+
+        const dataB64 = btoa(JSON.stringify(payload));
+
+        const privKey = await crypto.subtle.importKey(
+          'jwk', privJwk,
+          { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+          false, ['sign']
+        );
+
+        const encoder = new TextEncoder();
+        const sigBuffer = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', privKey, encoder.encode(dataB64));
+        const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sigBuffer)));
+
+        const license = dataB64 + '.' + sigB64;
+        document.getElementById('licenseKey').textContent = license;
+        document.getElementById('licenseOutput').style.display = 'block';
+        statusEl.innerHTML = '<div class="status ok">✅ تم توليد الترخيص بنجاح</div>';
+      } catch (e) {
+        statusEl.innerHTML = '<div class="status err">❌ خطأ: ' + e.message + '</div>';
+      }
+    }
+
+    function copyLicense() {
+      const text = document.getElementById('licenseKey').textContent;
+      navigator.clipboard.writeText(text).then(() => alert('تم نسخ الترخيص!'));
+    }
+
+    // Set default expiry to 1 year from now
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 1);
+    document.getElementById('expiryDate').value = d.toISOString().split('T')[0];
+
+    // Check keys on load
+    checkKeys();
+  </script>
+</body>
+</html>
