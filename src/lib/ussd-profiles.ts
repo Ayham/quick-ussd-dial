@@ -6,27 +6,54 @@ export interface AmountPreset {
 }
 
 export interface OperatorCredentials {
-  mtnSecret: string;       // الرمز السري لشريحة MTN
-  syriatelSerial: string;  // الرقم السيري لشريحة سيريتيل
-  syriatelDistributor: string; // كود الموزع سيريتيل
+  mtnSecret: string;
+  syriatelSerial: string;
+  syriatelDistributor: string;
 }
 
 export const DEFAULT_MTN_PRESETS: AmountPreset[] = [
-  { amount: 5000, price: 5500 },
-  { amount: 10000, price: 11000 },
-  { amount: 15000, price: 16500 },
-  { amount: 20000, price: 22000 },
-  { amount: 25000, price: 27500 },
-  { amount: 50000, price: 55000 },
+  { amount: 100, price: 12000 },
+  { amount: 200, price: 25000 },
+  { amount: 50, price: 6000 },
+  { amount: 300, price: 36000 },
+  { amount: 150, price: 18000 },
+  { amount: 70, price: 9000 },
+  { amount: 40, price: 5000 },
+  { amount: 500, price: 60000 },
+  { amount: 350, price: 44000 },
+  { amount: 400, price: 50000 },
+  { amount: 30, price: 4000 },
+  { amount: 20, price: 2500 },
+  { amount: 750, price: 90000 },
 ];
 
 export const DEFAULT_SYRIATEL_PRESETS: AmountPreset[] = [
-  { amount: 5000, price: 5500 },
-  { amount: 10000, price: 11000 },
-  { amount: 15000, price: 16500 },
-  { amount: 20000, price: 22000 },
-  { amount: 25000, price: 27500 },
-  { amount: 50000, price: 55000 },
+  { amount: 8173, price: 10000 },
+  { amount: 4038, price: 5000 },
+  { amount: 10096, price: 12000 },
+  { amount: 16057, price: 20000 },
+  { amount: 6250, price: 8000 },
+  { amount: 3076, price: 4000 },
+  { amount: 2019, price: 2500 },
+  { amount: 2307, price: 3000 },
+  { amount: 4807, price: 6000 },
+  { amount: 5288, price: 7000 },
+  { amount: 7211, price: 9000 },
+  { amount: 10576, price: 13000 },
+  { amount: 11538, price: 14000 },
+  { amount: 13076, price: 16000 },
+  { amount: 14423, price: 18000 },
+  { amount: 18365, price: 23000 },
+  { amount: 19230, price: 24000 },
+  { amount: 21153, price: 26000 },
+  { amount: 24038, price: 29000 },
+  { amount: 28846, price: 36000 },
+  { amount: 31730, price: 40000 },
+  { amount: 37019, price: 46000 },
+  { amount: 43269, price: 54000 },
+  { amount: 48076, price: 60000 },
+  { amount: 57692, price: 70000 },
+  { amount: 72115, price: 90000 },
 ];
 
 // MTN: *150*{secret}*{phone}*{amount}#
@@ -36,8 +63,6 @@ const USSD_TEMPLATES: Record<Operator, string> = {
   syriatel: "*150*1*{serial}*1*{amount}*{phone}*{phone}#",
 };
 
-// MTN: 093, 094, 095, 096
-// Syriatel: 091, 092, 098, 099
 const MTN_PREFIXES = ["093", "094", "095", "096"];
 const SYRIATEL_PREFIXES = ["091", "092", "098", "099"];
 
@@ -67,7 +92,6 @@ export function dialUssd(ussdCode: string) {
   window.location.href = `tel:${encoded}`;
 }
 
-// Preset persistence
 const STORAGE_KEY = "ussd-presets";
 const CREDENTIALS_KEY = "ussd-credentials";
 
