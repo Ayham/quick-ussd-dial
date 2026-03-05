@@ -3,6 +3,7 @@ export interface TransferRecord {
   amount: string;
   operator: string;
   timestamp: number;
+  status: "success" | "failed" | "pending";
 }
 
 const HISTORY_KEY = "transfer-history";
@@ -19,10 +20,16 @@ export function getHistory(): TransferRecord[] {
 export function addToHistory(record: TransferRecord) {
   const history = getHistory();
   history.unshift(record);
-  // Keep last 100 records
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 100)));
-  // Also save as contact
   saveContact(record.phone);
+}
+
+export function updateLastRecordStatus(status: "success" | "failed") {
+  const history = getHistory();
+  if (history.length > 0 && history[0].status === "pending") {
+    history[0].status = status;
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  }
 }
 
 export function getHistoryForPhone(phone: string): TransferRecord[] {
