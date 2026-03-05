@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useRef } from "react";
-import { Phone, Hash, Settings, Zap, Clock } from "lucide-react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { Phone, Settings, Zap, Clock, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import {
   detectOperator,
   buildUssdCode,
@@ -13,7 +13,8 @@ import {
 import {
   addToHistory,
   getMatchingContacts,
-  getHistoryForPhone,
+  getHistory,
+  updateLastRecordStatus,
   type TransferRecord,
 } from "@/lib/transfer-history";
 import { Button } from "@/components/ui/button";
@@ -24,25 +25,17 @@ import { useNavigate } from "react-router-dom";
 const Index = () => {
   const navigate = useNavigate();
   const [phone, setPhone] = useState("");
-  const [amount, setAmount] = useState("");
+  const [selectedAmount, setSelectedAmount] = useState<AmountPreset | null>(null);
   const [presets, setPresets] = useState(() => getPresets());
   const [credentials, setCredentials] = useState<OperatorCredentials>(() => getCredentials());
   const [showContacts, setShowContacts] = useState(false);
-  const [phoneHistory, setPhoneHistory] = useState<TransferRecord[]>([]);
+  const [history, setHistory] = useState<TransferRecord[]>(() => getHistory());
+  const [pendingDial, setPendingDial] = useState(false);
   const contactsRef = useRef<HTMLDivElement>(null);
 
   const operator = useMemo(() => detectOperator(phone), [phone]);
   const currentPresets: AmountPreset[] = operator ? presets[operator] : [];
   const matchingContacts = useMemo(() => getMatchingContacts(phone), [phone]);
-
-  // Load history for selected phone
-  useEffect(() => {
-    if (phone.length >= 10) {
-      setPhoneHistory(getHistoryForPhone(phone));
-    } else {
-      setPhoneHistory([]);
-    }
-  }, [phone]);
 
   // Close contacts dropdown on outside click
   useEffect(() => {
@@ -55,7 +48,23 @@ const Index = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const handleDial = () => {
+  // Refresh presets when returning from settings
+  useEffect(() => {
+    const handleFocus = () => {
+      setPresets(getPresets());
+      setCredentials(getCredentials());
+      setHistory(getHistory());
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, []);
+
+  // Reset selected amount when operator changes
+  useEffect(() => {
+    setSelectedAmount(null);
+  }, [operator]);
+
+  const handleDial = useCallback(() => {
     if (!phone.trim() || phone.trim().length < 10) {
       toast.error("الرجاء إدخال رقم هاتف صحيح");
       return;
@@ -64,214 +73,245 @@ const Index = () => {
       toast.error("لم يتم التعرف على المشغّل");
       return;
     }
-    if (!amount.trim()) {
-      toast.error("الرجاء إدخال المبلغ");
+    if (!selectedAmount) {
+      toast.error("الرجاء اختيار المبلغ");
       return;
     }
-    const ussd = buildUssdCode(operator, phone.trim(), amount.trim(), credentials);
 
-    // Save to history
+    const ussd = buildUssdCode(operator, phone.trim(), String(selectedAmount.amount), credentials);
+
+    // Add as pending
     addToHistory({
       phone: phone.trim(),
-      amount: amount.trim(),
+      amount: String(selectedAmount.amount),
       operator,
       timestamp: Date.now(),
+      status: "pending",
     });
+    setHistory(getHistory());
+    setPendingDial(true);
 
+    // Dial immediately
     dialUssd(ussd);
-  };
+
+    // Show confirmation dialog after dialing
+    setTimeout(() => {
+      setPendingDial(false);
+    }, 2000);
+  }, [phone, operator, selectedAmount, credentials]);
+
+  const markLastStatus = useCallback((status: "success" | "failed") => {
+    updateLastRecordStatus(status);
+    setHistory(getHistory());
+    if (status === "success") {
+      toast.success("تم التحويل بنجاح ✓");
+    } else {
+      toast.error("فشل التحويل ✗");
+    }
+  }, []);
 
   const selectContact = (contact: string) => {
     setPhone(contact);
     setShowContacts(false);
   };
 
-  const ussdPreview =
-    operator && phone && amount
-      ? buildUssdCode(operator, phone, amount, credentials)
-      : null;
+  const phoneHistory = useMemo(
+    () => history.filter((r) => !phone || r.phone.includes(phone)).slice(0, 20),
+    [history, phone]
+  );
 
-  // Refresh presets when returning from settings
-  useEffect(() => {
-    const handleFocus = () => { setPresets(getPresets()); setCredentials(getCredentials()); };
-    window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
-  }, []);
+  const hasPending = history.length > 0 && history[0].status === "pending";
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="bg-primary px-4 py-5 flex items-center justify-between shadow-md">
-        <div className="flex items-center gap-3">
-          <Zap className="w-6 h-6 text-primary-foreground" />
-          <h1 className="text-primary-foreground text-xl font-bold">تحويل رصيد</h1>
+      <header className="bg-primary px-3 py-3 flex items-center justify-between shadow-md">
+        <div className="flex items-center gap-2">
+          <Zap className="w-5 h-5 text-primary-foreground" />
+          <h1 className="text-primary-foreground text-lg font-bold">تحويل رصيد</h1>
         </div>
         <button onClick={() => navigate("/settings")} className="text-primary-foreground">
           <Settings className="w-5 h-5" />
         </button>
       </header>
 
-      <main className="flex-1 p-4 max-w-md mx-auto w-full">
-        <div className="mt-4 space-y-5">
-          {/* Phone Input with autocomplete */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground flex items-center gap-2">
-              <Phone className="w-4 h-4" />
-              رقم الهاتف
-            </label>
-            <div className="relative" ref={contactsRef}>
-              <Input
-                type="tel"
-                placeholder="09XXXXXXXX"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                onFocus={() => setShowContacts(true)}
-                className="text-left text-lg h-12 tracking-wider"
-                dir="ltr"
-                inputMode="tel"
-              />
-              {/* Contacts dropdown */}
-              {showContacts && matchingContacts.length > 0 && (
-                <div className="absolute z-10 top-full mt-1 w-full bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                  {matchingContacts.map((contact) => {
-                    const op = detectOperator(contact);
-                    return (
-                      <button
-                        key={contact}
-                        onClick={() => selectContact(contact)}
-                        className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-muted transition-colors text-left"
-                        dir="ltr"
-                      >
-                        <span className="font-mono text-foreground tracking-wider">{contact}</span>
-                        {op && (
-                          <span
-                            className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                              op === "mtn"
-                                ? "bg-operator-mtn text-operator-mtn-foreground"
-                                : "bg-operator-syriatel text-operator-syriatel-foreground"
-                            }`}
-                          >
-                            {op === "mtn" ? "MTN" : "SYR"}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-            {/* Operator indicator */}
-            {phone.length >= 3 && (
-              <div className="flex items-center gap-2">
-                {operator ? (
-                  <span
-                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
-                      operator === "mtn"
-                        ? "bg-operator-mtn text-operator-mtn-foreground"
-                        : "bg-operator-syriatel text-operator-syriatel-foreground"
-                    }`}
-                  >
-                    {operator === "mtn" ? "MTN" : "Syriatel"}
-                  </span>
-                ) : (
-                  <span className="text-xs text-destructive">رقم غير معروف</span>
-                )}
+      <main className="flex-1 p-3 max-w-md mx-auto w-full space-y-3">
+        {/* Phone Input */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+            <Phone className="w-3.5 h-3.5" />
+            رقم الهاتف
+          </label>
+          <div className="relative" ref={contactsRef}>
+            <Input
+              type="tel"
+              placeholder="09XXXXXXXX"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              onFocus={() => setShowContacts(true)}
+              className="text-left text-base h-10 tracking-wider"
+              dir="ltr"
+              inputMode="tel"
+            />
+            {showContacts && matchingContacts.length > 0 && (
+              <div className="absolute z-10 top-full mt-1 w-full bg-card border border-border rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                {matchingContacts.map((contact) => {
+                  const op = detectOperator(contact);
+                  return (
+                    <button
+                      key={contact}
+                      onClick={() => selectContact(contact)}
+                      className="w-full flex items-center justify-between px-3 py-2 hover:bg-muted transition-colors text-left"
+                      dir="ltr"
+                    >
+                      <span className="font-mono text-foreground text-sm tracking-wider">{contact}</span>
+                      {op && (
+                        <span
+                          className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
+                            op === "mtn"
+                              ? "bg-operator-mtn text-operator-mtn-foreground"
+                              : "bg-operator-syriatel text-operator-syriatel-foreground"
+                          }`}
+                        >
+                          {op === "mtn" ? "MTN" : "SYR"}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
-
-          {/* Previous transfers for this phone */}
-          {phoneHistory.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                تحويلات سابقة لهذا الرقم
-              </p>
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {[...new Set(phoneHistory.map((h) => h.amount))].slice(0, 5).map((amt) => (
-                  <button
-                    key={amt}
-                    onClick={() => setAmount(amt)}
-                    className={`shrink-0 px-4 py-2 rounded-lg border text-sm font-bold transition-all active:scale-95 ${
-                      amount === amt
-                        ? "border-primary bg-primary/10 text-foreground"
-                        : "border-border bg-card text-card-foreground hover:border-muted-foreground/30"
-                    }`}
-                  >
-                    {Number(amt).toLocaleString()}
-                  </button>
-                ))}
-              </div>
+          {phone.length >= 3 && (
+            <div className="flex items-center gap-2">
+              {operator ? (
+                <span
+                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                    operator === "mtn"
+                      ? "bg-operator-mtn text-operator-mtn-foreground"
+                      : "bg-operator-syriatel text-operator-syriatel-foreground"
+                  }`}
+                >
+                  {operator === "mtn" ? "MTN" : "Syriatel"}
+                </span>
+              ) : (
+                <span className="text-xs text-destructive">رقم غير معروف</span>
+              )}
             </div>
           )}
-
-          {/* Amount Input */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground flex items-center gap-2">
-              <Hash className="w-4 h-4" />
-              المبلغ
-            </label>
-            <Input
-              type="number"
-              placeholder="0"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="text-left text-lg h-12 tracking-wider"
-              dir="ltr"
-              inputMode="numeric"
-            />
-          </div>
-
-          {/* Preset Amounts */}
-          {operator && currentPresets.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-muted-foreground">مبالغ جاهزة</p>
-              <div className="grid grid-cols-3 gap-2">
-                {currentPresets.map((preset, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setAmount(String(preset.amount))}
-                    className={`flex flex-col items-center p-3 rounded-lg border transition-all active:scale-95 ${
-                      amount === String(preset.amount)
-                        ? operator === "mtn"
-                          ? "border-operator-mtn bg-operator-mtn/10"
-                          : "border-operator-syriatel bg-operator-syriatel/10"
-                        : "border-border bg-card hover:border-muted-foreground/30"
-                    }`}
-                  >
-                    <span className="font-bold text-card-foreground text-sm">
-                      {preset.amount.toLocaleString()}
-                    </span>
-                    <span className="text-xs text-muted-foreground mt-0.5">
-                      {preset.price.toLocaleString()} ل.س
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* USSD Preview */}
-          {ussdPreview && (
-            <div className="bg-muted rounded-lg p-3 text-center">
-              <p className="text-xs text-muted-foreground mb-1">كود USSD</p>
-              <p className="font-mono text-foreground text-lg tracking-wider" dir="ltr">
-                {ussdPreview}
-              </p>
-            </div>
-          )}
-
-          {/* Dial Button */}
-          <Button
-            onClick={handleDial}
-            disabled={!operator || !amount}
-            className="w-full h-14 text-lg font-bold rounded-xl shadow-lg"
-            size="lg"
-          >
-            <Phone className="w-5 h-5 ml-2" />
-            اتصال
-          </Button>
         </div>
+
+        {/* Preset Amounts - shown directly */}
+        {operator && currentPresets.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium text-muted-foreground">اختر المبلغ</p>
+            <div className="grid grid-cols-3 gap-1.5 max-h-[240px] overflow-y-auto">
+              {currentPresets.map((preset, i) => (
+                <button
+                  key={i}
+                  onClick={() => setSelectedAmount(preset)}
+                  className={`flex flex-col items-center p-2 rounded-lg border transition-all active:scale-95 ${
+                    selectedAmount?.amount === preset.amount
+                      ? operator === "mtn"
+                        ? "border-operator-mtn bg-operator-mtn/10 ring-1 ring-operator-mtn"
+                        : "border-operator-syriatel bg-operator-syriatel/10 ring-1 ring-operator-syriatel"
+                      : "border-border bg-card hover:border-muted-foreground/30"
+                  }`}
+                >
+                  <span className="font-bold text-card-foreground text-xs">
+                    {preset.amount.toLocaleString()}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {preset.price.toLocaleString()} ل.س
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Dial Button */}
+        <Button
+          onClick={handleDial}
+          disabled={!operator || !selectedAmount || pendingDial}
+          className="w-full h-12 text-base font-bold rounded-xl shadow-lg"
+          size="lg"
+        >
+          {pendingDial ? (
+            <Loader2 className="w-5 h-5 ml-2 animate-spin" />
+          ) : (
+            <Phone className="w-5 h-5 ml-2" />
+          )}
+          اتصال
+        </Button>
+
+        {/* Confirm status buttons (shown when pending) */}
+        {hasPending && (
+          <div className="flex gap-2">
+            <Button
+              onClick={() => markLastStatus("success")}
+              className="flex-1 h-10 bg-green-600 hover:bg-green-700 text-white"
+            >
+              <CheckCircle className="w-4 h-4 ml-1" />
+              نجحت
+            </Button>
+            <Button
+              onClick={() => markLastStatus("failed")}
+              variant="destructive"
+              className="flex-1 h-10"
+            >
+              <XCircle className="w-4 h-4 ml-1" />
+              فشلت
+            </Button>
+          </div>
+        )}
+
+        {/* Transfer History */}
+        {phoneHistory.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5" />
+              التحويلات السابقة
+            </p>
+            <div className="space-y-1 max-h-[200px] overflow-y-auto">
+              {phoneHistory.map((record, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between bg-card border border-border rounded-lg px-3 py-2 text-sm"
+                >
+                  <div className="flex flex-col">
+                    <span className="font-mono text-foreground text-xs" dir="ltr">
+                      {record.phone}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(record.timestamp).toLocaleDateString("ar-SY", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-foreground text-xs">
+                      {Number(record.amount).toLocaleString()}
+                    </span>
+                    {record.status === "success" && (
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                    )}
+                    {record.status === "failed" && (
+                      <XCircle className="w-4 h-4 text-destructive" />
+                    )}
+                    {record.status === "pending" && (
+                      <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
