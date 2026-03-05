@@ -1,16 +1,24 @@
 import { useState } from "react";
-import { ArrowLeft, Plus, Trash2, Key } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Key, Code } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   getPresets,
   savePresets,
   getCredentials,
   saveCredentials,
+  getUssdThemes,
+  saveUssdThemes,
+  getSelectedThemes,
+  saveSelectedThemes,
   DEFAULT_MTN_PRESETS,
   DEFAULT_SYRIATEL_PRESETS,
+  DEFAULT_USSD_THEMES,
   type Operator,
   type AmountPreset,
   type OperatorCredentials,
+  type UssdThemes,
+  type SelectedThemes,
+  type ThemeId,
 } from "@/lib/ussd-profiles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +28,8 @@ const Settings = () => {
   const navigate = useNavigate();
   const [presets, setPresets] = useState(() => getPresets());
   const [credentials, setCredentials] = useState<OperatorCredentials>(() => getCredentials());
+  const [themes, setThemes] = useState<UssdThemes>(() => getUssdThemes());
+  const [selectedThemes, setSelectedThemes] = useState<SelectedThemes>(() => getSelectedThemes());
   const [activeTab, setActiveTab] = useState<Operator>("mtn");
 
   const handleAdd = () => {
@@ -42,8 +52,18 @@ const Settings = () => {
     setPresets(updated);
   };
 
+  const handleThemeTemplateChange = (op: Operator, themeId: ThemeId, value: string) => {
+    setThemes({
+      ...themes,
+      [op]: { ...themes[op], [themeId]: value },
+    });
+  };
+
+  const handleSelectedThemeChange = (op: Operator, themeId: ThemeId) => {
+    setSelectedThemes({ ...selectedThemes, [op]: themeId });
+  };
+
   const handleSave = () => {
-    // Validate credentials
     if (!credentials.mtnSecret.trim()) {
       toast.error("الرجاء إدخال الرمز السري لشريحة MTN");
       return;
@@ -54,6 +74,8 @@ const Settings = () => {
     }
     savePresets(presets);
     saveCredentials(credentials);
+    saveUssdThemes(themes);
+    saveSelectedThemes(selectedThemes);
     toast.success("تم الحفظ بنجاح");
     navigate("/");
   };
@@ -64,6 +86,7 @@ const Settings = () => {
       [activeTab]: activeTab === "mtn" ? [...DEFAULT_MTN_PRESETS] : [...DEFAULT_SYRIATEL_PRESETS],
     };
     setPresets(updated);
+    setThemes({ ...themes, [activeTab]: DEFAULT_USSD_THEMES[activeTab] });
     toast.info("تم إعادة التعيين");
   };
 
@@ -83,73 +106,88 @@ const Settings = () => {
             <Key className="w-4 h-4" />
             بيانات الشريحة
           </h2>
-
           <div className="space-y-3 bg-card border border-border rounded-xl p-4">
-            {/* MTN Secret */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-muted-foreground">
-                الرمز السري لشريحة MTN
-              </label>
-              <Input
-                type="number"
-                placeholder="مثال: 20326"
-                value={credentials.mtnSecret}
+              <label className="text-sm font-medium text-muted-foreground">الرمز السري لشريحة MTN</label>
+              <Input type="number" placeholder="مثال: 20326" value={credentials.mtnSecret}
                 onChange={(e) => setCredentials({ ...credentials, mtnSecret: e.target.value })}
-                className="text-left h-10"
-                dir="ltr"
-                inputMode="numeric"
-              />
+                className="text-left h-10" dir="ltr" inputMode="numeric" />
             </div>
-
-            {/* Syriatel Serial */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-muted-foreground">
-                الرقم السيري لشريحة سيريتيل
-              </label>
-              <Input
-                type="number"
-                placeholder="مثال: 32362"
-                value={credentials.syriatelSerial}
+              <label className="text-sm font-medium text-muted-foreground">الرقم السيري لشريحة سيريتيل</label>
+              <Input type="number" placeholder="مثال: 32362" value={credentials.syriatelSerial}
                 onChange={(e) => setCredentials({ ...credentials, syriatelSerial: e.target.value })}
-                className="text-left h-10"
-                dir="ltr"
-                inputMode="numeric"
-              />
+                className="text-left h-10" dir="ltr" inputMode="numeric" />
             </div>
-
-            {/* Syriatel Distributor */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-muted-foreground">
-                كود الموزع سيريتيل
-              </label>
-              <Input
-                type="number"
-                placeholder="مثال: 640322"
-                value={credentials.syriatelDistributor}
+              <label className="text-sm font-medium text-muted-foreground">كود الموزع سيريتيل</label>
+              <Input type="number" placeholder="مثال: 640322" value={credentials.syriatelDistributor}
                 onChange={(e) => setCredentials({ ...credentials, syriatelDistributor: e.target.value })}
-                className="text-left h-10"
-                dir="ltr"
-                inputMode="numeric"
-              />
+                className="text-left h-10" dir="ltr" inputMode="numeric" />
             </div>
           </div>
+        </div>
+
+        {/* USSD Themes Section */}
+        <div className="mb-6 space-y-4">
+          <h2 className="text-foreground font-bold flex items-center gap-2">
+            <Code className="w-4 h-4" />
+            أكواد USSD
+          </h2>
+
+          {(["mtn", "syriatel"] as Operator[]).map((op) => (
+            <div key={op} className="bg-card border border-border rounded-xl p-4 space-y-3">
+              <p className={`font-bold text-sm ${op === "mtn" ? "text-operator-mtn" : "text-operator-syriatel"}`}>
+                {op === "mtn" ? "MTN" : "Syriatel"}
+              </p>
+
+              {(["theme1", "theme2"] as ThemeId[]).map((themeId) => (
+                <div key={themeId} className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleSelectedThemeChange(op, themeId)}
+                      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
+                        selectedThemes[op] === themeId
+                          ? op === "mtn"
+                            ? "border-operator-mtn bg-operator-mtn"
+                            : "border-operator-syriatel bg-operator-syriatel"
+                          : "border-muted-foreground"
+                      }`}
+                    >
+                      {selectedThemes[op] === themeId && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                      )}
+                    </button>
+                    <label className="text-xs font-medium text-muted-foreground">
+                      {themeId === "theme1" ? "ثيم 1" : "ثيم 2"}
+                    </label>
+                  </div>
+                  <Input
+                    type="text"
+                    value={themes[op][themeId]}
+                    onChange={(e) => handleThemeTemplateChange(op, themeId, e.target.value)}
+                    className="text-left text-xs h-9 font-mono"
+                    dir="ltr"
+                  />
+                </div>
+              ))}
+            </div>
+          ))}
+          <p className="text-[10px] text-muted-foreground">
+            المتغيرات المتاحة: {"{phone}"} {"{amount}"} {"{secret}"} {"{serial}"}
+          </p>
         </div>
 
         {/* Tabs */}
         <h2 className="text-foreground font-bold mb-3">قوائم المبالغ</h2>
         <div className="flex gap-2 mb-6">
           {(["mtn", "syriatel"] as Operator[]).map((op) => (
-            <button
-              key={op}
-              onClick={() => setActiveTab(op)}
+            <button key={op} onClick={() => setActiveTab(op)}
               className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${
                 activeTab === op
-                  ? op === "mtn"
-                    ? "bg-operator-mtn text-operator-mtn-foreground"
-                    : "bg-operator-syriatel text-operator-syriatel-foreground"
+                  ? op === "mtn" ? "bg-operator-mtn text-operator-mtn-foreground" : "bg-operator-syriatel text-operator-syriatel-foreground"
                   : "bg-muted text-muted-foreground"
-              }`}
-            >
+              }`}>
               {op === "mtn" ? "MTN" : "Syriatel"}
             </button>
           ))}
@@ -162,40 +200,20 @@ const Settings = () => {
             <span className="flex-1">السعر (ل.س)</span>
             <span className="w-9" />
           </div>
-
           {presets[activeTab].map((preset, i) => (
             <div key={i} className="flex items-center gap-2">
-              <Input
-                type="number"
-                value={preset.amount || ""}
-                onChange={(e) => handleChange(i, "amount", e.target.value)}
-                placeholder="المبلغ"
-                className="flex-1 text-left h-10"
-                dir="ltr"
-                inputMode="numeric"
-              />
-              <Input
-                type="number"
-                value={preset.price || ""}
-                onChange={(e) => handleChange(i, "price", e.target.value)}
-                placeholder="السعر"
-                className="flex-1 text-left h-10"
-                dir="ltr"
-                inputMode="numeric"
-              />
-              <button
-                onClick={() => handleRemove(i)}
-                className="w-9 h-9 flex items-center justify-center text-destructive rounded-md hover:bg-destructive/10"
-              >
+              <Input type="number" value={preset.amount || ""} onChange={(e) => handleChange(i, "amount", e.target.value)}
+                placeholder="المبلغ" className="flex-1 text-left h-10" dir="ltr" inputMode="numeric" />
+              <Input type="number" value={preset.price || ""} onChange={(e) => handleChange(i, "price", e.target.value)}
+                placeholder="السعر" className="flex-1 text-left h-10" dir="ltr" inputMode="numeric" />
+              <button onClick={() => handleRemove(i)}
+                className="w-9 h-9 flex items-center justify-center text-destructive rounded-md hover:bg-destructive/10">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
           ))}
-
-          <button
-            onClick={handleAdd}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-          >
+          <button onClick={handleAdd}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors">
             <Plus className="w-4 h-4" />
             إضافة مبلغ
           </button>
@@ -203,12 +221,8 @@ const Settings = () => {
 
         {/* Actions */}
         <div className="mt-8 space-y-3">
-          <Button onClick={handleSave} className="w-full h-12 text-lg font-bold rounded-xl">
-            حفظ
-          </Button>
-          <Button onClick={handleReset} variant="outline" className="w-full h-10">
-            إعادة تعيين الافتراضي
-          </Button>
+          <Button onClick={handleSave} className="w-full h-12 text-lg font-bold rounded-xl">حفظ</Button>
+          <Button onClick={handleReset} variant="outline" className="w-full h-10">إعادة تعيين الافتراضي</Button>
         </div>
       </main>
     </div>
