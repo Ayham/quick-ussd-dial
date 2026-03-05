@@ -1,4 +1,5 @@
 export type Operator = "mtn" | "syriatel";
+export type ThemeId = "theme1" | "theme2";
 
 export interface AmountPreset {
   amount: number;
@@ -9,6 +10,16 @@ export interface OperatorCredentials {
   mtnSecret: string;
   syriatelSerial: string;
   syriatelDistributor: string;
+}
+
+export interface UssdThemes {
+  mtn: Record<ThemeId, string>;
+  syriatel: Record<ThemeId, string>;
+}
+
+export interface SelectedThemes {
+  mtn: ThemeId;
+  syriatel: ThemeId;
 }
 
 export const DEFAULT_MTN_PRESETS: AmountPreset[] = [
@@ -56,11 +67,15 @@ export const DEFAULT_SYRIATEL_PRESETS: AmountPreset[] = [
   { amount: 72115, price: 90000 },
 ];
 
-// MTN: *150*{secret}*{phone}*{amount}#
-// Syriatel: *150*1*{serial}*1*{amount}*{phone}*{phone}#
-const USSD_TEMPLATES: Record<Operator, string> = {
-  mtn: "*150*{secret}*{phone}*{amount}#",
-  syriatel: "*150*1*{serial}*1*{amount}*{phone}*{phone}#",
+export const DEFAULT_USSD_THEMES: UssdThemes = {
+  mtn: {
+    theme1: "*150*{secret}*{phone}*{amount}#",
+    theme2: "*150*{secret}*{amount}*{phone}#",
+  },
+  syriatel: {
+    theme1: "*150*1*{serial}*1*{amount}*{phone}*{phone}#",
+    theme2: "*150*1*{serial}*{amount}*{phone}#",
+  },
 };
 
 const MTN_PREFIXES = ["093", "094", "095", "096"];
@@ -78,9 +93,15 @@ export function buildUssdCode(
   operator: Operator,
   phone: string,
   amount: string,
-  credentials: OperatorCredentials
+  credentials: OperatorCredentials,
+  themeId?: ThemeId
 ): string {
-  return USSD_TEMPLATES[operator]
+  const themes = getUssdThemes();
+  const selectedThemes = getSelectedThemes();
+  const activeTheme = themeId || selectedThemes[operator];
+  const template = themes[operator][activeTheme];
+  
+  return template
     .replace(/\{phone\}/g, phone)
     .replace(/\{amount\}/g, amount)
     .replace(/\{secret\}/g, credentials.mtnSecret)
@@ -94,6 +115,8 @@ export function dialUssd(ussdCode: string) {
 
 const STORAGE_KEY = "ussd-presets";
 const CREDENTIALS_KEY = "ussd-credentials";
+const THEMES_KEY = "ussd-themes";
+const SELECTED_THEMES_KEY = "ussd-selected-themes";
 
 export function getPresets(): Record<Operator, AmountPreset[]> {
   try {
@@ -117,4 +140,28 @@ export function getCredentials(): OperatorCredentials {
 
 export function saveCredentials(credentials: OperatorCredentials) {
   localStorage.setItem(CREDENTIALS_KEY, JSON.stringify(credentials));
+}
+
+export function getUssdThemes(): UssdThemes {
+  try {
+    const stored = localStorage.getItem(THEMES_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return DEFAULT_USSD_THEMES;
+}
+
+export function saveUssdThemes(themes: UssdThemes) {
+  localStorage.setItem(THEMES_KEY, JSON.stringify(themes));
+}
+
+export function getSelectedThemes(): SelectedThemes {
+  try {
+    const stored = localStorage.getItem(SELECTED_THEMES_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return { mtn: "theme1", syriatel: "theme1" };
+}
+
+export function saveSelectedThemes(selected: SelectedThemes) {
+  localStorage.setItem(SELECTED_THEMES_KEY, JSON.stringify(selected));
 }
