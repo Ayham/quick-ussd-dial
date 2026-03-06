@@ -78,6 +78,8 @@ export const DEFAULT_USSD_THEMES: UssdThemes = {
   },
 };
 
+// Remove the old dialUssd function - use ussd-dialer.ts instead
+
 const MTN_PREFIXES = ["093", "094", "095", "096"];
 const SYRIATEL_PREFIXES = ["091", "092", "098", "099"];
 

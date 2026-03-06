@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Settings from "./pages/Settings";
+import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 import Activation from "./pages/Activation";
 import { getAppStatus, type AppLicenseStatus } from "./lib/license";
@@ -37,6 +38,7 @@ const AppContent = () => {
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/reports" element={<Reports />} />
         <Route path="/activation" element={<Activation status={status} onActivated={checkStatus} />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
