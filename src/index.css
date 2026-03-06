@@ -95,3 +95,17 @@
     @apply bg-background text-foreground font-tajawal;
   }
 }
+
+/* Safe area insets for Android status bar and navigation bar */
+.safe-area-insets {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}

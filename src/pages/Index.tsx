@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Phone, Settings, Zap, Clock, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Phone, Settings, Zap, Clock, CheckCircle, XCircle, Loader2, BarChart3 } from "lucide-react";
 import {
   detectOperator,
   buildUssdCode,
-  dialUssd,
   getPresets,
   getCredentials,
   type Operator,
@@ -17,6 +16,7 @@ import {
   updateLastRecordStatus,
   type TransferRecord,
 } from "@/lib/transfer-history";
+import { dialUssdDirect } from "@/lib/ussd-dialer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -37,7 +37,6 @@ const Index = () => {
   const currentPresets: AmountPreset[] = operator ? presets[operator] : [];
   const matchingContacts = useMemo(() => getMatchingContacts(phone), [phone]);
 
-  // Close contacts dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (contactsRef.current && !contactsRef.current.contains(e.target as Node)) {
@@ -48,7 +47,6 @@ const Index = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Refresh presets when returning from settings
   useEffect(() => {
     const handleFocus = () => {
       setPresets(getPresets());
@@ -59,12 +57,11 @@ const Index = () => {
     return () => window.removeEventListener("focus", handleFocus);
   }, []);
 
-  // Reset selected amount when operator changes
   useEffect(() => {
     setSelectedAmount(null);
   }, [operator]);
 
-  const handleDial = useCallback(() => {
+  const handleDial = useCallback(async () => {
     if (!phone.trim() || phone.trim().length < 10) {
       toast.error("الرجاء إدخال رقم هاتف صحيح");
       return;
@@ -79,25 +76,27 @@ const Index = () => {
     }
 
     const ussd = buildUssdCode(operator, phone.trim(), String(selectedAmount.amount), credentials);
-
-    // Add as pending
-    addToHistory({
-      phone: phone.trim(),
-      amount: String(selectedAmount.amount),
-      operator,
-      timestamp: Date.now(),
-      status: "pending",
-    });
-    setHistory(getHistory());
     setPendingDial(true);
 
-    // Dial immediately
-    dialUssd(ussd);
+    try {
+      await dialUssdDirect(ussd);
 
-    // Show confirmation dialog after dialing
-    setTimeout(() => {
+      // Add to history as pending
+      addToHistory({
+        phone: phone.trim(),
+        amount: String(selectedAmount.amount),
+        operator,
+        timestamp: Date.now(),
+        status: "pending",
+      });
+      setHistory(getHistory());
+
+      toast.success("تم إرسال الطلب بنجاح");
+    } catch {
+      toast.error("فشل إرسال الطلب");
+    } finally {
       setPendingDial(false);
-    }, 2000);
+    }
   }, [phone, operator, selectedAmount, credentials]);
 
   const markLastStatus = useCallback((status: "success" | "failed") => {
@@ -105,6 +104,9 @@ const Index = () => {
     setHistory(getHistory());
     if (status === "success") {
       toast.success("تم التحويل بنجاح ✓");
+      // Reset for next transfer
+      setPhone("");
+      setSelectedAmount(null);
     } else {
       toast.error("فشل التحويل ✗");
     }
@@ -115,29 +117,35 @@ const Index = () => {
     setShowContacts(false);
   };
 
+  // History filtered by entered phone number
   const phoneHistory = useMemo(
-    () => history.filter((r) => !phone || r.phone.includes(phone)).slice(0, 20),
+    () => (phone.trim().length >= 3 ? history.filter((r) => r.phone.includes(phone.trim())) : []).slice(0, 10),
     [history, phone]
   );
 
   const hasPending = history.length > 0 && history[0].status === "pending";
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col safe-area-insets">
       {/* Header */}
-      <header className="bg-primary px-3 py-3 flex items-center justify-between shadow-md">
+      <header className="bg-primary px-3 py-2 flex items-center justify-between shadow-md pt-safe">
         <div className="flex items-center gap-2">
           <Zap className="w-5 h-5 text-primary-foreground" />
           <h1 className="text-primary-foreground text-lg font-bold">تحويل رصيد</h1>
         </div>
-        <button onClick={() => navigate("/settings")} className="text-primary-foreground">
-          <Settings className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => navigate("/reports")} className="text-primary-foreground">
+            <BarChart3 className="w-5 h-5" />
+          </button>
+          <button onClick={() => navigate("/settings")} className="text-primary-foreground">
+            <Settings className="w-5 h-5" />
+          </button>
+        </div>
       </header>
 
-      <main className="flex-1 p-3 max-w-md mx-auto w-full space-y-3">
+      <main className="flex-1 p-2 max-w-md mx-auto w-full space-y-2 overflow-y-auto pb-safe">
         {/* Phone Input */}
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
             <Phone className="w-3.5 h-3.5" />
             رقم الهاتف
@@ -154,20 +162,20 @@ const Index = () => {
               inputMode="tel"
             />
             {showContacts && matchingContacts.length > 0 && (
-              <div className="absolute z-10 top-full mt-1 w-full bg-card border border-border rounded-lg shadow-lg max-h-40 overflow-y-auto">
+              <div className="absolute z-10 top-full mt-1 w-full bg-card border border-border rounded-lg shadow-lg max-h-36 overflow-y-auto">
                 {matchingContacts.map((contact) => {
                   const op = detectOperator(contact);
                   return (
                     <button
                       key={contact}
                       onClick={() => selectContact(contact)}
-                      className="w-full flex items-center justify-between px-3 py-2 hover:bg-muted transition-colors text-left"
+                      className="w-full flex items-center justify-between px-3 py-1.5 hover:bg-muted transition-colors text-left"
                       dir="ltr"
                     >
                       <span className="font-mono text-foreground text-sm tracking-wider">{contact}</span>
                       {op && (
                         <span
-                          className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
                             op === "mtn"
                               ? "bg-operator-mtn text-operator-mtn-foreground"
                               : "bg-operator-syriatel text-operator-syriatel-foreground"
@@ -182,35 +190,32 @@ const Index = () => {
               </div>
             )}
           </div>
-          {phone.length >= 3 && (
-            <div className="flex items-center gap-2">
-              {operator ? (
-                <span
-                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
-                    operator === "mtn"
-                      ? "bg-operator-mtn text-operator-mtn-foreground"
-                      : "bg-operator-syriatel text-operator-syriatel-foreground"
-                  }`}
-                >
-                  {operator === "mtn" ? "MTN" : "Syriatel"}
-                </span>
-              ) : (
-                <span className="text-xs text-destructive">رقم غير معروف</span>
-              )}
-            </div>
+          {phone.length >= 3 && operator && (
+            <span
+              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                operator === "mtn"
+                  ? "bg-operator-mtn text-operator-mtn-foreground"
+                  : "bg-operator-syriatel text-operator-syriatel-foreground"
+              }`}
+            >
+              {operator === "mtn" ? "MTN" : "Syriatel"}
+            </span>
+          )}
+          {phone.length >= 3 && !operator && (
+            <span className="text-[10px] text-destructive">رقم غير معروف</span>
           )}
         </div>
 
-        {/* Preset Amounts - shown directly */}
+        {/* Preset Amounts - displayed in settings order */}
         {operator && currentPresets.length > 0 && (
-          <div className="space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground">اختر المبلغ</p>
-            <div className="grid grid-cols-3 gap-1.5 max-h-[240px] overflow-y-auto">
+          <div className="space-y-1">
+            <p className="text-[10px] font-medium text-muted-foreground">اختر المبلغ</p>
+            <div className="grid grid-cols-3 gap-1 max-h-[220px] overflow-y-auto">
               {currentPresets.map((preset, i) => (
                 <button
                   key={i}
                   onClick={() => setSelectedAmount(preset)}
-                  className={`flex flex-col items-center p-2 rounded-lg border transition-all active:scale-95 ${
+                  className={`flex flex-col items-center p-1.5 rounded-lg border transition-all active:scale-95 ${
                     selectedAmount?.amount === preset.amount
                       ? operator === "mtn"
                         ? "border-operator-mtn bg-operator-mtn/10 ring-1 ring-operator-mtn"
@@ -221,7 +226,7 @@ const Index = () => {
                   <span className="font-bold text-card-foreground text-xs">
                     {preset.amount.toLocaleString()}
                   </span>
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-[9px] text-muted-foreground">
                     {preset.price.toLocaleString()} ل.س
                   </span>
                 </button>
@@ -234,7 +239,7 @@ const Index = () => {
         <Button
           onClick={handleDial}
           disabled={!operator || !selectedAmount || pendingDial}
-          className="w-full h-12 text-base font-bold rounded-xl shadow-lg"
+          className="w-full h-11 text-base font-bold rounded-xl shadow-lg"
           size="lg"
         >
           {pendingDial ? (
@@ -245,12 +250,12 @@ const Index = () => {
           اتصال
         </Button>
 
-        {/* Confirm status buttons (shown when pending) */}
+        {/* Confirm status buttons */}
         {hasPending && (
           <div className="flex gap-2">
             <Button
               onClick={() => markLastStatus("success")}
-              className="flex-1 h-10 bg-green-600 hover:bg-green-700 text-white"
+              className="flex-1 h-9 bg-green-600 hover:bg-green-700 text-white"
             >
               <CheckCircle className="w-4 h-4 ml-1" />
               نجحت
@@ -258,7 +263,7 @@ const Index = () => {
             <Button
               onClick={() => markLastStatus("failed")}
               variant="destructive"
-              className="flex-1 h-10"
+              className="flex-1 h-9"
             >
               <XCircle className="w-4 h-4 ml-1" />
               فشلت
@@ -266,46 +271,34 @@ const Index = () => {
           </div>
         )}
 
-        {/* Transfer History */}
+        {/* Phone-specific history */}
         {phoneHistory.length > 0 && (
-          <div className="space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5" />
-              التحويلات السابقة
+          <div className="space-y-1">
+            <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              سجل التحويلات لهذا الرقم
             </p>
-            <div className="space-y-1 max-h-[200px] overflow-y-auto">
+            <div className="space-y-0.5 max-h-[140px] overflow-y-auto">
               {phoneHistory.map((record, i) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between bg-card border border-border rounded-lg px-3 py-2 text-sm"
+                  className="flex items-center justify-between bg-card border border-border rounded-md px-2 py-1.5 text-xs"
                 >
-                  <div className="flex flex-col">
-                    <span className="font-mono text-foreground text-xs" dir="ltr">
-                      {record.phone}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {new Date(record.timestamp).toLocaleDateString("ar-SY", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-foreground text-xs">
+                  <span className="text-[10px] text-muted-foreground">
+                    {new Date(record.timestamp).toLocaleDateString("ar-SY", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-foreground">
                       {Number(record.amount).toLocaleString()}
                     </span>
-                    {record.status === "success" && (
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                    )}
-                    {record.status === "failed" && (
-                      <XCircle className="w-4 h-4 text-destructive" />
-                    )}
-                    {record.status === "pending" && (
-                      <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
-                    )}
+                    {record.status === "success" && <CheckCircle className="w-3.5 h-3.5 text-green-500" />}
+                    {record.status === "failed" && <XCircle className="w-3.5 h-3.5 text-destructive" />}
+                    {record.status === "pending" && <Loader2 className="w-3.5 h-3.5 text-muted-foreground animate-spin" />}
                   </div>
                 </div>
               ))}
