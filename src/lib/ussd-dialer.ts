@@ -22,13 +22,13 @@ export async function dialUssdDirect(ussdCode: string, simSlot: SimSlot = 0): Pr
       // Try Android Intent with SIM slot
       try {
         const { IntentLauncher, ActivityAction } = await import("@capgo/capacitor-intent-launcher");
-        await IntentLauncher.launch({
+        await IntentLauncher.startActivityAsync({
           action: ActivityAction.CALL,
           uri: `tel:${encodedUssd}`,
-          extras: [
-            { key: "com.android.phone.extra.slot", value: simSlot, type: "int" },
-            { key: "simSlot", value: simSlot, type: "int" },
-          ],
+          extra: {
+            "com.android.phone.extra.slot": simSlot,
+            "simSlot": simSlot,
+          },
         });
         return true;
       } catch (intentErr) {
