@@ -1,6 +1,5 @@
 export type Operator = "mtn" | "syriatel";
-export type ThemeId = "theme1" | "theme2";
-export type SimSlot = 0 | 1; // 0 = SIM 1, 1 = SIM 2
+export type SimSlot = 0 | 1;
 
 export interface AmountPreset {
   amount: number;
@@ -13,14 +12,9 @@ export interface OperatorCredentials {
   syriatelDistributor: string;
 }
 
-export interface UssdThemes {
-  mtn: Record<ThemeId, string>;
-  syriatel: Record<ThemeId, string>;
-}
-
-export interface SelectedThemes {
-  mtn: ThemeId;
-  syriatel: ThemeId;
+export interface UssdTemplates {
+  mtn: string;
+  syriatel: string;
 }
 
 export interface OperatorPrefixes {
@@ -83,15 +77,9 @@ export const DEFAULT_SYRIATEL_PRESETS: AmountPreset[] = [
   { amount: 72115, price: 90000 },
 ];
 
-export const DEFAULT_USSD_THEMES: UssdThemes = {
-  mtn: {
-    theme1: "*150*{secret}*{phone}*{amount}#",
-    theme2: "*150*{secret}*{amount}*{phone}#",
-  },
-  syriatel: {
-    theme1: "*150*1*{serial}*1*{amount}*{phone}*{phone}#",
-    theme2: "*150*1*{serial}*{amount}*{phone}#",
-  },
+export const DEFAULT_USSD_TEMPLATES: UssdTemplates = {
+  mtn: "*150*{secret}*{phone}*{amount}#",
+  syriatel: "*150*1*{serial}*1*{amount}*{phone}*{phone}#",
 };
 
 export const DEFAULT_PREFIXES: OperatorPrefixes = {
@@ -109,11 +97,16 @@ export const DEFAULT_BALANCE_TEMPLATES: BalanceCheckTemplates = {
   syriatel: "*150*2*{serial}*1*{secret}*1#",
 };
 
+export const DEFAULT_CREDENTIALS: OperatorCredentials = {
+  mtnSecret: "",
+  syriatelSerial: "",
+  syriatelDistributor: "",
+};
+
 // Storage keys
 const STORAGE_KEY = "ussd-presets";
 const CREDENTIALS_KEY = "ussd-credentials";
-const THEMES_KEY = "ussd-themes";
-const SELECTED_THEMES_KEY = "ussd-selected-themes";
+const TEMPLATES_KEY = "ussd-templates";
 const PREFIXES_KEY = "operator-prefixes";
 const SIM_ASSIGNMENT_KEY = "sim-assignment";
 const BALANCE_TEMPLATES_KEY = "balance-templates";
@@ -157,7 +150,7 @@ export function saveBalanceTemplates(templates: BalanceCheckTemplates) {
   localStorage.setItem(BALANCE_TEMPLATES_KEY, JSON.stringify(templates));
 }
 
-// Operator detection using dynamic prefixes
+// Operator detection
 export function detectOperator(phone: string): Operator | null {
   const cleaned = phone.replace(/\s/g, "");
   const prefix = cleaned.substring(0, 3);
@@ -167,17 +160,27 @@ export function detectOperator(phone: string): Operator | null {
   return null;
 }
 
+// USSD Templates (single per operator)
+export function getUssdTemplates(): UssdTemplates {
+  try {
+    const stored = localStorage.getItem(TEMPLATES_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return DEFAULT_USSD_TEMPLATES;
+}
+
+export function saveUssdTemplates(templates: UssdTemplates) {
+  localStorage.setItem(TEMPLATES_KEY, JSON.stringify(templates));
+}
+
 export function buildUssdCode(
   operator: Operator,
   phone: string,
   amount: string,
-  credentials: OperatorCredentials,
-  themeId?: ThemeId
+  credentials: OperatorCredentials
 ): string {
-  const themes = getUssdThemes();
-  const selectedThemes = getSelectedThemes();
-  const activeTheme = themeId || selectedThemes[operator];
-  const template = themes[operator][activeTheme];
+  const templates = getUssdTemplates();
+  const template = templates[operator];
 
   return template
     .replace(/\{phone\}/g, phone)
@@ -220,35 +223,19 @@ export function getCredentials(): OperatorCredentials {
     const stored = localStorage.getItem(CREDENTIALS_KEY);
     if (stored) return JSON.parse(stored);
   } catch {}
-  return { mtnSecret: "", syriatelSerial: "", syriatelDistributor: "" };
+  return DEFAULT_CREDENTIALS;
 }
 
 export function saveCredentials(credentials: OperatorCredentials) {
   localStorage.setItem(CREDENTIALS_KEY, JSON.stringify(credentials));
 }
 
-// USSD Themes
-export function getUssdThemes(): UssdThemes {
-  try {
-    const stored = localStorage.getItem(THEMES_KEY);
-    if (stored) return JSON.parse(stored);
-  } catch {}
-  return DEFAULT_USSD_THEMES;
-}
-
-export function saveUssdThemes(themes: UssdThemes) {
-  localStorage.setItem(THEMES_KEY, JSON.stringify(themes));
-}
-
-// Selected Themes
-export function getSelectedThemes(): SelectedThemes {
-  try {
-    const stored = localStorage.getItem(SELECTED_THEMES_KEY);
-    if (stored) return JSON.parse(stored);
-  } catch {}
-  return { mtn: "theme1", syriatel: "theme1" };
-}
-
-export function saveSelectedThemes(selected: SelectedThemes) {
-  localStorage.setItem(SELECTED_THEMES_KEY, JSON.stringify(selected));
+// Reset ALL settings to defaults
+export function resetAllSettings() {
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(CREDENTIALS_KEY);
+  localStorage.removeItem(TEMPLATES_KEY);
+  localStorage.removeItem(PREFIXES_KEY);
+  localStorage.removeItem(SIM_ASSIGNMENT_KEY);
+  localStorage.removeItem(BALANCE_TEMPLATES_KEY);
 }
