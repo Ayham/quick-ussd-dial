@@ -21,13 +21,12 @@ export async function dialUssdDirect(ussdCode: string, simSlot: SimSlot = 0): Pr
       console.error("Direct USSD dial failed:", err);
       // Try Android Intent with SIM slot
       try {
-        const { CapacitorIntentLauncher, IntentAction } = await import("@capgo/capacitor-intent-launcher");
-        await CapacitorIntentLauncher.launch({
-          action: IntentAction.CALL,
+        const { IntentLauncher, ActivityAction } = await import("@capgo/capacitor-intent-launcher");
+        await IntentLauncher.launch({
+          action: ActivityAction.CALL,
           uri: `tel:${encodedUssd}`,
           extras: [
             { key: "com.android.phone.extra.slot", value: simSlot, type: "int" },
-            { key: "android.telecom.extra.PHONE_ACCOUNT_HANDLE", value: String(simSlot), type: "string" },
             { key: "simSlot", value: simSlot, type: "int" },
           ],
         });
