@@ -4,17 +4,17 @@ import { useNavigate } from "react-router-dom";
 import {
   getPresets, savePresets,
   getCredentials, saveCredentials,
-  getUssdThemes, saveUssdThemes,
-  getSelectedThemes, saveSelectedThemes,
+  getUssdTemplates, saveUssdTemplates,
   getPrefixes, savePrefixes,
   getSimAssignment, saveSimAssignment,
   getBalanceTemplates, saveBalanceTemplates,
+  resetAllSettings,
   DEFAULT_MTN_PRESETS, DEFAULT_SYRIATEL_PRESETS,
-  DEFAULT_USSD_THEMES, DEFAULT_PREFIXES,
+  DEFAULT_USSD_TEMPLATES, DEFAULT_PREFIXES,
   DEFAULT_SIM_ASSIGNMENT, DEFAULT_BALANCE_TEMPLATES,
+  DEFAULT_CREDENTIALS,
   type Operator, type AmountPreset, type OperatorCredentials,
-  type UssdThemes, type SelectedThemes, type ThemeId,
-  type OperatorPrefixes, type SimSlot, type SimAssignment,
+  type UssdTemplates, type OperatorPrefixes, type SimSlot, type SimAssignment,
   type BalanceCheckTemplates,
 } from "@/lib/ussd-profiles";
 import { Button } from "@/components/ui/button";
@@ -25,8 +25,7 @@ const Settings = () => {
   const navigate = useNavigate();
   const [presets, setPresets] = useState(() => getPresets());
   const [credentials, setCredentials] = useState<OperatorCredentials>(() => getCredentials());
-  const [themes, setThemes] = useState<UssdThemes>(() => getUssdThemes());
-  const [selectedThemes, setSelectedThemes] = useState<SelectedThemes>(() => getSelectedThemes());
+  const [templates, setTemplates] = useState<UssdTemplates>(() => getUssdTemplates());
   const [prefixes, setPrefixes] = useState<OperatorPrefixes>(() => getPrefixes());
   const [simAssignment, setSimAssignment] = useState<SimAssignment>(() => getSimAssignment());
   const [balanceTemplates, setBalanceTemplates] = useState<BalanceCheckTemplates>(() => getBalanceTemplates());
@@ -81,15 +80,6 @@ const Settings = () => {
     setPrefixes({ ...prefixes, [op]: prefixes[op].filter((p) => p !== prefix) });
   };
 
-  // Theme handlers
-  const handleThemeTemplateChange = (op: Operator, themeId: ThemeId, value: string) => {
-    setThemes({ ...themes, [op]: { ...themes[op], [themeId]: value } });
-  };
-
-  const handleSelectedThemeChange = (op: Operator, themeId: ThemeId) => {
-    setSelectedThemes({ ...selectedThemes, [op]: themeId });
-  };
-
   const handleSave = () => {
     if (!credentials.mtnSecret.trim()) {
       toast.error("الرجاء إدخال الرمز السري لشريحة MTN");
@@ -101,8 +91,7 @@ const Settings = () => {
     }
     savePresets(presets);
     saveCredentials(credentials);
-    saveUssdThemes(themes);
-    saveSelectedThemes(selectedThemes);
+    saveUssdTemplates(templates);
     savePrefixes(prefixes);
     saveSimAssignment(simAssignment);
     saveBalanceTemplates(balanceTemplates);
@@ -111,16 +100,14 @@ const Settings = () => {
   };
 
   const handleReset = () => {
-    const updated = {
-      ...presets,
-      [activeTab]: activeTab === "mtn" ? [...DEFAULT_MTN_PRESETS] : [...DEFAULT_SYRIATEL_PRESETS],
-    };
-    setPresets(updated);
-    setThemes({ ...themes, [activeTab]: DEFAULT_USSD_THEMES[activeTab] });
-    setPrefixes({ ...prefixes, [activeTab]: DEFAULT_PREFIXES[activeTab] });
-    setSimAssignment({ ...simAssignment, [activeTab]: DEFAULT_SIM_ASSIGNMENT[activeTab] });
-    setBalanceTemplates({ ...balanceTemplates, [activeTab]: DEFAULT_BALANCE_TEMPLATES[activeTab] });
-    toast.info("تم إعادة التعيين");
+    resetAllSettings();
+    setPresets({ mtn: [...DEFAULT_MTN_PRESETS], syriatel: [...DEFAULT_SYRIATEL_PRESETS] });
+    setCredentials({ ...DEFAULT_CREDENTIALS });
+    setTemplates({ ...DEFAULT_USSD_TEMPLATES });
+    setPrefixes({ mtn: [...DEFAULT_PREFIXES.mtn], syriatel: [...DEFAULT_PREFIXES.syriatel] });
+    setSimAssignment({ ...DEFAULT_SIM_ASSIGNMENT });
+    setBalanceTemplates({ ...DEFAULT_BALANCE_TEMPLATES });
+    toast.info("تم إعادة تعيين جميع الإعدادات");
   };
 
   return (
@@ -224,40 +211,23 @@ const Settings = () => {
           </div>
         </Section>
 
-        {/* USSD Transfer Themes */}
+        {/* USSD Transfer Templates (one per operator) */}
         <Section title="أكواد التحويل USSD" icon={<Code className="w-4 h-4" />}>
-          {(["mtn", "syriatel"] as Operator[]).map((op) => (
-            <div key={op} className="bg-card border border-border rounded-xl p-4 space-y-3 mb-3">
-              <p className={`font-bold text-sm ${op === "mtn" ? "text-operator-mtn" : "text-operator-syriatel"}`}>
-                {op === "mtn" ? "MTN" : "Syriatel"}
-              </p>
-              {(["theme1", "theme2"] as ThemeId[]).map((themeId) => (
-                <div key={themeId} className="space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleSelectedThemeChange(op, themeId)}
-                      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
-                        selectedThemes[op] === themeId
-                          ? op === "mtn" ? "border-operator-mtn bg-operator-mtn" : "border-operator-syriatel bg-operator-syriatel"
-                          : "border-muted-foreground"
-                      }`}
-                    >
-                      {selectedThemes[op] === themeId && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                    </button>
-                    <label className="text-xs font-medium text-muted-foreground">
-                      {themeId === "theme1" ? "ثيم 1" : "ثيم 2"}
-                    </label>
-                  </div>
-                  <Input type="text" value={themes[op][themeId]}
-                    onChange={(e) => handleThemeTemplateChange(op, themeId, e.target.value)}
-                    className="text-left text-xs h-9 font-mono" dir="ltr" />
-                </div>
-              ))}
-            </div>
-          ))}
-          <p className="text-[10px] text-muted-foreground">
-            المتغيرات: {"{phone}"} {"{amount}"} {"{secret}"} {"{serial}"}
-          </p>
+          <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+            {(["mtn", "syriatel"] as Operator[]).map((op) => (
+              <div key={op} className="space-y-1.5">
+                <label className={`text-xs font-bold ${op === "mtn" ? "text-operator-mtn" : "text-operator-syriatel"}`}>
+                  {op === "mtn" ? "MTN" : "Syriatel"}
+                </label>
+                <Input type="text" value={templates[op]}
+                  onChange={(e) => setTemplates({ ...templates, [op]: e.target.value })}
+                  className="text-left text-xs h-9 font-mono" dir="ltr" />
+              </div>
+            ))}
+            <p className="text-[10px] text-muted-foreground">
+              المتغيرات: {"{phone}"} {"{amount}"} {"{secret}"} {"{serial}"}
+            </p>
+          </div>
         </Section>
 
         {/* Amount Presets */}
@@ -314,7 +284,7 @@ const Settings = () => {
         {/* Actions */}
         <div className="mt-8 space-y-3 pb-4">
           <Button onClick={handleSave} className="w-full h-12 text-lg font-bold rounded-xl">حفظ</Button>
-          <Button onClick={handleReset} variant="outline" className="w-full h-10">إعادة تعيين الافتراضي</Button>
+          <Button onClick={handleReset} variant="outline" className="w-full h-10">إعادة تعيين جميع الإعدادات</Button>
         </div>
       </main>
     </div>
