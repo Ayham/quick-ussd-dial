@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import Reports from "./pages/Reports";
+import Balance from "./pages/Balance";
 import NotFound from "./pages/NotFound";
 import Activation from "./pages/Activation";
 import { getAppStatus, type AppLicenseStatus } from "./lib/license";
@@ -25,20 +26,19 @@ const AppContent = () => {
     checkStatus();
   }, []);
 
-  if (!status) return null; // loading
+  if (!status) return null;
 
-  // Show activation for expired/tampered states
   if (status.status === 'trial_expired' || status.status === 'license_expired' || status.status === 'clock_tampered') {
     return <Activation status={status} onActivated={checkStatus} />;
   }
 
-  // Trial active or licensed - show app
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/reports" element={<Reports />} />
+        <Route path="/balance" element={<Balance />} />
         <Route path="/activation" element={<Activation status={status} onActivated={checkStatus} />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
