@@ -24,7 +24,7 @@ export async function dialUssdDirect(ussdCode: string, simSlot: SimSlot = 0): Pr
         const { IntentLauncher, ActivityAction } = await import("@capgo/capacitor-intent-launcher");
         await IntentLauncher.startActivityAsync({
           action: ActivityAction.CALL,
-          uri: `tel:${encodedUssd}`,
+          data: `tel:${encodedUssd}`,
           extra: {
             "com.android.phone.extra.slot": simSlot,
             "simSlot": simSlot,
