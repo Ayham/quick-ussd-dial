@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Phone, Settings, Zap, Clock, CheckCircle, XCircle, Loader2, BarChart3 } from "lucide-react";
+import { Phone, Settings, Zap, Clock, CheckCircle, Loader2, BarChart3, Wallet } from "lucide-react";
 import {
   detectOperator,
   buildUssdCode,
   getPresets,
   getCredentials,
+  getSimAssignment,
   type Operator,
   type AmountPreset,
   type OperatorCredentials,
@@ -13,7 +14,6 @@ import {
   addToHistory,
   getMatchingContacts,
   getHistory,
-  updateLastRecordStatus,
   type TransferRecord,
 } from "@/lib/transfer-history";
 import { dialUssdDirect } from "@/lib/ussd-dialer";
@@ -30,7 +30,7 @@ const Index = () => {
   const [credentials, setCredentials] = useState<OperatorCredentials>(() => getCredentials());
   const [showContacts, setShowContacts] = useState(false);
   const [history, setHistory] = useState<TransferRecord[]>(() => getHistory());
-  const [pendingDial, setPendingDial] = useState(false);
+  const [dialing, setDialing] = useState(false);
   const contactsRef = useRef<HTMLDivElement>(null);
 
   const operator = useMemo(() => detectOperator(phone), [phone]);
@@ -76,41 +76,35 @@ const Index = () => {
     }
 
     const ussd = buildUssdCode(operator, phone.trim(), String(selectedAmount.amount), credentials);
-    setPendingDial(true);
+    const simAssignment = getSimAssignment();
+    const simSlot = simAssignment[operator];
+
+    setDialing(true);
 
     try {
-      await dialUssdDirect(ussd);
+      await dialUssdDirect(ussd, simSlot);
 
-      // Add to history as pending
+      // Log as completed immediately (one-click workflow)
       addToHistory({
         phone: phone.trim(),
         amount: String(selectedAmount.amount),
         operator,
         timestamp: Date.now(),
-        status: "pending",
+        status: "success",
       });
       setHistory(getHistory());
 
-      toast.success("تم إرسال الطلب بنجاح");
-    } catch {
-      toast.error("فشل إرسال الطلب");
-    } finally {
-      setPendingDial(false);
-    }
-  }, [phone, operator, selectedAmount, credentials]);
+      toast.success("تم إرسال الطلب بنجاح ✓");
 
-  const markLastStatus = useCallback((status: "success" | "failed") => {
-    updateLastRecordStatus(status);
-    setHistory(getHistory());
-    if (status === "success") {
-      toast.success("تم التحويل بنجاح ✓");
       // Reset for next transfer
       setPhone("");
       setSelectedAmount(null);
-    } else {
-      toast.error("فشل التحويل ✗");
+    } catch {
+      toast.error("فشل إرسال الطلب");
+    } finally {
+      setDialing(false);
     }
-  }, []);
+  }, [phone, operator, selectedAmount, credentials]);
 
   const selectContact = (contact: string) => {
     setPhone(contact);
@@ -123,8 +117,6 @@ const Index = () => {
     [history, phone]
   );
 
-  const hasPending = history.length > 0 && history[0].status === "pending";
-
   return (
     <div className="min-h-screen bg-background flex flex-col safe-area-insets">
       {/* Header */}
@@ -134,6 +126,9 @@ const Index = () => {
           <h1 className="text-primary-foreground text-lg font-bold">تحويل رصيد</h1>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={() => navigate("/balance")} className="text-primary-foreground">
+            <Wallet className="w-5 h-5" />
+          </button>
           <button onClick={() => navigate("/reports")} className="text-primary-foreground">
             <BarChart3 className="w-5 h-5" />
           </button>
@@ -238,38 +233,17 @@ const Index = () => {
         {/* Dial Button */}
         <Button
           onClick={handleDial}
-          disabled={!operator || !selectedAmount || pendingDial}
+          disabled={!operator || !selectedAmount || dialing}
           className="w-full h-11 text-base font-bold rounded-xl shadow-lg"
           size="lg"
         >
-          {pendingDial ? (
+          {dialing ? (
             <Loader2 className="w-5 h-5 ml-2 animate-spin" />
           ) : (
             <Phone className="w-5 h-5 ml-2" />
           )}
           اتصال
         </Button>
-
-        {/* Confirm status buttons */}
-        {hasPending && (
-          <div className="flex gap-2">
-            <Button
-              onClick={() => markLastStatus("success")}
-              className="flex-1 h-9 bg-green-600 hover:bg-green-700 text-white"
-            >
-              <CheckCircle className="w-4 h-4 ml-1" />
-              نجحت
-            </Button>
-            <Button
-              onClick={() => markLastStatus("failed")}
-              variant="destructive"
-              className="flex-1 h-9"
-            >
-              <XCircle className="w-4 h-4 ml-1" />
-              فشلت
-            </Button>
-          </div>
-        )}
 
         {/* Phone-specific history */}
         {phoneHistory.length > 0 && (
@@ -296,9 +270,7 @@ const Index = () => {
                     <span className="font-bold text-foreground">
                       {Number(record.amount).toLocaleString()}
                     </span>
-                    {record.status === "success" && <CheckCircle className="w-3.5 h-3.5 text-green-500" />}
-                    {record.status === "failed" && <XCircle className="w-3.5 h-3.5 text-destructive" />}
-                    {record.status === "pending" && <Loader2 className="w-3.5 h-3.5 text-muted-foreground animate-spin" />}
+                    <CheckCircle className="w-3.5 h-3.5 text-green-500" />
                   </div>
                 </div>
               ))}
