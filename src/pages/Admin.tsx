@@ -237,6 +237,21 @@ const Admin = () => {
     catch { toast.info("المفتاح العام معروض أدناه"); }
   };
 
+  const handleExportPublicKeyForCode = async () => {
+    const pub = await loadKeyFromDB('publicKey');
+    if (!pub) { toast.error("لم يتم توليد المفاتيح بعد"); return; }
+    const codeSnippet = `const PUBLIC_KEY_JWK: JsonWebKey = {
+  kty: "${pub.kty}",
+  e: "${pub.e}",
+  n: "${pub.n}",
+  alg: "${pub.alg}",
+  ext: true,
+};`;
+    setPublicKeyJson(codeSnippet);
+    try { await navigator.clipboard.writeText(codeSnippet); toast.success("تم نسخ الكود — الصقه في license.ts سطر 13"); }
+    catch { toast.info("الكود معروض أدناه — انسخه يدوياً"); }
+  };
+
   const handleExportPrivateKey = async () => {
     const priv = await loadKeyFromDB('privateKey');
     if (!priv) { toast.error("لم يتم توليد المفاتيح بعد"); return; }
@@ -794,9 +809,22 @@ const Admin = () => {
 
               {hasKeys && (
                 <div className="flex flex-wrap gap-2 mt-3">
+                  <Button onClick={handleExportPublicKeyForCode} size="sm" className="text-xs">
+                    <Copy className="w-3 h-3 ml-1" />نسخ المفتاح العام (جاهز للكود)
+                  </Button>
+                  <Button onClick={handleExportPublicKey} size="sm" variant="outline" className="text-xs">
+                    تصدير المفتاح العام (JSON)
+                  </Button>
                   <Button onClick={handleExportPrivateKey} size="sm" variant="outline" className="text-xs">
                     تصدير المفتاح الخاص (نسخة احتياطية)
                   </Button>
+                </div>
+              )}
+
+              {publicKeyJson && (
+                <div className="mt-3 p-3 bg-muted rounded-lg border border-border">
+                  <label className="text-xs font-bold text-foreground block mb-1">📋 الكود الجاهز — الصقه في src/lib/license.ts سطر 13:</label>
+                  <pre className="text-[10px] font-mono text-foreground whitespace-pre-wrap break-all leading-relaxed" dir="ltr">{publicKeyJson}</pre>
                 </div>
               )}
 
