@@ -6,17 +6,28 @@ const LAST_DATE_KEY = 'app_last_date_v1';
 const TRIAL_DAYS_KEY = 'app_trial_days_v1';
 const DEFAULT_TRIAL_DAYS = 30;
 
-// ============================================================
-// ⚠️ REPLACE THIS with your actual RSA Public Key (JWK format)
-// Generate it using /license-generator.html admin tool
-// ============================================================
-const PUBLIC_KEY_JWK: JsonWebKey = {
-  kty: "RSA",
-  e: "AQAB",
-  n: "PLACEHOLDER_REPLACE_WITH_REAL_KEY",
-  alg: "RS256",
-  ext: true,
-};
+// ======= IndexedDB for loading public key =======
+const DB_NAME = 'LicenseAdminDB';
+const STORE_NAME = 'keys';
+
+async function loadPublicKeyFromDB(): Promise<JsonWebKey | null> {
+  return new Promise((resolve) => {
+    try {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(STORE_NAME);
+      req.onsuccess = () => {
+        const db = req.result;
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const getReq = tx.objectStore(STORE_NAME).get('publicKey');
+        getReq.onsuccess = () => resolve(getReq.result || null);
+        getReq.onerror = () => resolve(null);
+      };
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
 
 export interface LicensePayload {
   deviceId: string;
@@ -76,16 +87,20 @@ export function saveTrialDays(days: number) {
   localStorage.setItem(TRIAL_DAYS_KEY, String(days));
 }
 
-// Verify RSA signature using Web Crypto
+// Verify RSA signature using Web Crypto — loads public key from IndexedDB
 async function verifySignature(data: string, signatureB64: string): Promise<boolean> {
   try {
-    if (PUBLIC_KEY_JWK.n === "PLACEHOLDER_REPLACE_WITH_REAL_KEY") {
-      console.warn("⚠️ Using placeholder public key. Replace with real key for production.");
+    const pubKeyJwk = await loadPublicKeyFromDB();
+    
+    if (!pubKeyJwk || !pubKeyJwk.n) {
+      // No public key set up — allow in dev mode (admin hasn't logged in yet)
+      console.warn("⚠️ No public key found. Admin must login first to generate keys.");
       return true;
     }
+    
     const key = await crypto.subtle.importKey(
       'jwk',
-      PUBLIC_KEY_JWK,
+      pubKeyJwk,
       { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
       false,
       ['verify']
