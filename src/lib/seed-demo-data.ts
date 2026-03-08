@@ -4,6 +4,7 @@
  */
 
 import type { TransferRecord } from "./transfer-history";
+import { getDistributorAccount, saveDistributorAccount, type DistributorTransaction } from "./distributor";
 
 const MTN_PHONES = [
   "0944123456", "0936789012", "0933456789", "0944567890", "0936111222",
@@ -59,4 +60,43 @@ export function seedDemoData(count = 500) {
 export function clearDemoData() {
   localStorage.removeItem("transfer-history");
   localStorage.removeItem("saved-contacts");
+}
+
+// ============ Distributor Demo Data ============
+
+const DISTRIBUTOR_AMOUNTS = [25000, 50000, 75000, 100000, 150000, 200000, 300000, 500000];
+const DISTRIBUTOR_NOTES = ['', 'دفعة نقدية', 'تحويل بنكي', 'دفعة أسبوعية', 'تسوية حساب', ''];
+
+export function seedDistributorData(count = 50) {
+  const now = Date.now();
+  const threeMonthsMs = 90 * 24 * 60 * 60 * 1000;
+  const account = getDistributorAccount();
+  const transactions: DistributorTransaction[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const isTopup = Math.random() > 0.4; // more topups than payments
+    const isMtn = Math.random() > 0.5;
+    const timestamp = now - Math.floor(Math.random() * threeMonthsMs);
+
+    transactions.push({
+      id: crypto.randomUUID(),
+      type: isTopup ? 'topup' : 'payment',
+      operator: isMtn ? 'mtn' : 'syriatel',
+      amount: randomFrom(DISTRIBUTOR_AMOUNTS),
+      note: randomFrom(DISTRIBUTOR_NOTES),
+      timestamp,
+    });
+  }
+
+  transactions.sort((a, b) => b.timestamp - a.timestamp);
+  account.transactions = transactions;
+  saveDistributorAccount(account);
+
+  return { count: transactions.length };
+}
+
+export function clearDistributorData() {
+  const account = getDistributorAccount();
+  account.transactions = [];
+  saveDistributorAccount(account);
 }

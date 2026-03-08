@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import {
   Shield, Key, Copy, Lock, LogOut, Settings2, Clock,
   AlertTriangle, BarChart3, History, Trash2, Search, Edit, Check, X,
-  Cloud, Wifi, WifiOff, RefreshCw, Database, ShieldCheck, Power
+  Cloud, Wifi, WifiOff, RefreshCw, Database, ShieldCheck, Power, Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,7 @@ import {
   getQueueSize, getLastSyncTime, syncNow,
 } from "@/lib/cloud-sync";
 import { getHistory } from "@/lib/transfer-history";
-import { seedDemoData, clearDemoData } from "@/lib/seed-demo-data";
+import { seedDemoData, clearDemoData, seedDistributorData, clearDistributorData } from "@/lib/seed-demo-data";
 import { getCredentials, getPrefixes, getSimAssignment, getUssdTemplates, getBalanceTemplates, getPresets } from "@/lib/ussd-profiles";
 
 // ======= IndexedDB for RSA Keys =======
@@ -933,6 +933,39 @@ const Admin = () => {
                   >
                     <Trash2 className="w-3.5 h-3.5 ml-1" />
                     مسح البيانات
+                  </Button>
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* Distributor Demo Data */}
+            <SectionCard title="بيانات الموزع التجريبية" icon={<Users className="w-4 h-4 text-primary" />}>
+              <div className="space-y-2">
+                <p className="text-[10px] text-muted-foreground">توليد أو مسح عمليات الموزع (طلبات رصيد ودفعات) للاختبار.</p>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => {
+                      const result = seedDistributorData(50);
+                      toast.success(`تم توليد ${result.count} عملية موزع تجريبية`);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-xs"
+                  >
+                    <Database className="w-3.5 h-3.5 ml-1" />
+                    توليد 50 عملية
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      clearDistributorData();
+                      toast.success("تم مسح سجلات الموزع");
+                    }}
+                    variant="destructive"
+                    size="sm"
+                    className="flex-1 text-xs"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 ml-1" />
+                    مسح سجلات الموزع
                   </Button>
                 </div>
               </div>
