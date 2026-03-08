@@ -664,6 +664,23 @@ const Admin = () => {
             {/* Cloud Sync */}
             <SectionCard title="المزامنة السحابية (Google Sheets)" icon={<Cloud className="w-4 h-4" />}>
               <div className="space-y-3">
+                {/* Enable/Disable Toggle */}
+                <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Power className={`w-4 h-4 ${syncEnabled ? 'text-green-500' : 'text-muted-foreground'}`} />
+                    <span className="text-sm font-medium text-foreground">
+                      {syncEnabled ? 'المزامنة مفعّلة' : 'المزامنة معطّلة'}
+                    </span>
+                  </div>
+                  <Switch
+                    checked={syncEnabled}
+                    onCheckedChange={(checked) => {
+                      setSyncEnabledState(checked);
+                      localStorage.setItem(SYNC_ENABLED_KEY, String(checked));
+                      toast.success(checked ? 'تم تفعيل المزامنة السحابية' : 'تم إيقاف المزامنة السحابية');
+                    }}
+                  />
+                </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">رابط Google Apps Script</label>
                   <Input
