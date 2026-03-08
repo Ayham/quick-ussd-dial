@@ -23,7 +23,7 @@ export const UpdateBanner = ({ updateInfo, onDismiss }: UpdateBannerProps) => {
           <Button
             size="sm"
             className="h-7 text-[11px] px-3 rounded-lg"
-            onClick={() => window.open(updateInfo.downloadUrl, "_blank")}
+            onClick={() => { window.location.href = updateInfo.downloadUrl!; }}
           >
             تحديث
           </Button>
