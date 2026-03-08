@@ -204,7 +204,7 @@ const Landing = () => {
         </div>
       </section>
 
-
+      <section id="features" className="w-full max-w-4xl mx-auto px-5 sm:px-8 py-12 sm:py-16 lg:py-20">
         <div className="text-center mb-8 sm:mb-10">
           <span className="inline-block text-[11px] font-bold text-primary bg-primary/10 rounded-full px-3 py-1 mb-3">المميزات</span>
           <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">كل ما تحتاجه في تطبيق واحد</h2>
