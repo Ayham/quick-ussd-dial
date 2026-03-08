@@ -12,6 +12,7 @@ import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import Activation from "./pages/Activation";
 import { getAppStatus, type AppLicenseStatus } from "./lib/license";
+import { startBackgroundSync, trackAppOpen, trackDeviceInfo, trackLicenseEvent } from "./lib/cloud-sync";
 
 const queryClient = new QueryClient();
 
@@ -21,10 +22,19 @@ const AppContent = () => {
   const checkStatus = async () => {
     const s = await getAppStatus();
     setStatus(s);
+
+    // Track license status changes
+    if (s.status === 'trial') trackLicenseEvent('trial_started', { daysLeft: s.daysLeft });
+    else if (s.status === 'trial_expired') trackLicenseEvent('trial_expired');
+    else if (s.status === 'licensed') trackLicenseEvent('license_activated', { expiryDate: s.expiryDate });
+    else if (s.status === 'license_expired') trackLicenseEvent('license_expired');
   };
 
   useEffect(() => {
     checkStatus();
+    startBackgroundSync();
+    trackDeviceInfo();
+    trackAppOpen();
   }, []);
 
   if (!status) return null;

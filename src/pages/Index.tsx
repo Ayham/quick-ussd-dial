@@ -17,6 +17,7 @@ import {
   type TransferRecord,
 } from "@/lib/transfer-history";
 import { dialUssdDirect } from "@/lib/ussd-dialer";
+import { trackTransfer } from "@/lib/cloud-sync";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -107,6 +108,7 @@ const Index = () => {
         status: "success",
       });
       setHistory(getHistory());
+      trackTransfer(phone.trim(), String(selectedAmount.amount), operator, "success");
 
       toast.success("تم إرسال الطلب بنجاح ✓");
 
