@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { getPackages, getAppConfig, getReleases, getLatestRelease, type AppPackage, type AppConfig, type AppRelease } from "@/lib/marketing";
 import syriatelLogo from "@/assets/syriatel-logo.png";
 import mtnLogo from "@/assets/mtn-logo.png";
+import screenshotHome from "@/assets/screenshot-home.png";
+import screenshotReports from "@/assets/screenshot-reports.png";
+import screenshotContacts from "@/assets/screenshot-contacts.png";
 
 const Landing = () => {
   const [packages, setPackages] = useState<AppPackage[]>([]);
