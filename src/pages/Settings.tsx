@@ -19,7 +19,6 @@ import {
 } from "@/lib/ussd-profiles";
 import {
   getAppStatus, getSavedLicense, clearLicense, saveLicense, validateLicense,
-  getTrialDays, saveTrialDays,
   type AppLicenseStatus,
 } from "@/lib/license";
 import { getDeviceId } from "@/lib/device-id";
