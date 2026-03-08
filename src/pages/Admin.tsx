@@ -560,74 +560,39 @@ const Admin = () => {
         {activeTab === 'keys' && (
           <div className="space-y-4">
             <SectionCard title="مفاتيح التشفير RSA" icon={<Key className="w-4 h-4" />}>
+              {/* Status */}
               <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${
                 hasKeys ? "bg-green-500/10 border border-green-500/30 text-green-600" : "bg-destructive/10 border border-destructive/30 text-destructive"
               }`}>
-                {hasKeys ? "✅ المفاتيح جاهزة" : "⚠️ لم يتم توليد المفاتيح بعد"}
+                {hasKeys ? "✅ المفاتيح جاهزة — يتم توليدها تلقائياً عند أول دخول" : "⚠️ جاري توليد المفاتيح..."}
               </div>
 
-              {/* Generate / Regenerate with confirmation */}
-              {!confirmGenerateKeys ? (
+              <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                المفاتيح تُستخدم لتوقيع التراخيص رقمياً. يتم توليدها تلقائياً ولا تحتاج أي تدخل منك.
+                كل ترخيص موقّع بمفتاحك الخاص ولا يمكن تزويره.
+              </p>
+
+              {hasKeys && (
                 <div className="flex flex-wrap gap-2 mt-3">
-                  <Button onClick={() => {
-                    if (hasKeys) setConfirmGenerateKeys(true);
-                    else handleGenerateKeys();
-                  }} size="sm" variant={hasKeys ? "outline" : "default"} className="text-xs">
-                    {hasKeys ? "توليد مفاتيح جديدة" : "توليد المفاتيح"}
+                  <Button onClick={handleExportPrivateKey} size="sm" variant="outline" className="text-xs">
+                    تصدير المفتاح الخاص (نسخة احتياطية)
                   </Button>
-                  {hasKeys && (
-                    <>
-                      <Button onClick={handleExportPublicKey} size="sm" variant="outline" className="text-xs">نسخ المفتاح العام</Button>
-                      <Button onClick={handleExportPrivateKey} size="sm" variant="outline" className="text-xs">تصدير المفتاح الخاص</Button>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <div className="mt-3 p-4 rounded-xl bg-destructive/10 border-2 border-destructive/30 space-y-3">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-bold text-destructive">تحذير مهم!</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        توليد مفاتيح جديدة سيجعل <strong className="text-foreground">جميع التراخيص السابقة غير صالحة</strong>.
-                        كل الزبائن سيحتاجون تراخيص جديدة.
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        هل أنت متأكد؟ هذا الإجراء لا يمكن التراجع عنه.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={handleGenerateKeys} size="sm" variant="destructive" className="text-xs flex-1">
-                      نعم، توليد مفاتيح جديدة
-                    </Button>
-                    <Button onClick={() => setConfirmGenerateKeys(false)} size="sm" variant="outline" className="text-xs">
-                      إلغاء
-                    </Button>
-                  </div>
                 </div>
               )}
 
-              {publicKeyJson && (
-                <div className="mt-3">
-                  <label className="text-xs text-muted-foreground">المفتاح العام (انسخه إلى ملف license.ts)</label>
-                  <textarea readOnly value={publicKeyJson}
-                    className="w-full mt-1 p-2 rounded-lg bg-muted border border-border text-[11px] font-mono h-20 resize-none text-foreground" dir="ltr" />
-                </div>
-              )}
-
+              {/* Import - for restoring backup */}
               <div className="mt-3 border-t border-border pt-3">
-                <label className="text-xs text-muted-foreground">استيراد مفتاح خاص</label>
+                <label className="text-xs text-muted-foreground">استعادة مفتاح خاص من نسخة احتياطية</label>
                 <textarea value={importKeyText} onChange={(e) => setImportKeyText(e.target.value)}
-                  placeholder="الصق JWK المفتاح الخاص هنا..."
+                  placeholder="الصق المفتاح الخاص هنا..."
                   className="w-full mt-1 p-2 rounded-lg bg-muted border border-border text-[11px] font-mono h-16 resize-none text-foreground" dir="ltr" />
-                <Button onClick={handleImportPrivateKey} size="sm" variant="outline" className="text-xs mt-2">استيراد</Button>
+                <Button onClick={handleImportPrivateKey} size="sm" variant="outline" className="text-xs mt-2">استعادة</Button>
               </div>
             </SectionCard>
 
             {/* Key generation history */}
             {keyGenLog.length > 0 && (
-              <SectionCard title="سجل توليد المفاتيح" icon={<History className="w-4 h-4" />}>
+              <SectionCard title="سجل المفاتيح" icon={<History className="w-4 h-4" />}>
                 <div className="divide-y divide-border">
                   {keyGenLog.map((log, i) => (
                     <div key={log.id} className="py-2 flex items-center justify-between text-xs">
@@ -638,6 +603,11 @@ const Admin = () => {
                         </span>
                       </div>
                       <span className="font-mono text-[10px] text-foreground">{log.publicKeyFingerprint}</span>
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            )}
                     </div>
                   ))}
                 </div>
