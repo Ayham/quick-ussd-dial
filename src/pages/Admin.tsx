@@ -27,6 +27,7 @@ import {
   getQueueSize, getLastSyncTime, syncNow,
 } from "@/lib/cloud-sync";
 import { getHistory } from "@/lib/transfer-history";
+import { seedDemoData, clearDemoData } from "@/lib/seed-demo-data";
 import { getCredentials, getPrefixes, getSimAssignment, getUssdTemplates, getBalanceTemplates, getPresets } from "@/lib/ussd-profiles";
 
 // ======= IndexedDB for RSA Keys =======
@@ -877,6 +878,39 @@ const Admin = () => {
                   <p className="text-[10px] text-muted-foreground mt-1">
                     يحذف الترخيص المحفوظ فقط. لن يتأثر معرف الجهاز أو المفاتيح.
                   </p>
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* Demo Data */}
+            <SectionCard title="بيانات تجريبية" icon={<Database className="w-4 h-4" />}>
+              <div className="space-y-2">
+                <p className="text-[10px] text-muted-foreground">توليد بيانات وهمية لاختبار أداء التطبيق والتقارير مع كميات كبيرة.</p>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => {
+                      const result = seedDemoData(500);
+                      toast.success(`تم توليد ${result.records} عملية تجريبية مع ${result.contacts} جهة اتصال`);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-xs"
+                  >
+                    <Database className="w-3.5 h-3.5 ml-1" />
+                    توليد 500 عملية
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      clearDemoData();
+                      toast.success("تم حذف البيانات التجريبية");
+                    }}
+                    variant="destructive"
+                    size="sm"
+                    className="flex-1 text-xs"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 ml-1" />
+                    مسح البيانات
+                  </Button>
                 </div>
               </div>
             </SectionCard>
