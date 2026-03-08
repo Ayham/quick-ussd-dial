@@ -53,7 +53,7 @@ const Landing = () => {
 
         {/* Large background operator logos */}
         <img src={mtnLogo} alt="" className="absolute top-1/2 left-[8%] -translate-y-1/2 -rotate-12 w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 object-contain opacity-20 pointer-events-none select-none" />
-        <img src={syriatelLogo} alt="" className="absolute top-1/2 right-[8%] -translate-y-1/2 rotate-12 w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 object-contain opacity-20 pointer-events-none select-none" />
+        <img src={syriatelLogo} alt="" className="absolute top-1/2 right-[8%] -translate-y-1/2 rotate-12 w-56 h-56 sm:w-72 sm:h-72 md:w-96 md:h-96 object-contain opacity-20 pointer-events-none select-none" />
 
         <div className="relative w-full max-w-3xl mx-auto px-5 sm:px-8 text-center z-10 py-16 md:py-20">
           {/* App icon */}
