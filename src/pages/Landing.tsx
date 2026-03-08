@@ -215,7 +215,7 @@ const Landing = () => {
                 className="font-bold rounded-xl h-11 px-8"
                 onClick={() => {
                   if (config.downloadUrl) {
-                    window.open(config.downloadUrl, "_blank");
+                    window.location.href = config.downloadUrl;
                   } else {
                     handleContact(trialPkg);
                   }
