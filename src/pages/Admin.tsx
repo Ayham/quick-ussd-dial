@@ -406,10 +406,35 @@ const Admin = () => {
                     placeholder="الصق معرف الجهاز من الزبون..." className="text-left text-xs h-10 font-mono" dir="ltr" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">تاريخ انتهاء الترخيص</label>
-                  <Input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)}
-                    className="text-left h-10 text-sm" dir="ltr" />
+                  <label className="text-xs font-medium text-muted-foreground">نوع الترخيص</label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setIsPermanent(false)}
+                      className={`flex-1 h-10 rounded-lg text-xs font-medium border transition-all ${
+                        !isPermanent ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-muted-foreground border-border hover:bg-muted'
+                      }`}
+                    >
+                      <Clock className="w-3.5 h-3.5 inline ml-1" />
+                      محدد بتاريخ
+                    </button>
+                    <button
+                      onClick={() => setIsPermanent(true)}
+                      className={`flex-1 h-10 rounded-lg text-xs font-medium border transition-all ${
+                        isPermanent ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-muted-foreground border-border hover:bg-muted'
+                      }`}
+                    >
+                      <Shield className="w-3.5 h-3.5 inline ml-1" />
+                      دائم
+                    </button>
+                  </div>
                 </div>
+                {!isPermanent && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">تاريخ انتهاء الترخيص</label>
+                    <Input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)}
+                      className="text-left h-10 text-sm" dir="ltr" />
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">ملاحظة (اسم الزبون / رقم الهاتف)</label>
                   <Input value={customerNote} onChange={(e) => setCustomerNote(e.target.value)}

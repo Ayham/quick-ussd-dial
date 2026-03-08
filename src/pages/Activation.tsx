@@ -105,9 +105,15 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
               <ShieldCheck className="w-14 h-14 mx-auto mb-3 text-green-500" />
               <h2 className="text-lg font-bold text-foreground">التطبيق مفعّل</h2>
               <p className="text-sm text-muted-foreground mt-2">
-                ينتهي الترخيص بتاريخ {(status as { expiryDate: string }).expiryDate}
-                <br />
-                متبقي {(status as { daysLeft: number }).daysLeft} يوم
+                {(status as { permanent?: boolean }).permanent ? (
+                  <span className="font-bold text-green-500">ترخيص دائم ✨</span>
+                ) : (
+                  <>
+                    ينتهي الترخيص بتاريخ {(status as { expiryDate: string }).expiryDate}
+                    <br />
+                    متبقي {(status as { daysLeft: number }).daysLeft} يوم
+                  </>
+                )}
               </p>
             </>
           ) : isTrial ? (

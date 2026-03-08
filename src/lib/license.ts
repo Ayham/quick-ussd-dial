@@ -163,6 +163,9 @@ export async function getAppStatus(): Promise<AppLicenseStatus> {
   if (savedLicense) {
     const result = await validateLicense(savedLicense);
     if (result.valid && result.payload) {
+      if (result.payload.expiryDate === 'permanent') {
+        return { status: 'licensed', expiryDate: 'permanent', daysLeft: Infinity, permanent: true };
+      }
       const daysLeft = daysBetween(today, result.payload.expiryDate);
       if (daysLeft >= 0) {
         return { status: 'licensed', expiryDate: result.payload.expiryDate, daysLeft };
