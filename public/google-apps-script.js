@@ -258,3 +258,57 @@ function updateSummary(sheet, evt, dateStr) {
     }
   }
 }
+
+// ============================================================
+// التنظيف التلقائي — حذف البيانات الأقدم من 3 أشهر
+// ============================================================
+// لتفعيل التنظيف التلقائي:
+// 1. افتح Apps Script
+// 2. اذهب إلى Triggers (أيقونة الساعة في الشريط الجانبي)
+// 3. أضف Trigger جديد:
+//    - Function: autoCleanup
+//    - Event source: Time-driven
+//    - Type: Week timer
+//    - Day: Every Monday
+// ============================================================
+
+function autoCleanup() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var cutoffDate = new Date();
+  cutoffDate.setMonth(cutoffDate.getMonth() - 3);
+  
+  cleanSheet(ss, 'Events', 0, cutoffDate);   // العمود A = التاريخ
+  cleanSheet(ss, 'Summary', 0, cutoffDate);   // العمود A = التاريخ
+  
+  Logger.log('Cleanup completed. Cutoff: ' + cutoffDate.toISOString());
+}
+
+function cleanSheet(ss, sheetName, dateColIndex, cutoffDate) {
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet || sheet.getLastRow() <= 1) return;
+  
+  var data = sheet.getDataRange().getValues();
+  var rowsToDelete = [];
+  
+  for (var i = data.length - 1; i >= 1; i--) {
+    var cellDate = data[i][dateColIndex];
+    var rowDate;
+    
+    if (cellDate instanceof Date) {
+      rowDate = cellDate;
+    } else {
+      rowDate = new Date(String(cellDate));
+    }
+    
+    if (!isNaN(rowDate.getTime()) && rowDate < cutoffDate) {
+      rowsToDelete.push(i + 1); // 1-indexed
+    }
+  }
+  
+  // حذف من الأسفل للأعلى لتجنب تغيّر أرقام الصفوف
+  for (var j = 0; j < rowsToDelete.length; j++) {
+    sheet.deleteRow(rowsToDelete[j]);
+  }
+  
+  Logger.log('Cleaned ' + sheetName + ': deleted ' + rowsToDelete.length + ' rows');
+}
