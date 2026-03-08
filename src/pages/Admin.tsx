@@ -27,6 +27,7 @@ import {
   getQueueSize, getLastSyncTime, syncNow,
 } from "@/lib/cloud-sync";
 import { getHistory } from "@/lib/transfer-history";
+import { seedDemoData, clearDemoData } from "@/lib/seed-demo-data";
 import { getCredentials, getPrefixes, getSimAssignment, getUssdTemplates, getBalanceTemplates, getPresets } from "@/lib/ussd-profiles";
 
 // ======= IndexedDB for RSA Keys =======
