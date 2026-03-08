@@ -91,13 +91,25 @@ const Updates = () => {
 
                 {updateInfo.downloadUrl && (
                   <Button
-                    onClick={() => { window.location.href = updateInfo.downloadUrl; }}
+                    onClick={() => handleDownload(updateInfo.downloadUrl)}
                     className="w-full h-12 font-bold rounded-xl text-sm"
                     size="lg"
+                    disabled={isDownloading}
                   >
-                    <Download className="w-5 h-5 ml-2" />
-                    تحميل التحديث
+                    {isDownloading
+                      ? <><Loader2 className="w-5 h-5 ml-2 animate-spin" />جاري التنزيل... {dlProgress.progress}%</>
+                      : <><Download className="w-5 h-5 ml-2" />تحميل وتثبيت التحديث</>
+                    }
                   </Button>
+                )}
+
+                {isDownloading && (
+                  <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-primary h-full rounded-full transition-all duration-300"
+                      style={{ width: `${dlProgress.progress}%` }}
+                    />
+                  </div>
                 )}
               </div>
             )}
