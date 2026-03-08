@@ -215,7 +215,7 @@ const Index = () => {
               type="tel"
               placeholder="رقم أو اسم جهة الاتصال"
               value={phone}
-              onChange={(e) => { setPhone(e.target.value); setContactName(''); setShowSaveName(false); }}
+              onChange={(e) => { setPhone(e.target.value); setContactName(''); setShowSaveName(false); setNameInput(''); }}
               onFocus={() => setShowContacts(true)}
               className="text-left text-base h-12 tracking-wider rounded-xl border-2 border-border focus:border-primary transition-smooth"
               dir="ltr"
