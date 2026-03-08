@@ -110,7 +110,7 @@ export function getDistributorStats(operator?: Operator) {
   const weekAgo = now - 7 * 86400000;
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
 
-  let totalTopups = 0, totalPayments = 0;
+  let totalTopups = 0, totalPayments = 0, totalMarkup = 0;
   let monthTopups = 0, monthPayments = 0;
   let weekTopups = 0, weekPayments = 0;
   let todayTopups = 0, todayPayments = 0;
@@ -120,10 +120,13 @@ export function getDistributorStats(operator?: Operator) {
     if (operator && tx.operator !== operator) return;
     count++;
     if (tx.type === 'topup') {
-      totalTopups += tx.amount;
-      if (tx.timestamp >= monthStart) monthTopups += tx.amount;
-      if (tx.timestamp >= weekAgo) weekTopups += tx.amount;
-      if (tx.timestamp >= todayStart) todayTopups += tx.amount;
+      const cost = getActualCost(tx.amount, tx.operator);
+      const markup = cost - tx.amount;
+      totalTopups += cost;
+      totalMarkup += markup;
+      if (tx.timestamp >= monthStart) monthTopups += cost;
+      if (tx.timestamp >= weekAgo) weekTopups += cost;
+      if (tx.timestamp >= todayStart) todayTopups += cost;
     } else {
       totalPayments += tx.amount;
       if (tx.timestamp >= monthStart) monthPayments += tx.amount;
@@ -134,7 +137,7 @@ export function getDistributorStats(operator?: Operator) {
 
   return {
     balance: totalTopups - totalPayments,
-    totalTopups, totalPayments,
+    totalTopups, totalPayments, totalMarkup,
     monthTopups, monthPayments,
     weekTopups, weekPayments,
     todayTopups, todayPayments,
