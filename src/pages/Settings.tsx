@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import {
   Plus, Trash2, Key, Code, ArrowUp, ArrowDown, Smartphone, Signal,
-  Shield, ShieldCheck, Clock, Copy, AlertTriangle, Database, Settings as SettingsIcon
+  Shield, ShieldCheck, Clock, Copy, AlertTriangle, Database, Settings as SettingsIcon,
+  Download, Upload
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
@@ -467,6 +468,114 @@ const Settings = () => {
         {/* ===== DATA TAB ===== */}
         {settingsTab === "data" && (
           <div className="space-y-5">
+            {/* Backup & Restore */}
+            <SectionCard title="النسخ الاحتياطي والاستعادة" icon={<Download className="w-4 h-4" />}>
+              <div className="space-y-3">
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  تصدير جميع البيانات المهمة (الإعدادات، الأكواد، المبالغ، البادئات، سجل التحويلات، الرصيد) كملف JSON واستعادتها لاحقاً.
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => {
+                      try {
+                        const backup: Record<string, unknown> = {
+                          _meta: { version: 1, date: new Date().toISOString(), deviceId },
+                          presets: getPresets(),
+                          credentials: getCredentials(),
+                          ussdTemplates: getUssdTemplates(),
+                          balanceTemplates: getBalanceTemplates(),
+                          prefixes: getPrefixes(),
+                          simAssignment: getSimAssignment(),
+                          transferHistory: localStorage.getItem('transfer-history'),
+                          savedContacts: localStorage.getItem('saved-contacts'),
+                          savedBalances: localStorage.getItem('saved_balances_v1'),
+                          license: localStorage.getItem('app_license_v1'),
+                          trialStart: localStorage.getItem('app_trial_start_v1'),
+                          syncEndpoint: localStorage.getItem('cloud_sync_endpoint_v1'),
+                          syncEnabled: localStorage.getItem('cloud_sync_enabled_v1'),
+                        };
+                        const json = JSON.stringify(backup, null, 2);
+                        const blob = new Blob([json], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `backup_${new Date().toISOString().split('T')[0]}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        toast.success("تم تصدير النسخة الاحتياطية بنجاح");
+                      } catch {
+                        toast.error("فشل تصدير النسخة الاحتياطية");
+                      }
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-xs"
+                  >
+                    <Download className="w-3.5 h-3.5 ml-1" />
+                    تصدير نسخة احتياطية
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = '.json';
+                      input.onchange = (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                          try {
+                            const data = JSON.parse(ev.target?.result as string);
+                            if (!data._meta || data._meta.version !== 1) {
+                              toast.error("ملف غير صالح أو إصدار غير مدعوم");
+                              return;
+                            }
+                            if (!confirm("سيتم استبدال جميع البيانات الحالية بالنسخة الاحتياطية. هل تريد المتابعة؟")) return;
+
+                            if (data.presets) savePresets(data.presets);
+                            if (data.credentials) saveCredentials(data.credentials);
+                            if (data.ussdTemplates) saveUssdTemplates(data.ussdTemplates);
+                            if (data.balanceTemplates) saveBalanceTemplates(data.balanceTemplates);
+                            if (data.prefixes) savePrefixes(data.prefixes);
+                            if (data.simAssignment) saveSimAssignment(data.simAssignment);
+
+                            if (data.transferHistory) localStorage.setItem('transfer-history', data.transferHistory);
+                            if (data.savedContacts) localStorage.setItem('saved-contacts', data.savedContacts);
+                            if (data.savedBalances) localStorage.setItem('saved_balances_v1', data.savedBalances);
+                            if (data.license) localStorage.setItem('app_license_v1', data.license);
+                            if (data.trialStart) localStorage.setItem('app_trial_start_v1', data.trialStart);
+                            if (data.syncEndpoint) localStorage.setItem('cloud_sync_endpoint_v1', data.syncEndpoint);
+                            if (data.syncEnabled) localStorage.setItem('cloud_sync_enabled_v1', data.syncEnabled);
+
+                            setPresets(getPresets());
+                            setCredentials(getCredentials());
+                            setTemplates(getUssdTemplates());
+                            setBalanceTemplates(getBalanceTemplates());
+                            setPrefixes(getPrefixes());
+                            setSimAssignment(getSimAssignment());
+
+                            toast.success("تم استعادة النسخة الاحتياطية بنجاح ✅");
+                          } catch {
+                            toast.error("فشل قراءة الملف — تأكد أنه ملف نسخة احتياطية صحيح");
+                          }
+                        };
+                        reader.readAsText(file);
+                      };
+                      input.click();
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-xs"
+                  >
+                    <Upload className="w-3.5 h-3.5 ml-1" />
+                    استعادة نسخة احتياطية
+                  </Button>
+                </div>
+              </div>
+            </SectionCard>
+
             <SectionCard title="إدارة البيانات" icon={<Database className="w-4 h-4" />}>
               <div className="space-y-3">
                 {(() => {
