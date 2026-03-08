@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
-import { Phone, Clock, CheckCircle, Loader2, Send, TrendingUp, BookUser, UserPlus, Download } from "lucide-react";
+import { Phone, Clock, CheckCircle, Loader2, Send, TrendingUp, BookUser, UserPlus, Contact } from "lucide-react";
 import {
   detectOperator,
   buildUssdCode,
@@ -17,7 +17,7 @@ import {
   getHistory,
   type TransferRecord,
 } from "@/lib/transfer-history";
-import { updateContactName, importPhoneContacts, type SavedContact } from "@/lib/contacts";
+import { updateContactName, pickPhoneContact, type SavedContact } from "@/lib/contacts";
 import { dialUssdDirect } from "@/lib/ussd-dialer";
 import { trackTransfer } from "@/lib/cloud-sync";
 import { Button } from "@/components/ui/button";
@@ -49,7 +49,6 @@ const Index = () => {
   const [contactName, setContactName] = useState('');
   const [showSaveName, setShowSaveName] = useState(false);
   const [nameInput, setNameInput] = useState('');
-  const [importing, setImporting] = useState(false);
   
   const contactsRef = useRef<HTMLDivElement>(null);
 
@@ -193,21 +192,20 @@ const Index = () => {
             </span>
             <button
               onClick={async () => {
-                setImporting(true);
                 try {
-                  const imported = await importPhoneContacts();
-                  toast.success(`تم استيراد ${imported.length} جهة اتصال`);
+                  const picked = await pickPhoneContact();
+                  if (picked) {
+                    setPhone(picked.phone);
+                    setContactName(picked.name || '');
+                  }
                 } catch {
-                  toast.error("تعذر الوصول لجهات الاتصال");
-                } finally {
-                  setImporting(false);
+                  toast.error("تعذر فتح سجل الاتصال");
                 }
               }}
-              disabled={importing}
               className="p-1.5 rounded-lg hover:bg-muted transition-smooth text-muted-foreground hover:text-primary"
-              title="استيراد من الهاتف"
+              title="اختيار من سجل الهاتف"
             >
-              <Download className="w-4 h-4" />
+              <Contact className="w-4 h-4" />
             </button>
           </label>
           <div className="relative" ref={contactsRef}>
@@ -273,26 +271,28 @@ const Index = () => {
                   {contactName}
                 </span>
               ) : !showSaveName ? (
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs rounded-lg px-3 border-primary/30 text-primary"
                   onClick={() => { setShowSaveName(true); setNameInput(''); }}
-                  className="text-[11px] text-primary flex items-center gap-1 hover:underline"
                 >
-                  <UserPlus className="w-3 h-3" />
+                  <UserPlus className="w-3.5 h-3.5 ml-1" />
                   حفظ الاسم
-                </button>
+                </Button>
               ) : (
                 <div className="flex items-center gap-1.5">
                   <Input
                     value={nameInput}
                     onChange={(e) => setNameInput(e.target.value)}
                     placeholder="الاسم"
-                    className="h-7 text-xs rounded-lg w-32"
+                    className="h-8 text-xs rounded-lg w-36"
                     dir="rtl"
                     autoFocus
                   />
                   <Button
                     size="sm"
-                    className="h-7 text-[10px] rounded-lg px-2"
+                    className="h-8 text-xs rounded-lg px-3"
                     onClick={() => {
                       if (nameInput.trim()) {
                         updateContactName(phone.trim(), nameInput.trim());

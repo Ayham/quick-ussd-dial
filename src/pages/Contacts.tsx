@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { UserPlus, Search, Trash2, Pencil, Phone, BookUser, Download } from "lucide-react";
+import { UserPlus, Search, Trash2, Pencil, Phone, BookUser, Contact } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import {
   saveContact,
   updateContactName,
   deleteContact,
-  importPhoneContacts,
+  pickPhoneContact,
   type SavedContact,
 } from "@/lib/contacts";
 
@@ -23,7 +23,7 @@ const Contacts = () => {
   const [newPhone, setNewPhone] = useState("");
   const [newName, setNewName] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [importing, setImporting] = useState(false);
+  
 
   const reload = () => setContacts(getSavedContacts());
 
@@ -65,16 +65,15 @@ const Contacts = () => {
     toast.info("تم حذف جهة الاتصال");
   };
 
-  const handleImport = async () => {
-    setImporting(true);
+  const handlePickContact = async () => {
     try {
-      const imported = await importPhoneContacts();
-      reload();
-      toast.success(`تم استيراد ${imported.length} جهة اتصال`);
+      const picked = await pickPhoneContact();
+      if (picked) {
+        reload();
+        toast.success(`تم إضافة ${picked.name || picked.phone}`);
+      }
     } catch {
-      toast.error("تعذر الوصول لجهات الاتصال");
-    } finally {
-      setImporting(false);
+      toast.error("تعذر فتح سجل الاتصال");
     }
   };
 
@@ -97,11 +96,10 @@ const Contacts = () => {
             size="icon"
             variant="outline"
             className="h-10 w-10 rounded-xl"
-            onClick={handleImport}
-            disabled={importing}
-            title="استيراد من الهاتف"
+            onClick={handlePickContact}
+            title="اختيار من سجل الهاتف"
           >
-            <Download className="w-4 h-4" />
+            <Contact className="w-4 h-4" />
           </Button>
           <Button
             size="icon"
