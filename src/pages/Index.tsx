@@ -43,6 +43,7 @@ const Index = () => {
   const [showContacts, setShowContacts] = useState(false);
   const [history, setHistory] = useState<TransferRecord[]>(() => getHistory());
   const [dialing, setDialing] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const contactsRef = useRef<HTMLDivElement>(null);
 
   // Hidden admin access: tap title 7 times
