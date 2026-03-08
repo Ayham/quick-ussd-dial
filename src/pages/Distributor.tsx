@@ -358,8 +358,14 @@ const Distributor = () => {
                   <span className="text-xs text-muted-foreground">إجمالي الدفعات</span>
                   <span className="text-sm font-bold text-accent">-{stats.totalPayments.toLocaleString()}</span>
                 </div>
+                {stats.totalMarkup > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">إجمالي العمولات</span>
+                    <span className="text-sm font-bold text-destructive">{stats.totalMarkup.toLocaleString()}</span>
+                  </div>
+                )}
                 <div className="border-t border-border pt-2 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-foreground">الرصيد</span>
+                  <span className="text-xs font-semibold text-foreground">المبلغ المتبقي</span>
                   <span className={`text-base font-bold ${stats.balance >= 0 ? "text-primary" : "text-destructive"}`}>
                     {stats.balance.toLocaleString()}
                   </span>
