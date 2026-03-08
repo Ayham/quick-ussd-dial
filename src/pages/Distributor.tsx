@@ -36,6 +36,8 @@ const Distributor = () => {
   const [editName, setEditName] = useState(account.name);
   const [editPhone, setEditPhone] = useState(account.phone);
   const [editAlert, setEditAlert] = useState(String(account.lowBalanceAlert));
+  const [editSyriatelMarkup, setEditSyriatelMarkup] = useState(String(account.syriatelMarkup || 0));
+  const [editMtnMarkup, setEditMtnMarkup] = useState(String(account.mtnMarkup || 0));
   const [editMessage, setEditMessage] = useState(account.whatsappMessage || 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س\nسيريتل: {syriatel} | MTN: {mtn}');
   const [editWhatsappEnabled, setEditWhatsappEnabled] = useState(account.whatsappEnabled !== false);
 
