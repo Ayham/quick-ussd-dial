@@ -86,6 +86,7 @@ const DEFAULT_CONFIG: AppConfig = {
   appVersion: '1.0.0',
   downloadUrl: '',
   whatsappContact: '',
+  supportPhone: '0991214570',
   changelog: 'الإصدار الأول من التطبيق',
   heroTitle: 'تحويل الرصيد بلمسة واحدة',
   heroSubtitle: 'أسرع وأسهل طريقة لتحويل رصيد سيريتل و MTN في سوريا',
