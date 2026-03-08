@@ -14,6 +14,7 @@ import Contacts from "./pages/Contacts";
 import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
 import Activation from "./pages/Activation";
+import Updates from "./pages/Updates";
 import ForceUpdate from "./components/ForceUpdate";
 import { getAppStatus, type AppLicenseStatus } from "./lib/license";
 import { startBackgroundSync, trackAppOpen, trackDeviceInfo, trackLicenseEvent } from "./lib/cloud-sync";
@@ -120,6 +121,7 @@ const AppContent = () => {
         <Route path="/reports" element={<Reports />} />
         <Route path="/balance" element={<Balance />} />
         <Route path="/sys-panel" element={<Admin />} />
+        <Route path="/updates" element={<Updates />} />
         <Route path="/activation" element={<Activation status={status} onActivated={checkStatus} />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Send, Wallet, BarChart3, Settings, Zap, Menu, ChevronLeft, Users, BookUser } from "lucide-react";
+import { Send, Wallet, BarChart3, Settings, Zap, Menu, ChevronLeft, Users, BookUser, Download } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Sheet,
@@ -15,6 +15,7 @@ const menuItems = [
   { icon: Wallet, label: "الرصيد", path: "/balance", description: "متابعة الرصيد" },
   { icon: BarChart3, label: "التقارير", path: "/reports", description: "إحصائيات التحويلات" },
   { icon: Settings, label: "الإعدادات", path: "/settings", description: "إعدادات التطبيق" },
+  { icon: Download, label: "التحديثات", path: "/updates", description: "البحث عن تحديثات" },
 ];
 
 interface AppLayoutProps {
