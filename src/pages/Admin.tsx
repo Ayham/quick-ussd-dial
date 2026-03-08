@@ -16,7 +16,14 @@ import {
   setAdminAuthenticated,
   getAdminCredentials,
   saveAdminCredentials,
+  isAdminInitialized,
 } from "@/lib/admin-auth";
+import {
+  getLicenseApiEndpoint, saveLicenseApiEndpoint,
+  getAllLicensesOnline, registerLicenseOnline, revokeLicenseOnline,
+  reactivateLicenseOnline, extendLicenseOnline,
+  type CentralLicense,
+} from "@/lib/license-api";
 import { getTrialDays, saveTrialDays } from "@/lib/license";
 import {
   getLicenseHistory, addLicenseRecord, deleteLicenseRecord, updateLicenseNote,
