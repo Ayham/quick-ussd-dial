@@ -20,7 +20,7 @@ const Landing = () => {
     setPackages(getPackages().filter(p => p.enabled));
     setConfig(getAppConfig());
     
-    // Load local first, then try cloud
+    // Load local releases first, then fetch from GitHub
     const localReleases = getReleases();
     setReleases(localReleases);
     setLatestRelease(getLatestRelease());
