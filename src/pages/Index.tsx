@@ -148,9 +148,33 @@ const Index = () => {
 
   // History filtered by entered phone number
   const phoneHistory = useMemo(
-    () => (phone.trim().length >= 3 ? history.filter((r) => r.phone.includes(phone.trim())) : []).slice(0, 10),
+    () => (phone.trim().length >= 3 ? history.filter((r) => r.phone.includes(phone.trim()) && r.status === "success") : []),
     [history, phone]
   );
+
+  // Phone stats: today, week, month
+  const phoneStats = useMemo(() => {
+    if (phoneHistory.length === 0) return null;
+    const now = Date.now();
+    const todayStart = new Date().setHours(0, 0, 0, 0);
+    const weekAgo = now - 7 * 86400000;
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+
+    let todaySum = 0, todayCount = 0;
+    let weekSum = 0, weekCount = 0;
+    let monthSum = 0, monthCount = 0;
+    let totalSum = 0;
+
+    phoneHistory.forEach((r) => {
+      const amt = Number(r.amount);
+      totalSum += amt;
+      if (r.timestamp >= todayStart) { todaySum += amt; todayCount++; }
+      if (r.timestamp >= weekAgo) { weekSum += amt; weekCount++; }
+      if (r.timestamp >= monthStart) { monthSum += amt; monthCount++; }
+    });
+
+    return { todaySum, todayCount, weekSum, weekCount, monthSum, monthCount, totalSum, totalCount: phoneHistory.length };
+  }, [phoneHistory]);
 
   return (
     <AppLayout title="تحويل رصيد" onTitleClick={handleTitleTap}>
