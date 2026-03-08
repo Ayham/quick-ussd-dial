@@ -1141,6 +1141,29 @@ const Admin = () => {
               )}
             </SectionCard>
 
+            {/* Key Backup */}
+            <SectionCard title="نسخة احتياطية للمفتاح الخاص" icon={<Key className="w-4 h-4" />}>
+              <div className={`flex items-center gap-2 p-2 rounded-lg text-xs ${
+                hasKeys ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"
+              }`}>
+                {hasKeys ? "✅ المفاتيح جاهزة — تعمل تلقائياً" : "⚠️ جاري توليد المفاتيح..."}
+              </div>
+              {hasKeys && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <Button onClick={handleExportPrivateKey} size="sm" variant="outline" className="text-xs">
+                    <Download className="w-3 h-3 ml-1" />تصدير المفتاح الخاص
+                  </Button>
+                </div>
+              )}
+              <div className="mt-2 border-t border-border pt-2">
+                <label className="text-[11px] text-muted-foreground">استعادة مفتاح من نسخة احتياطية</label>
+                <textarea value={importKeyText} onChange={(e) => setImportKeyText(e.target.value)}
+                  placeholder="الصق المفتاح الخاص هنا..."
+                  className="w-full mt-1 p-2 rounded-lg bg-muted border border-border text-[10px] font-mono h-14 resize-none text-foreground" dir="ltr" />
+                <Button onClick={handleImportPrivateKey} size="sm" variant="outline" className="text-xs mt-1">استعادة</Button>
+              </div>
+            </SectionCard>
+
             {/* Cloud Sync */}
             <SectionCard title="المزامنة السحابية (Google Sheets)" icon={<Cloud className="w-4 h-4" />}>
               <div className="space-y-3">
