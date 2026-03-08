@@ -18,6 +18,7 @@ import ForceUpdate from "./components/ForceUpdate";
 import { getAppStatus, type AppLicenseStatus } from "./lib/license";
 import { startBackgroundSync, trackAppOpen, trackDeviceInfo, trackLicenseEvent } from "./lib/cloud-sync";
 import { isWebBrowser } from "./lib/platform";
+import { initDeviceId } from "./lib/device-id";
 import { verifyLicenseOnline, getLicenseApiEndpoint } from "./lib/license-api";
 import { checkForUpdate, type UpdateInfo } from "./lib/update-checker";
 
