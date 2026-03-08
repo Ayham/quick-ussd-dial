@@ -88,7 +88,7 @@ const Index = () => {
     setSelectedAmount(null);
   }, [operator]);
 
-  const handleDial = useCallback(async () => {
+  const handleTransferClick = useCallback(() => {
     if (!phone.trim() || phone.trim().length < 10) {
       toast.error("الرجاء إدخال رقم هاتف صحيح");
       return;
@@ -101,7 +101,12 @@ const Index = () => {
       toast.error("الرجاء اختيار المبلغ");
       return;
     }
+    setShowConfirm(true);
+  }, [phone, operator, selectedAmount]);
 
+  const handleConfirmTransfer = useCallback(async () => {
+    if (!operator || !selectedAmount) return;
+    setShowConfirm(false);
     const ussd = buildUssdCode(operator, phone.trim(), String(selectedAmount.amount), credentials);
     const simAssignment = getSimAssignment();
     const simSlot = simAssignment[operator];
