@@ -209,7 +209,14 @@ const Index = () => {
                     setContactName(picked.name || '');
                   }
                 } catch (err: any) {
-                  toast.error(err?.message === 'WEB_ONLY' ? "هذه الميزة تعمل فقط على الجهاز" : "تعذر فتح سجل الاتصال");
+                  const msg = err?.message;
+                  toast.error(
+                    msg === 'WEB_ONLY'
+                      ? "هذه الميزة تعمل فقط على الجهاز"
+                      : msg === 'CONTACTS_PERMISSION_DENIED'
+                      ? "تم رفض صلاحية جهات الاتصال. فعّلها من إعدادات التطبيق"
+                      : `تعذر فتح سجل الاتصال: ${msg || err}`
+                  );
                 }
               }}
               className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg hover:bg-muted transition-smooth text-muted-foreground hover:text-primary"

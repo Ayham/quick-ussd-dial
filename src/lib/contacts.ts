@@ -83,6 +83,18 @@ export async function pickPhoneContact(): Promise<SavedContact | null> {
   }
 
   const { Contacts } = await import('@capacitor-community/contacts');
+
+  const currentPermissions = await Contacts.checkPermissions();
+  const hasPermission = currentPermissions.contacts === 'granted' || currentPermissions.contacts === 'limited';
+
+  if (!hasPermission) {
+    const requestedPermissions = await Contacts.requestPermissions();
+    const granted = requestedPermissions.contacts === 'granted' || requestedPermissions.contacts === 'limited';
+    if (!granted) {
+      throw new Error('CONTACTS_PERMISSION_DENIED');
+    }
+  }
+
   const result = await Contacts.pickContact({
     projection: {
       name: true,
