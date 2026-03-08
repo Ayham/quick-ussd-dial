@@ -237,6 +237,21 @@ const Admin = () => {
     catch { toast.info("المفتاح العام معروض أدناه"); }
   };
 
+  const handleExportPublicKeyForCode = async () => {
+    const pub = await loadKeyFromDB('publicKey');
+    if (!pub) { toast.error("لم يتم توليد المفاتيح بعد"); return; }
+    const codeSnippet = `const PUBLIC_KEY_JWK: JsonWebKey = {
+  kty: "${pub.kty}",
+  e: "${pub.e}",
+  n: "${pub.n}",
+  alg: "${pub.alg}",
+  ext: true,
+};`;
+    setPublicKeyJson(codeSnippet);
+    try { await navigator.clipboard.writeText(codeSnippet); toast.success("تم نسخ الكود — الصقه في license.ts سطر 13"); }
+    catch { toast.info("الكود معروض أدناه — انسخه يدوياً"); }
+  };
+
   const handleExportPrivateKey = async () => {
     const priv = await loadKeyFromDB('privateKey');
     if (!priv) { toast.error("لم يتم توليد المفاتيح بعد"); return; }
