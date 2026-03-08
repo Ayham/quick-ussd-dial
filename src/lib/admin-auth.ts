@@ -2,7 +2,7 @@ const ADMIN_CREDENTIALS_KEY = 'app_admin_creds_v1';
 
 // Default credentials — change on first login
 const DEFAULT_USERNAME = 'admin';
-const DEFAULT_PASSWORD = 'admin2025';
+const DEFAULT_PASSWORD = 'Password@5@164';
 
 export interface AdminCredentials {
   username: string;
