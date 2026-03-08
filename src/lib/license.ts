@@ -26,7 +26,7 @@ export interface LicensePayload {
 
 export type AppLicenseStatus =
   | { status: 'trial'; daysLeft: number }
-  | { status: 'licensed'; expiryDate: string; daysLeft: number }
+  | { status: 'licensed'; expiryDate: string; daysLeft: number; permanent?: boolean }
   | { status: 'trial_expired' }
   | { status: 'license_expired' }
   | { status: 'clock_tampered' };
