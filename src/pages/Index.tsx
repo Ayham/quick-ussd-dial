@@ -193,21 +193,20 @@ const Index = () => {
             </span>
             <button
               onClick={async () => {
-                setImporting(true);
                 try {
-                  const imported = await importPhoneContacts();
-                  toast.success(`تم استيراد ${imported.length} جهة اتصال`);
+                  const picked = await pickPhoneContact();
+                  if (picked) {
+                    setPhone(picked.phone);
+                    setContactName(picked.name || '');
+                  }
                 } catch {
-                  toast.error("تعذر الوصول لجهات الاتصال");
-                } finally {
-                  setImporting(false);
+                  toast.error("تعذر فتح سجل الاتصال");
                 }
               }}
-              disabled={importing}
               className="p-1.5 rounded-lg hover:bg-muted transition-smooth text-muted-foreground hover:text-primary"
-              title="استيراد من الهاتف"
+              title="اختيار من سجل الهاتف"
             >
-              <Download className="w-4 h-4" />
+              <Contact className="w-4 h-4" />
             </button>
           </label>
           <div className="relative" ref={contactsRef}>

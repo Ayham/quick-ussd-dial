@@ -10,7 +10,7 @@ import {
   saveContact,
   updateContactName,
   deleteContact,
-  importPhoneContacts,
+  pickPhoneContact,
   type SavedContact,
 } from "@/lib/contacts";
 
