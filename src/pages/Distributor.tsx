@@ -10,10 +10,15 @@ import { toast } from "sonner";
 import {
   getDistributorAccount, saveDistributorAccount, addTransaction,
   deleteTransaction, getBalance, getDistributorStats,
-  type TransactionType,
+  type TransactionType, type Operator,
 } from "@/lib/distributor";
 
 type ViewTab = 'main' | 'history' | 'stats' | 'settings';
+
+const OPERATORS: { id: Operator; label: string; color: string }[] = [
+  { id: 'syriatel', label: 'سيريتل', color: 'text-red-500' },
+  { id: 'mtn', label: 'MTN', color: 'text-yellow-500' },
+];
 
 const Distributor = () => {
   const [account, setAccount] = useState(() => getDistributorAccount());
@@ -21,6 +26,7 @@ const Distributor = () => {
   const [txType, setTxType] = useState<TransactionType>('topup');
   const [txAmount, setTxAmount] = useState('');
   const [txNote, setTxNote] = useState('');
+  const [txOperator, setTxOperator] = useState<Operator>('syriatel');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   // Settings edit
@@ -29,9 +35,11 @@ const Distributor = () => {
   const [editAlert, setEditAlert] = useState(String(account.lowBalanceAlert));
   const [editMessage, setEditMessage] = useState(account.whatsappMessage || 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س');
 
-  const balance = useMemo(() => getBalance(), [account]);
+  const syriatelBalance = useMemo(() => getBalance('syriatel'), [account]);
+  const mtnBalance = useMemo(() => getBalance('mtn'), [account]);
+  const totalBalance = syriatelBalance + mtnBalance;
   const stats = useMemo(() => getDistributorStats(), [account]);
-  const isLowBalance = balance <= account.lowBalanceAlert && account.lowBalanceAlert > 0;
+  const isLowBalance = totalBalance <= account.lowBalanceAlert && account.lowBalanceAlert > 0;
 
   const sendWhatsApp = (amount: number, note: string) => {
     const phone = account.phone.replace(/^0/, '963');
@@ -52,13 +60,13 @@ const Distributor = () => {
       toast.error("أدخل مبلغاً صحيحاً");
       return;
     }
-    if (actualType === 'payment' && amount > balance) {
+    const operatorBalance = txOperator === 'syriatel' ? syriatelBalance : mtnBalance;
+    if (actualType === 'payment' && amount > operatorBalance) {
       toast.error("المبلغ أكبر من الرصيد المتاح");
       return;
     }
-    addTransaction(actualType, amount, txNote.trim());
+    addTransaction(actualType, amount, txNote.trim(), txOperator);
     setAccount(getDistributorAccount());
-    // Send WhatsApp for topup requests if phone exists
     if (actualType === 'topup' && account.phone) {
       sendWhatsApp(amount, txNote.trim());
     }
@@ -88,6 +96,8 @@ const Distributor = () => {
     { id: 'settings', label: 'الإعدادات' },
   ];
 
+  const getOperatorLabel = (op: Operator) => op === 'syriatel' ? 'سيريتل' : 'MTN';
+
   return (
     <AppLayout title="الموزع">
       {/* Tabs */}
@@ -112,50 +122,68 @@ const Distributor = () => {
         {/* ===== MAIN TAB ===== */}
         {activeTab === 'main' && (
           <>
-            {/* Balance Card */}
-            <div className={`rounded-2xl p-5 text-center shadow-card ${
+            {/* Balance Cards - per operator */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-card border border-border rounded-xl p-3 text-center shadow-card">
+                <p className="text-[11px] text-red-500 font-bold mb-0.5">سيريتل</p>
+                <p className={`text-xl font-bold tracking-tight ${syriatelBalance < 0 ? "text-destructive" : "text-foreground"}`}>
+                  {syriatelBalance.toLocaleString()}
+                </p>
+                <p className="text-[10px] text-muted-foreground">ل.س</p>
+              </div>
+              <div className="bg-card border border-border rounded-xl p-3 text-center shadow-card">
+                <p className="text-[11px] text-yellow-500 font-bold mb-0.5">MTN</p>
+                <p className={`text-xl font-bold tracking-tight ${mtnBalance < 0 ? "text-destructive" : "text-foreground"}`}>
+                  {mtnBalance.toLocaleString()}
+                </p>
+                <p className="text-[10px] text-muted-foreground">ل.س</p>
+              </div>
+            </div>
+
+            {/* Total balance */}
+            <div className={`rounded-xl p-3 text-center shadow-card ${
               isLowBalance
                 ? "bg-destructive/10 border-2 border-destructive/30"
                 : "bg-card border border-border"
             }`}>
               {account.name && (
-                <p className="text-xs text-muted-foreground mb-1">{account.name}</p>
+                <p className="text-[10px] text-muted-foreground mb-0.5">{account.name}</p>
               )}
-              <p className="text-xs text-muted-foreground">الرصيد عند الموزع</p>
-              <p className={`text-4xl font-bold tracking-tight mt-1 ${
-                balance < 0 ? "text-destructive" : isLowBalance ? "text-accent" : "text-primary"
+              <p className="text-[10px] text-muted-foreground">الرصيد الإجمالي</p>
+              <p className={`text-2xl font-bold tracking-tight ${
+                totalBalance < 0 ? "text-destructive" : isLowBalance ? "text-accent" : "text-primary"
               }`}>
-                {balance.toLocaleString()}
+                {totalBalance.toLocaleString()} <span className="text-xs text-muted-foreground">ل.س</span>
               </p>
-              <p className="text-xs text-muted-foreground mt-1">ل.س</p>
-              {isLowBalance && balance > 0 && (
-                <div className="flex items-center justify-center gap-1.5 mt-3 text-destructive text-xs font-medium">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  الرصيد منخفض — أقل من {account.lowBalanceAlert.toLocaleString()}
+              {isLowBalance && totalBalance > 0 && (
+                <div className="flex items-center justify-center gap-1.5 mt-1 text-destructive text-[10px] font-medium">
+                  <AlertTriangle className="w-3 h-3" />
+                  الرصيد منخفض
                 </div>
               )}
-            </div>
-
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-card border border-border rounded-xl p-3 text-center shadow-card">
-                <div className="flex items-center justify-center gap-1.5 mb-1">
-                  <ArrowDownCircle className="w-4 h-4 text-primary" />
-                  <span className="text-[11px] text-muted-foreground">إجمالي الطلبات</span>
-                </div>
-                <p className="text-lg font-bold text-foreground">{stats.totalTopups.toLocaleString()}</p>
-              </div>
-              <div className="bg-card border border-border rounded-xl p-3 text-center shadow-card">
-                <div className="flex items-center justify-center gap-1.5 mb-1">
-                  <ArrowUpCircle className="w-4 h-4 text-accent" />
-                  <span className="text-[11px] text-muted-foreground">إجمالي الدفعات</span>
-                </div>
-                <p className="text-lg font-bold text-foreground">{stats.totalPayments.toLocaleString()}</p>
-              </div>
             </div>
 
             {/* Add Transaction */}
             <div className="space-y-2">
+              {/* Operator selector */}
+              <div className="flex gap-2">
+                {OPERATORS.map((op) => (
+                  <button
+                    key={op.id}
+                    onClick={() => setTxOperator(op.id)}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-smooth ${
+                      txOperator === op.id
+                        ? op.id === 'syriatel'
+                          ? "bg-red-500/15 text-red-500 border-2 border-red-500/30"
+                          : "bg-yellow-500/15 text-yellow-500 border-2 border-yellow-500/30"
+                        : "bg-muted text-muted-foreground border-2 border-transparent"
+                    }`}
+                  >
+                    {op.label}
+                  </button>
+                ))}
+              </div>
+
               <Input
                 type="number"
                 value={txAmount}
@@ -241,13 +269,43 @@ const Distributor = () => {
         {/* ===== STATS TAB ===== */}
         {activeTab === 'stats' && (
           <div className="space-y-2">
-            {/* Summary row */}
+            {/* Per-operator stats */}
+            {OPERATORS.map((op) => {
+              const opStats = getDistributorStats(op.id);
+              if (opStats.transactionCount === 0) return null;
+              return (
+                <div key={op.id} className="bg-card border border-border rounded-xl p-4 shadow-card">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className={`text-sm font-bold ${op.color}`}>{op.label}</span>
+                    <span className="text-xs text-muted-foreground">{opStats.transactionCount} عملية</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">طلبات</span>
+                      <span className="text-sm font-bold text-primary">+{opStats.totalTopups.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">دفعات</span>
+                      <span className="text-sm font-bold text-accent">-{opStats.totalPayments.toLocaleString()}</span>
+                    </div>
+                    <div className="border-t border-border pt-2 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-foreground">الرصيد</span>
+                      <span className={`text-base font-bold ${opStats.balance >= 0 ? "text-primary" : "text-destructive"}`}>
+                        {opStats.balance.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Total summary */}
             <div className="bg-card border border-border rounded-xl p-4 shadow-card">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-bold text-foreground">الملخص</span>
+                <span className="text-sm font-bold text-foreground">الإجمالي</span>
                 <span className="text-xs text-muted-foreground">{stats.transactionCount} عملية</span>
               </div>
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">إجمالي الطلبات</span>
                   <span className="text-sm font-bold text-primary">+{stats.totalTopups.toLocaleString()}</span>
@@ -264,23 +322,6 @@ const Distributor = () => {
                 </div>
               </div>
             </div>
-
-            {/* Period rows */}
-            {[
-              { label: 'اليوم', topups: stats.todayTopups, payments: stats.todayPayments },
-              { label: 'هذا الأسبوع', topups: stats.weekTopups, payments: stats.weekPayments },
-              { label: 'هذا الشهر', topups: stats.monthTopups, payments: stats.monthPayments },
-            ].map((period) => (
-              (period.topups > 0 || period.payments > 0) && (
-                <div key={period.label} className="bg-card border border-border rounded-xl px-4 py-3 shadow-card flex items-center justify-between">
-                  <span className="text-xs font-semibold text-foreground">{period.label}</span>
-                  <div className="flex items-center gap-4 text-xs">
-                    <span className="text-primary font-bold">+{period.topups.toLocaleString()}</span>
-                    <span className="text-accent font-bold">-{period.payments.toLocaleString()}</span>
-                  </div>
-                </div>
-              )
-            ))}
           </div>
         )}
 
@@ -349,8 +390,13 @@ const Distributor = () => {
 };
 
 // Transaction Row Component
-const TransactionRow = ({ tx, onDelete }: { tx: { id: string; type: string; amount: number; note: string; timestamp: number }; onDelete: (() => void) | null }) => {
+const TransactionRow = ({ tx, onDelete }: {
+  tx: { id: string; type: string; operator?: string; amount: number; note: string; timestamp: number };
+  onDelete: (() => void) | null;
+}) => {
   const isTopup = tx.type === 'topup';
+  const operatorLabel = tx.operator === 'mtn' ? 'MTN' : tx.operator === 'syriatel' ? 'سيريتل' : '';
+  const operatorColor = tx.operator === 'mtn' ? 'text-yellow-500' : 'text-red-500';
   return (
     <div className="flex items-center justify-between bg-card border border-border rounded-xl px-4 py-3 shadow-card">
       <div className="flex items-center gap-3">
@@ -364,7 +410,10 @@ const TransactionRow = ({ tx, onDelete }: { tx: { id: string; type: string; amou
           )}
         </div>
         <div>
-          <p className="text-sm font-medium text-foreground">{isTopup ? 'طلب رصيد' : 'دفعة'}</p>
+          <p className="text-sm font-medium text-foreground">
+            {isTopup ? 'طلب رصيد' : 'دفعة'}
+            {operatorLabel && <span className={`text-[10px] mr-1.5 ${operatorColor}`}>({operatorLabel})</span>}
+          </p>
           <p className="text-[11px] text-muted-foreground">
             {new Date(tx.timestamp).toLocaleDateString("ar-SY", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
             {tx.note && ` • ${tx.note}`}
