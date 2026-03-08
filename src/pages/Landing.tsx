@@ -129,7 +129,19 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* ── Features ── */}
+      {/* ── Operator Logos ── */}
+      <section className="w-full max-w-3xl mx-auto px-5 sm:px-8 py-8 sm:py-10">
+        <p className="text-xs sm:text-sm text-muted-foreground text-center mb-4">يدعم شبكات الاتصال السورية</p>
+        <div className="flex items-center justify-center gap-6 sm:gap-10">
+          <div className="bg-card border border-border rounded-2xl p-4 sm:p-5 shadow-sm flex items-center justify-center w-32 sm:w-40 h-20 sm:h-24">
+            <img src={syriatelLogo} alt="Syriatel سيريتل" className="max-h-14 sm:max-h-16 object-contain" />
+          </div>
+          <div className="bg-card border border-border rounded-2xl p-4 sm:p-5 shadow-sm flex items-center justify-center w-32 sm:w-40 h-20 sm:h-24">
+            <img src={mtnLogo} alt="MTN" className="max-h-14 sm:max-h-16 object-contain" />
+          </div>
+        </div>
+      </section>
+
       <section id="features" className="w-full max-w-4xl mx-auto px-5 sm:px-8 py-12 sm:py-16 lg:py-20">
         <div className="text-center mb-8 sm:mb-10">
           <span className="inline-block text-[11px] font-bold text-primary bg-primary/10 rounded-full px-3 py-1 mb-3">المميزات</span>
