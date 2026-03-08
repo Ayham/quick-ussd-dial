@@ -16,7 +16,6 @@ import {
   setAdminAuthenticated,
   getAdminCredentials,
   saveAdminCredentials,
-  isAdminInitialized,
 } from "@/lib/admin-auth";
 import {
   getLicenseApiEndpoint, saveLicenseApiEndpoint,
@@ -80,7 +79,7 @@ const Admin = () => {
   const navigate = useNavigate();
   const [authenticated, setAuthenticated] = useState(isAdminAuthenticated());
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
-  const [isFirstSetup, setIsFirstSetup] = useState(!isAdminInitialized());
+  
 
   // Login
   const [username, setUsername] = useState("");
@@ -176,16 +175,6 @@ const Admin = () => {
     }
   };
 
-  const handleFirstSetup = () => {
-    if (!username.trim()) { toast.error("أدخل اسم المستخدم"); return; }
-    if (!password.trim() || password.length < 6) { toast.error("كلمة السر 6 أحرف على الأقل"); return; }
-    if (password !== setupConfirmPassword) { toast.error("كلمة السر غير متطابقة"); return; }
-    saveAdminCredentials({ username: username.trim(), password });
-    setAdminAuthenticated(true);
-    setAuthenticated(true);
-    setIsFirstSetup(false);
-    toast.success("تم إنشاء حساب الأدمن بنجاح! 🎉");
-  };
 
   const handleLogin = () => {
     if (verifyAdmin(username, password)) {
@@ -343,42 +332,7 @@ const Admin = () => {
 
   // ======= Login / First Setup =======
   if (!authenticated) {
-    // First time setup — no password exists
-    if (isFirstSetup) {
-      return (
-        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 safe-area-insets" dir="rtl">
-          <div className="w-full max-w-sm space-y-6">
-            <div className="text-center">
-              <ShieldCheck className="w-16 h-16 mx-auto mb-4 text-primary" />
-              <h1 className="text-2xl font-bold text-foreground">إعداد لوحة الإدارة</h1>
-              <p className="text-sm text-muted-foreground mt-1">أنشئ بيانات الدخول الخاصة بك (أول مرة)</p>
-            </div>
-            <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-muted-foreground">اسم المستخدم</label>
-                <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin" className="h-11" dir="ltr" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-muted-foreground">كلمة السر</label>
-                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="6 أحرف على الأقل" className="h-11" dir="ltr" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-muted-foreground">تأكيد كلمة السر</label>
-                <Input type="password" value={setupConfirmPassword} onChange={(e) => setSetupConfirmPassword(e.target.value)} placeholder="أعد كتابة كلمة السر" className="h-11" dir="ltr" />
-              </div>
-              <Button onClick={handleFirstSetup} className="w-full h-11 font-bold rounded-xl">
-                <ShieldCheck className="w-4 h-4 ml-2" />إنشاء الحساب
-              </Button>
-            </div>
-            <p className="text-[10px] text-muted-foreground text-center">
-              ⚠️ احفظ بيانات الدخول في مكان آمن — لا يمكن استعادتها
-            </p>
-          </div>
-        </div>
-      );
-    }
-
-    // Normal login
+    // Login only — no first-setup allowed
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 safe-area-insets" dir="rtl">
         <div className="w-full max-w-sm space-y-6">
