@@ -184,7 +184,7 @@ const Index = () => {
         </div>
       )}
 
-      <main className="flex-1 p-2 w-full space-y-2 overflow-y-auto pb-20">
+      <main className="flex-1 p-2 w-full space-y-2 overflow-y-auto pb-4">
         {/* Phone Input */}
         <div className="space-y-1">
           <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
