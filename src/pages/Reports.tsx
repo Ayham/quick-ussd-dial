@@ -340,7 +340,7 @@ const Reports = () => {
           </div>
         )}
       </main>
-    </div>
+    </AppLayout>
   );
 };
 

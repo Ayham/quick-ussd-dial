@@ -558,7 +558,7 @@ const Settings = () => {
 
         <div className="h-6" />
       </main>
-    </div>
+    </AppLayout>
   );
 };
 
