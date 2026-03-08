@@ -3,7 +3,7 @@ import {
   Shield, Key, Copy, Lock, LogOut, Settings2, Clock,
   AlertTriangle, BarChart3, History, Trash2, Search, Edit, Check, X,
   Cloud, Wifi, WifiOff, RefreshCw, Database, ShieldCheck, Power, Users,
-  Megaphone, Plus, Minus
+  Megaphone, Plus, Minus, Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +31,7 @@ import {
 import { getHistory } from "@/lib/transfer-history";
 import { seedDemoData, clearDemoData, seedDistributorData, clearDistributorData } from "@/lib/seed-demo-data";
 import { getCredentials, getPrefixes, getSimAssignment, getUssdTemplates, getBalanceTemplates, getPresets } from "@/lib/ussd-profiles";
-import { getPackages, savePackages, getAppConfig, saveAppConfig, type AppPackage, type AppConfig } from "@/lib/marketing";
+import { getPackages, savePackages, getAppConfig, saveAppConfig, getReleases, saveReleases, addRelease, deleteRelease, type AppPackage, type AppConfig, type AppRelease } from "@/lib/marketing";
 
 // ======= IndexedDB for RSA Keys =======
 const DB_NAME = 'LicenseAdminDB';
@@ -122,6 +122,8 @@ const Admin = () => {
   const [mktPackages, setMktPackages] = useState<AppPackage[]>(() => getPackages());
   const [mktConfig, setMktConfig] = useState<AppConfig>(() => getAppConfig());
   const [editPkgId, setEditPkgId] = useState<string | null>(null);
+  const [mktReleases, setMktReleases] = useState<AppRelease[]>(() => getReleases());
+  const [newRelease, setNewRelease] = useState({ version: '', downloadUrl: '', changelog: '' });
 
   // Stats
   const stats = useMemo(() => getLicenseStats(), [licenseHistory]);
@@ -770,6 +772,144 @@ const Admin = () => {
                 }}>
                   حفظ الباقات
                 </Button>
+              </div>
+            </SectionCard>
+
+            {/* Releases Management */}
+            <SectionCard title="إدارة النسخ والتحديثات" icon={<Download className="w-4 h-4" />}>
+              <div className="space-y-3">
+                {/* Add new release form */}
+                <div className="border border-dashed border-primary/30 rounded-xl p-3 space-y-2 bg-primary/5">
+                  <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <Plus className="w-3.5 h-3.5" />
+                    إضافة نسخة جديدة
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-muted-foreground">رقم النسخة</label>
+                      <Input 
+                        value={newRelease.version} 
+                        onChange={(e) => setNewRelease({...newRelease, version: e.target.value})}
+                        placeholder="1.0.0" 
+                        className="h-8 text-xs rounded-lg" 
+                        dir="ltr" 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-muted-foreground">رابط التنزيل</label>
+                      <Input 
+                        value={newRelease.downloadUrl} 
+                        onChange={(e) => setNewRelease({...newRelease, downloadUrl: e.target.value})}
+                        placeholder="https://drive.google.com/..." 
+                        className="h-8 text-xs rounded-lg" 
+                        dir="ltr" 
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-muted-foreground">التغييرات في هذه النسخة</label>
+                    <textarea 
+                      value={newRelease.changelog} 
+                      onChange={(e) => setNewRelease({...newRelease, changelog: e.target.value})}
+                      placeholder="• إصلاح مشاكل&#10;• إضافة ميزة جديدة..."
+                      className="w-full min-h-[50px] rounded-lg border border-border bg-background px-2 py-1.5 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="w-full h-8 text-xs rounded-lg"
+                    disabled={!newRelease.version.trim() || !newRelease.downloadUrl.trim()}
+                    onClick={() => {
+                      const releases = addRelease({
+                        version: newRelease.version.trim(),
+                        downloadUrl: newRelease.downloadUrl.trim(),
+                        changelog: newRelease.changelog.trim(),
+                        releaseDate: new Date().toISOString().split('T')[0],
+                        isLatest: true,
+                      });
+                      setMktReleases(releases);
+                      setNewRelease({ version: '', downloadUrl: '', changelog: '' });
+                      toast.success(`تم إضافة النسخة ${newRelease.version}`);
+                    }}
+                  >
+                    <Plus className="w-3 h-3 ml-1" />
+                    إضافة النسخة
+                  </Button>
+                </div>
+
+                {/* Existing releases */}
+                {mktReleases.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">لم يتم إضافة أي نسخ بعد</p>
+                ) : (
+                  <div className="space-y-2">
+                    {mktReleases.map((release) => (
+                      <div key={release.id} className={`border rounded-xl p-3 ${release.isLatest ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-sm font-bold text-foreground">v{release.version}</span>
+                            {release.isLatest && (
+                              <span className="text-[9px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full font-bold">أحدث نسخة</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {!release.isLatest && (
+                              <button 
+                                onClick={() => {
+                                  const updated = mktReleases.map(r => ({...r, isLatest: r.id === release.id}));
+                                  setMktReleases(updated);
+                                  saveReleases(updated);
+                                  toast.success("تم تعيينها كأحدث نسخة");
+                                }}
+                                className="text-[10px] text-primary hover:underline px-1"
+                              >
+                                تعيين كأحدث
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => {
+                                const updated = deleteRelease(release.id);
+                                setMktReleases(updated);
+                                toast.success("تم حذف النسخة");
+                              }}
+                              className="text-destructive hover:text-destructive/80 p-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground mb-1">
+                          {release.releaseDate}
+                        </div>
+                        {release.changelog && (
+                          <p className="text-[11px] text-foreground bg-muted rounded-lg px-2 py-1.5 whitespace-pre-wrap">{release.changelog}</p>
+                        )}
+                        <div className="mt-2 flex items-center gap-2">
+                          <Input 
+                            value={release.downloadUrl} 
+                            readOnly 
+                            className="h-7 text-[10px] font-mono flex-1 bg-muted"
+                            dir="ltr"
+                          />
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-7 text-[10px] px-2"
+                            onClick={() => {
+                              navigator.clipboard.writeText(release.downloadUrl);
+                              toast.success("تم نسخ الرابط");
+                            }}
+                          >
+                            <Copy className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <p className="text-[10px] text-muted-foreground">
+                  أضف روابط التنزيل من Google Drive أو Mediafire أو أي خدمة استضافة ملفات. النسخة "الأحدث" ستظهر في صفحة التسويق.
+                </p>
               </div>
             </SectionCard>
 
