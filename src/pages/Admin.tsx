@@ -175,16 +175,6 @@ const Admin = () => {
     }
   };
 
-  const handleFirstSetup = () => {
-    if (!username.trim()) { toast.error("أدخل اسم المستخدم"); return; }
-    if (!password.trim() || password.length < 6) { toast.error("كلمة السر 6 أحرف على الأقل"); return; }
-    if (password !== setupConfirmPassword) { toast.error("كلمة السر غير متطابقة"); return; }
-    saveAdminCredentials({ username: username.trim(), password });
-    setAdminAuthenticated(true);
-    setAuthenticated(true);
-    setIsFirstSetup(false);
-    toast.success("تم إنشاء حساب الأدمن بنجاح! 🎉");
-  };
 
   const handleLogin = () => {
     if (verifyAdmin(username, password)) {
