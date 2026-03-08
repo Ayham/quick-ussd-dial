@@ -1,7 +1,10 @@
 /**
  * Marketing & App Config
  * إدارة الباقات والتحديثات والروابط
+ * يجلب النسخ من Google Sheets مع fallback لـ localStorage
  */
+
+import { getSyncEndpoint } from './cloud-sync';
 
 const PACKAGES_KEY = 'app-packages-v1';
 const APP_CONFIG_KEY = 'app-config-v1';
