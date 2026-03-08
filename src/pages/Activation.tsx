@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Copy, Key, Smartphone, CheckCircle, AlertTriangle, Clock, Shield, ShieldCheck, MessageCircle, PhoneCall } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,19 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
   const [licenseKey, setLicenseKey] = useState("");
   const [loading, setLoading] = useState(false);
   const deviceId = getDeviceId();
+  const navigate = useNavigate();
+  const tapCountRef = useRef(0);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const handleTitleTap = () => {
+    tapCountRef.current++;
+    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    if (tapCountRef.current >= 7) {
+      tapCountRef.current = 0;
+      navigate("/sys-panel");
+    } else {
+      tapTimerRef.current = setTimeout(() => { tapCountRef.current = 0; }, 2000);
+    }
+  };
 
   const copyDeviceId = async () => {
     try {
@@ -62,7 +76,7 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
     <div className="min-h-screen bg-background flex flex-col safe-area-insets" dir="rtl">
       <header className="bg-primary px-4 py-4 flex items-center gap-3 shadow-md pt-safe">
         <Shield className="w-6 h-6 text-primary-foreground" />
-        <h1 className="text-primary-foreground text-xl font-bold">تفعيل التطبيق</h1>
+        <h1 className="text-primary-foreground text-xl font-bold cursor-default select-none" onClick={handleTitleTap}>تفعيل التطبيق</h1>
       </header>
 
       <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col justify-center gap-5">
