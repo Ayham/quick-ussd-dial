@@ -32,21 +32,22 @@ const Distributor = () => {
   const stats = useMemo(() => getDistributorStats(), [account]);
   const isLowBalance = balance <= account.lowBalanceAlert && account.lowBalanceAlert > 0;
 
-  const handleAddTransaction = () => {
+  const handleAddTransaction = (type?: TransactionType) => {
+    const actualType = type || txType;
     const amount = Number(txAmount);
     if (!amount || amount <= 0) {
       toast.error("أدخل مبلغاً صحيحاً");
       return;
     }
-    if (txType === 'payment' && amount > balance) {
+    if (actualType === 'payment' && amount > balance) {
       toast.error("المبلغ أكبر من الرصيد المتاح");
       return;
     }
-    addTransaction(txType, amount, txNote.trim());
+    addTransaction(actualType, amount, txNote.trim());
     setAccount(getDistributorAccount());
     setTxAmount('');
     setTxNote('');
-    toast.success(txType === 'topup' ? 'تم تسجيل طلب الرصيد' : 'تم تسجيل الدفعة');
+    toast.success(actualType === 'topup' ? 'تم تسجيل طلب الرصيد' : 'تم تسجيل الدفعة');
   };
 
   const handleDelete = (id: string) => {
