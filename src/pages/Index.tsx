@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
-import { Phone, Clock, CheckCircle, Loader2, Send, TrendingUp, BookUser, UserPlus, Download } from "lucide-react";
+import { Phone, Clock, CheckCircle, Loader2, Send, TrendingUp, BookUser, UserPlus, Contact } from "lucide-react";
 import {
   detectOperator,
   buildUssdCode,
