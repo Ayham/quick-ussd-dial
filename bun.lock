@@ -10,6 +10,7 @@
         "@capacitor/cli": "^8.1.0",
         "@capacitor/core": "^8.1.0",
         "@capgo/capacitor-intent-launcher": "^8.3.10",
+        "@capgo/capacitor-updater": "^8.43.10",
         "@hookform/resolvers": "^3.10.0",
         "@radix-ui/react-accordion": "^1.2.11",
         "@radix-ui/react-alert-dialog": "^1.1.14",
@@ -102,6 +103,8 @@
     "@capacitor/core": ["@capacitor/core@8.1.0", "", { "dependencies": { "tslib": "^2.1.0" } }, "sha512-UfMBMWc1v7J+14AhH03QmeNwV3HZx3qnOWhpwnHfzALEwAwlV/itQOQqcasMQYhOHWL0tiymc5ByaLTn7KKQxw=="],
 
     "@capgo/capacitor-intent-launcher": ["@capgo/capacitor-intent-launcher@8.3.10", "", { "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-cskahGe8aRoXVxv9zP2R3N36PmsjRSMXKPrDWqLGA79oZR3SMOd4NYerZSI5sg7jylewz6dpSr01ZexqPbfidw=="],
+
+    "@capgo/capacitor-updater": ["@capgo/capacitor-updater@8.43.10", "", { "peerDependencies": { "@capacitor/core": "^8.0.0" } }, "sha512-M4ZwzMLB0FeJyF4P+qPVROfFng0YwPiIT3WZMdqU5QQsCHpvrBRpn0OmYCtRUU45210QH3+vDjNXTEmqngIZXw=="],
 
     "@esbuild/aix-ppc64": ["@esbuild/aix-ppc64@0.25.0", "", { "os": "aix", "cpu": "ppc64" }, "sha512-O7vun9Sf8DFjH2UtqK8Ku3LkquL9SZL8OLY1T5NZkA34+wG3OQF7cl4Ql8vdNzM6fzBbYfLaiRLIOZ+2FOCgBQ=="],
 

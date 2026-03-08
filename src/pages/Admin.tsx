@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import {
   Shield, Key, Copy, Lock, LogOut, Settings2, Clock,
   AlertTriangle, BarChart3, History, Trash2, Search, Edit, Check, X,
-  Cloud, Wifi, WifiOff, RefreshCw, Database, ShieldCheck, Power, Users
+  Cloud, Wifi, WifiOff, RefreshCw, Database, ShieldCheck, Power, Users,
+  Megaphone, Plus, Minus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ import {
 import { getHistory } from "@/lib/transfer-history";
 import { seedDemoData, clearDemoData, seedDistributorData, clearDistributorData } from "@/lib/seed-demo-data";
 import { getCredentials, getPrefixes, getSimAssignment, getUssdTemplates, getBalanceTemplates, getPresets } from "@/lib/ussd-profiles";
+import { getPackages, savePackages, getAppConfig, saveAppConfig, type AppPackage, type AppConfig } from "@/lib/marketing";
 
 // ======= IndexedDB for RSA Keys =======
 const DB_NAME = 'LicenseAdminDB';
@@ -65,7 +67,7 @@ async function loadKeyFromDB(name: string): Promise<JsonWebKey | undefined> {
 }
 
 // ======= Admin Tabs =======
-type AdminTab = 'dashboard' | 'generate' | 'archive' | 'keys' | 'settings';
+type AdminTab = 'dashboard' | 'generate' | 'archive' | 'keys' | 'settings' | 'marketing';
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -115,6 +117,11 @@ const Admin = () => {
   const [syncing, setSyncing] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmLicenseClear, setConfirmLicenseClear] = useState(false);
+
+  // Marketing
+  const [mktPackages, setMktPackages] = useState<AppPackage[]>(() => getPackages());
+  const [mktConfig, setMktConfig] = useState<AppConfig>(() => getAppConfig());
+  const [editPkgId, setEditPkgId] = useState<string | null>(null);
 
   // Stats
   const stats = useMemo(() => getLicenseStats(), [licenseHistory]);
@@ -347,6 +354,7 @@ const Admin = () => {
           { id: 'generate' as AdminTab, label: 'توليد ترخيص', icon: Shield },
           { id: 'archive' as AdminTab, label: 'الأرشيف', icon: History },
           { id: 'keys' as AdminTab, label: 'المفاتيح', icon: Key },
+          { id: 'marketing' as AdminTab, label: 'التسويق', icon: Megaphone },
           { id: 'settings' as AdminTab, label: 'إعدادات', icon: Settings2 },
         ]).map(tab => (
           <button
@@ -615,6 +623,170 @@ const Admin = () => {
                 </div>
               </SectionCard>
             )}
+          </div>
+        )}
+
+        {/* ===== MARKETING TAB ===== */}
+        {activeTab === 'marketing' && (
+          <div className="space-y-4">
+            {/* App Config */}
+            <SectionCard title="إعدادات التطبيق" icon={<Settings2 className="w-4 h-4" />}>
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">عنوان الصفحة الرئيسي</label>
+                  <Input value={mktConfig.heroTitle} onChange={(e) => setMktConfig({...mktConfig, heroTitle: e.target.value})}
+                    className="h-10 rounded-xl text-sm" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">العنوان الفرعي</label>
+                  <Input value={mktConfig.heroSubtitle} onChange={(e) => setMktConfig({...mktConfig, heroSubtitle: e.target.value})}
+                    className="h-10 rounded-xl text-sm" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">رقم الإصدار</label>
+                    <Input value={mktConfig.appVersion} onChange={(e) => setMktConfig({...mktConfig, appVersion: e.target.value})}
+                      className="h-10 rounded-xl text-sm" dir="ltr" placeholder="1.0.0" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">رقم واتساب</label>
+                    <Input value={mktConfig.whatsappContact} onChange={(e) => setMktConfig({...mktConfig, whatsappContact: e.target.value})}
+                      className="h-10 rounded-xl text-sm" dir="ltr" placeholder="09XXXXXXXX" inputMode="tel" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">رابط تنزيل APK</label>
+                  <Input value={mktConfig.downloadUrl} onChange={(e) => setMktConfig({...mktConfig, downloadUrl: e.target.value})}
+                    className="h-10 rounded-xl text-sm" dir="ltr" placeholder="https://..." />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">سجل التغييرات</label>
+                  <textarea value={mktConfig.changelog} onChange={(e) => setMktConfig({...mktConfig, changelog: e.target.value})}
+                    className="w-full min-h-[60px] rounded-xl border border-border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                    placeholder="ما الجديد في هذا الإصدار..." />
+                </div>
+                <Button className="w-full h-10 font-bold rounded-xl" onClick={() => {
+                  saveAppConfig(mktConfig);
+                  toast.success("تم حفظ إعدادات التطبيق");
+                }}>
+                  حفظ الإعدادات
+                </Button>
+              </div>
+            </SectionCard>
+
+            {/* Packages Management */}
+            <SectionCard title="إدارة الباقات" icon={<Megaphone className="w-4 h-4" />}>
+              <div className="space-y-3">
+                {mktPackages.map((pkg, idx) => (
+                  <div key={pkg.id} className={`border rounded-xl p-3 space-y-2 ${pkg.enabled ? 'border-border' : 'border-border/50 opacity-60'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => {
+                          const updated = [...mktPackages];
+                          updated[idx].enabled = !updated[idx].enabled;
+                          setMktPackages(updated);
+                        }} className={`w-8 h-5 rounded-full relative transition-all ${pkg.enabled ? 'bg-primary' : 'bg-muted'}`}>
+                          <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${pkg.enabled ? 'left-[0.85rem]' : 'left-0.5'}`} />
+                        </button>
+                        <span className="text-sm font-bold text-foreground">{pkg.name}</span>
+                        {pkg.popular && <span className="text-[9px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">الأكثر طلباً</span>}
+                      </div>
+                      <button onClick={() => setEditPkgId(editPkgId === pkg.id ? null : pkg.id)} className="text-muted-foreground hover:text-primary p-1">
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>{pkg.price === 0 ? 'مجاني' : `${pkg.price.toLocaleString()} ${pkg.currency}`}</span>
+                      <span>•</span>
+                      <span>{pkg.durationLabel}</span>
+                      <span>•</span>
+                      <span>{pkg.features.length} ميزة</span>
+                    </div>
+
+                    {editPkgId === pkg.id && (
+                      <div className="space-y-2 pt-2 border-t border-border">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-muted-foreground">الاسم</label>
+                            <Input value={pkg.name} onChange={(e) => {
+                              const updated = [...mktPackages]; updated[idx].name = e.target.value; setMktPackages(updated);
+                            }} className="h-8 text-xs rounded-lg" />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-muted-foreground">السعر</label>
+                            <Input type="number" value={String(pkg.price)} onChange={(e) => {
+                              const updated = [...mktPackages]; updated[idx].price = Number(e.target.value); setMktPackages(updated);
+                            }} className="h-8 text-xs rounded-lg" dir="ltr" />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-muted-foreground">المدة</label>
+                            <Input value={pkg.durationLabel} onChange={(e) => {
+                              const updated = [...mktPackages]; updated[idx].durationLabel = e.target.value; setMktPackages(updated);
+                            }} className="h-8 text-xs rounded-lg" />
+                          </div>
+                          <div className="space-y-1 flex items-end gap-1">
+                            <label className="flex items-center gap-1 text-[10px] text-muted-foreground cursor-pointer">
+                              <input type="checkbox" checked={pkg.popular || false} onChange={(e) => {
+                                const updated = [...mktPackages]; updated[idx].popular = e.target.checked; setMktPackages(updated);
+                              }} className="rounded" />
+                              الأكثر طلباً
+                            </label>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-muted-foreground">الميزات (سطر لكل ميزة)</label>
+                          <textarea value={pkg.features.join('\n')} onChange={(e) => {
+                            const updated = [...mktPackages]; updated[idx].features = e.target.value.split('\n').filter(f => f.trim()); setMktPackages(updated);
+                          }} className="w-full min-h-[60px] rounded-lg border border-border bg-background px-2 py-1.5 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-ring" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                <Button variant="outline" className="w-full h-9 text-xs rounded-xl" onClick={() => {
+                  const newPkg: AppPackage = {
+                    id: crypto.randomUUID(),
+                    name: 'باقة جديدة',
+                    price: 0,
+                    currency: 'ل.س',
+                    duration: 'monthly',
+                    durationLabel: 'شهر',
+                    features: ['ميزة 1'],
+                    enabled: true,
+                  };
+                  setMktPackages([...mktPackages, newPkg]);
+                  setEditPkgId(newPkg.id);
+                }}>
+                  <Plus className="w-3.5 h-3.5 ml-1" />
+                  إضافة باقة
+                </Button>
+
+                <Button className="w-full h-10 font-bold rounded-xl" onClick={() => {
+                  savePackages(mktPackages);
+                  toast.success("تم حفظ الباقات");
+                }}>
+                  حفظ الباقات
+                </Button>
+              </div>
+            </SectionCard>
+
+            {/* Landing page link */}
+            <div className="bg-card border border-border rounded-xl p-4 text-center space-y-2">
+              <p className="text-xs text-muted-foreground">رابط الصفحة التسويقية</p>
+              <Button variant="outline" className="rounded-xl" onClick={() => {
+                const url = `${window.location.origin}/landing`;
+                navigator.clipboard.writeText(url).then(() => toast.success("تم نسخ الرابط")).catch(() => toast.info(url));
+              }}>
+                <Copy className="w-4 h-4 ml-1" />
+                نسخ الرابط
+              </Button>
+              <Button variant="ghost" className="rounded-xl text-xs" onClick={() => window.open('/landing', '_blank')}>
+                معاينة الصفحة
+              </Button>
+            </div>
           </div>
         )}
 
