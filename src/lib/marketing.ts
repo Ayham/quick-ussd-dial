@@ -5,6 +5,7 @@
 
 const PACKAGES_KEY = 'app-packages-v1';
 const APP_CONFIG_KEY = 'app-config-v1';
+const RELEASES_KEY = 'app-releases-v1';
 
 export interface AppPackage {
   id: string;
@@ -16,6 +17,15 @@ export interface AppPackage {
   features: string[];
   popular?: boolean;
   enabled: boolean;
+}
+
+export interface AppRelease {
+  id: string;
+  version: string;
+  downloadUrl: string;
+  changelog: string;
+  releaseDate: string;
+  isLatest: boolean;
 }
 
 export interface AppConfig {
@@ -102,4 +112,40 @@ export function getAppConfig(): AppConfig {
 
 export function saveAppConfig(config: AppConfig) {
   localStorage.setItem(APP_CONFIG_KEY, JSON.stringify(config));
+}
+
+// ======= Releases =======
+
+export function getReleases(): AppRelease[] {
+  try {
+    const stored = localStorage.getItem(RELEASES_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return [];
+}
+
+export function saveReleases(releases: AppRelease[]) {
+  localStorage.setItem(RELEASES_KEY, JSON.stringify(releases));
+}
+
+export function addRelease(release: Omit<AppRelease, 'id'>): AppRelease[] {
+  const releases = getReleases();
+  // Mark all as not latest
+  if (release.isLatest) {
+    releases.forEach(r => r.isLatest = false);
+  }
+  const newRelease: AppRelease = { ...release, id: crypto.randomUUID() };
+  releases.unshift(newRelease);
+  saveReleases(releases);
+  return releases;
+}
+
+export function deleteRelease(id: string): AppRelease[] {
+  const releases = getReleases().filter(r => r.id !== id);
+  saveReleases(releases);
+  return releases;
+}
+
+export function getLatestRelease(): AppRelease | undefined {
+  return getReleases().find(r => r.isLatest) || getReleases()[0];
 }
