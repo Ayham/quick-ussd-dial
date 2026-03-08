@@ -106,7 +106,7 @@ const Index = () => {
     setShowConfirm(true);
   }, [phone, operator, selectedAmount]);
 
-  const handleConfirmTransfer = useCallback(async () => { // confirm transfer
+  const handleConfirmTransfer = useCallback(async () => {
     if (!operator || !selectedAmount) return;
     setShowConfirm(false);
     const ussd = buildUssdCode(operator, phone.trim(), String(selectedAmount.amount), credentials);
@@ -118,7 +118,6 @@ const Index = () => {
     try {
       await dialUssdDirect(ussd, simSlot);
 
-      // Log as completed immediately (one-click workflow)
       addToHistory({
         phone: phone.trim(),
         amount: String(selectedAmount.amount),
@@ -131,7 +130,6 @@ const Index = () => {
 
       toast.success("تم إرسال الطلب بنجاح ✓");
 
-      // Reset for next transfer
       setPhone("");
       setSelectedAmount(null);
     } catch {
@@ -146,13 +144,11 @@ const Index = () => {
     setShowContacts(false);
   };
 
-  // History filtered by entered phone number
   const phoneHistory = useMemo(
     () => (phone.trim().length >= 3 ? history.filter((r) => r.phone.includes(phone.trim()) && r.status === "success") : []),
     [history, phone]
   );
 
-  // Phone stats: today, week, month
   const phoneStats = useMemo(() => {
     if (phoneHistory.length === 0) return null;
     const now = Date.now();
@@ -178,11 +174,14 @@ const Index = () => {
 
   return (
     <AppLayout title="تحويل رصيد" onTitleClick={handleTitleTap}>
-      <main className="flex-1 p-2 w-full space-y-2 overflow-y-auto pb-4">
-        {/* Phone Input */}
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-            <Phone className="w-3.5 h-3.5" />
+      <main className="flex-1 p-3 w-full space-y-3 overflow-y-auto pb-4">
+        
+        {/* Phone Input Card */}
+        <div className="bg-card rounded-2xl p-4 shadow-card space-y-2 animate-slide-up">
+          <label className="text-xs font-semibold text-foreground flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center">
+              <Phone className="w-3.5 h-3.5 text-primary" />
+            </div>
             رقم الهاتف
           </label>
           <div className="relative" ref={contactsRef}>
@@ -192,25 +191,25 @@ const Index = () => {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               onFocus={() => setShowContacts(true)}
-              className="text-left text-base h-10 tracking-wider"
+              className="text-left text-base h-12 tracking-wider rounded-xl border-2 border-border focus:border-primary transition-smooth"
               dir="ltr"
               inputMode="tel"
             />
             {showContacts && matchingContacts.length > 0 && (
-              <div className="absolute z-10 top-full mt-1 w-full bg-card border border-border rounded-lg shadow-lg max-h-36 overflow-y-auto">
+              <div className="absolute z-10 top-full mt-1.5 w-full bg-card border border-border rounded-xl shadow-elevated max-h-40 overflow-y-auto">
                 {matchingContacts.map((contact) => {
                   const op = detectOperator(contact);
                   return (
                     <button
                       key={contact}
                       onClick={() => selectContact(contact)}
-                      className="w-full flex items-center justify-between px-3 py-1.5 hover:bg-muted transition-colors text-left"
+                      className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-muted transition-smooth text-left first:rounded-t-xl last:rounded-b-xl"
                       dir="ltr"
                     >
                       <span className="font-mono text-foreground text-sm tracking-wider">{contact}</span>
                       {op && (
                         <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                             op === "mtn"
                               ? "bg-operator-mtn text-operator-mtn-foreground"
                               : "bg-operator-syriatel text-operator-syriatel-foreground"
@@ -227,7 +226,7 @@ const Index = () => {
           </div>
           {phone.length >= 3 && operator && (
             <span
-              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+              className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold ${
                 operator === "mtn"
                   ? "bg-operator-mtn text-operator-mtn-foreground"
                   : "bg-operator-syriatel text-operator-syriatel-foreground"
@@ -237,31 +236,31 @@ const Index = () => {
             </span>
           )}
           {phone.length >= 3 && !operator && (
-            <span className="text-[10px] text-destructive">رقم غير معروف</span>
+            <span className="text-[11px] text-destructive font-medium">رقم غير معروف</span>
           )}
         </div>
 
-        {/* Preset Amounts - displayed in settings order */}
+        {/* Preset Amounts */}
         {operator && currentPresets.length > 0 && (
-          <div className="space-y-1">
-            <p className="text-[10px] font-medium text-muted-foreground">اختر المبلغ</p>
-            <div className="grid grid-cols-3 gap-1 max-h-[220px] overflow-y-auto">
+          <div className="space-y-2 animate-slide-up">
+            <p className="text-xs font-semibold text-muted-foreground px-1">اختر المبلغ</p>
+            <div className="grid grid-cols-3 gap-2 max-h-[240px] overflow-y-auto">
               {currentPresets.map((preset, i) => (
                 <button
                   key={i}
                   onClick={() => setSelectedAmount(preset)}
-                  className={`flex flex-col items-center p-1.5 rounded-lg border transition-all active:scale-95 ${
+                  className={`flex flex-col items-center p-2.5 rounded-xl border-2 transition-smooth active:scale-95 ${
                     selectedAmount?.amount === preset.amount
                       ? operator === "mtn"
-                        ? "border-operator-mtn bg-operator-mtn/10 ring-1 ring-operator-mtn"
-                        : "border-operator-syriatel bg-operator-syriatel/10 ring-1 ring-operator-syriatel"
-                      : "border-border bg-card hover:border-muted-foreground/30"
+                        ? "border-operator-mtn bg-operator-mtn/10 shadow-card"
+                        : "border-operator-syriatel bg-operator-syriatel/10 shadow-card"
+                      : "border-border bg-card hover:border-muted-foreground/30 hover:shadow-card"
                   }`}
                 >
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-[11px] text-muted-foreground">
                     {preset.amount.toLocaleString()}
                   </span>
-                  <span className="font-bold text-card-foreground text-sm">
+                  <span className="font-bold text-card-foreground text-sm mt-0.5">
                     {preset.price.toLocaleString()} ل.س
                   </span>
                 </button>
@@ -274,7 +273,7 @@ const Index = () => {
         <Button
           onClick={handleTransferClick}
           disabled={!operator || !selectedAmount || dialing}
-          className="w-full h-11 text-base font-bold rounded-xl shadow-lg"
+          className="w-full h-12 text-base font-bold rounded-xl shadow-elevated hover:shadow-card transition-smooth"
           size="lg"
         >
           {dialing ? (
@@ -287,69 +286,79 @@ const Index = () => {
 
         {/* Confirmation Dialog */}
         <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
-          <AlertDialogContent dir="rtl">
+          <AlertDialogContent dir="rtl" className="rounded-2xl">
             <AlertDialogHeader>
-              <AlertDialogTitle>تأكيد التحويل</AlertDialogTitle>
-              <AlertDialogDescription className="text-right space-y-2">
-                <span className="block">
-                  سيتم تحويل مبلغ <strong className="text-foreground">{selectedAmount?.amount.toLocaleString()} ل.س</strong> إلى الرقم <strong className="text-foreground" dir="ltr">{phone.trim()}</strong>
-                </span>
-                <span className="block text-xs">
-                  السعر: <strong className="text-foreground">{selectedAmount?.price.toLocaleString()} ل.س</strong> • المشغّل: <strong className="text-foreground">{operator === "mtn" ? "MTN" : "Syriatel"}</strong>
-                </span>
+              <AlertDialogTitle className="text-lg">تأكيد التحويل</AlertDialogTitle>
+              <AlertDialogDescription className="text-right space-y-3">
+                <div className="bg-muted rounded-xl p-4 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground text-sm">المبلغ</span>
+                    <span className="font-bold text-foreground text-lg">{selectedAmount?.amount.toLocaleString()} ل.س</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground text-sm">السعر</span>
+                    <span className="font-bold text-foreground">{selectedAmount?.price.toLocaleString()} ل.س</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground text-sm">الرقم</span>
+                    <span className="font-bold text-foreground font-mono" dir="ltr">{phone.trim()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground text-sm">المشغّل</span>
+                    <span className={`font-bold px-2 py-0.5 rounded-full text-xs ${
+                      operator === "mtn" 
+                        ? "bg-operator-mtn text-operator-mtn-foreground" 
+                        : "bg-operator-syriatel text-operator-syriatel-foreground"
+                    }`}>
+                      {operator === "mtn" ? "MTN" : "Syriatel"}
+                    </span>
+                  </div>
+                </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="flex-row-reverse gap-2">
-              <AlertDialogAction onClick={handleConfirmTransfer}>تأكيد التحويل</AlertDialogAction>
-              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmTransfer} className="rounded-xl flex-1">تأكيد التحويل</AlertDialogAction>
+              <AlertDialogCancel className="rounded-xl">إلغاء</AlertDialogCancel>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
 
         {/* Phone-specific stats + history */}
         {phoneStats && (
-          <div className="space-y-1.5">
-            <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" />
+          <div className="space-y-2 animate-slide-up">
+            <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 px-1">
+              <TrendingUp className="w-3.5 h-3.5" />
               ملخص التحويلات لهذا الرقم
             </p>
 
             {/* Stats row */}
-            <div className="grid grid-cols-4 gap-1">
-              <div className="bg-card border border-border rounded-md p-1.5 text-center">
-                <p className="text-[8px] text-muted-foreground">اليوم</p>
-                <p className="text-xs font-bold text-foreground">{phoneStats.todaySum.toLocaleString()}</p>
-                <p className="text-[8px] text-muted-foreground">{phoneStats.todayCount}×</p>
-              </div>
-              <div className="bg-card border border-border rounded-md p-1.5 text-center">
-                <p className="text-[8px] text-muted-foreground">الأسبوع</p>
-                <p className="text-xs font-bold text-foreground">{phoneStats.weekSum.toLocaleString()}</p>
-                <p className="text-[8px] text-muted-foreground">{phoneStats.weekCount}×</p>
-              </div>
-              <div className="bg-card border border-border rounded-md p-1.5 text-center">
-                <p className="text-[8px] text-muted-foreground">الشهر</p>
-                <p className="text-xs font-bold text-foreground">{phoneStats.monthSum.toLocaleString()}</p>
-                <p className="text-[8px] text-muted-foreground">{phoneStats.monthCount}×</p>
-              </div>
-              <div className="bg-card border border-border rounded-md p-1.5 text-center">
-                <p className="text-[8px] text-muted-foreground">الإجمالي</p>
-                <p className="text-xs font-bold text-foreground">{phoneStats.totalSum.toLocaleString()}</p>
-                <p className="text-[8px] text-muted-foreground">{phoneStats.totalCount}×</p>
-              </div>
+            <div className="grid grid-cols-4 gap-1.5">
+              {[
+                { label: "اليوم", sum: phoneStats.todaySum, count: phoneStats.todayCount },
+                { label: "الأسبوع", sum: phoneStats.weekSum, count: phoneStats.weekCount },
+                { label: "الشهر", sum: phoneStats.monthSum, count: phoneStats.monthCount },
+                { label: "الإجمالي", sum: phoneStats.totalSum, count: phoneStats.totalCount },
+              ].map((stat) => (
+                <div key={stat.label} className="bg-card border border-border rounded-xl p-2 text-center shadow-card">
+                  <p className="text-[9px] text-muted-foreground">{stat.label}</p>
+                  <p className="text-xs font-bold text-foreground">{stat.sum.toLocaleString()}</p>
+                  <p className="text-[9px] text-muted-foreground">{stat.count}×</p>
+                </div>
+              ))}
             </div>
 
             {/* Recent records */}
-            <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
-              <Clock className="w-3 h-3" />
+            <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 px-1">
+              <Clock className="w-3.5 h-3.5" />
               آخر العمليات
             </p>
-            <div className="space-y-0.5 max-h-[120px] overflow-y-auto">
+            <div className="space-y-1 max-h-[130px] overflow-y-auto">
               {phoneHistory.slice(0, 10).map((record, i) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between bg-card border border-border rounded-md px-2 py-1.5 text-xs"
+                  className="flex items-center justify-between bg-card border border-border rounded-xl px-3 py-2 text-xs shadow-card"
                 >
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-[11px] text-muted-foreground">
                     {new Date(record.timestamp).toLocaleDateString("ar-SY", {
                       month: "short",
                       day: "numeric",
@@ -357,11 +366,11 @@ const Index = () => {
                       minute: "2-digit",
                     })}
                   </span>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-2">
                     <span className="font-bold text-foreground">
                       {Number(record.amount).toLocaleString()}
                     </span>
-                    <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                    <CheckCircle className="w-4 h-4 text-success" />
                   </div>
                 </div>
               ))}
