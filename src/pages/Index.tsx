@@ -183,13 +183,23 @@ const Index = () => {
         
         {/* Phone Input Card */}
         <div className="bg-card rounded-2xl p-4 shadow-card space-y-2 animate-slide-up">
-          <label className="text-xs font-semibold text-foreground flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center">
-                <Phone className="w-3.5 h-3.5 text-primary" />
-              </div>
-              رقم الهاتف
-            </span>
+          <label className="text-xs font-semibold text-foreground flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center">
+              <Phone className="w-3.5 h-3.5 text-primary" />
+            </div>
+            رقم الهاتف
+          </label>
+          <div className="relative" ref={contactsRef}>
+            <Input
+              type="tel"
+              placeholder="رقم أو اسم جهة الاتصال"
+              value={phone}
+              onChange={(e) => { setPhone(e.target.value); setContactName(''); setShowSaveName(false); setNameInput(''); }}
+              onFocus={() => setShowContacts(true)}
+              className="text-left text-base h-12 tracking-wider rounded-xl border-2 border-border focus:border-primary transition-smooth pl-11"
+              dir="ltr"
+              inputMode="tel"
+            />
             <button
               onClick={async () => {
                 try {
@@ -202,23 +212,11 @@ const Index = () => {
                   toast.error("تعذر فتح سجل الاتصال");
                 }
               }}
-              className="p-1.5 rounded-lg hover:bg-muted transition-smooth text-muted-foreground hover:text-primary"
+              className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg hover:bg-muted transition-smooth text-muted-foreground hover:text-primary"
               title="اختيار من سجل الهاتف"
             >
-              <Contact className="w-4 h-4" />
+              <Contact className="w-5 h-5" />
             </button>
-          </label>
-          <div className="relative" ref={contactsRef}>
-            <Input
-              type="tel"
-              placeholder="رقم أو اسم جهة الاتصال"
-              value={phone}
-              onChange={(e) => { setPhone(e.target.value); setContactName(''); setShowSaveName(false); setNameInput(''); }}
-              onFocus={() => setShowContacts(true)}
-              className="text-left text-base h-12 tracking-wider rounded-xl border-2 border-border focus:border-primary transition-smooth"
-              dir="ltr"
-              inputMode="tel"
-            />
             {showContacts && matchingContacts.length > 0 && (
               <div className="absolute z-10 top-full mt-1.5 w-full bg-card border border-border rounded-xl shadow-elevated max-h-48 overflow-y-auto">
                 {matchingContacts.map((contact) => {
