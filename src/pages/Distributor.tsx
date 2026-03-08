@@ -33,7 +33,8 @@ const Distributor = () => {
   const [editName, setEditName] = useState(account.name);
   const [editPhone, setEditPhone] = useState(account.phone);
   const [editAlert, setEditAlert] = useState(String(account.lowBalanceAlert));
-  const [editMessage, setEditMessage] = useState(account.whatsappMessage || 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س');
+  const [editMessage, setEditMessage] = useState(account.whatsappMessage || 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س\nسيريتل: {syriatel} | MTN: {mtn}');
+  const [editWhatsappEnabled, setEditWhatsappEnabled] = useState(account.whatsappEnabled !== false);
 
   const syriatelBalance = useMemo(() => getBalance('syriatel'), [account]);
   const mtnBalance = useMemo(() => getBalance('mtn'), [account]);
@@ -42,17 +43,15 @@ const Distributor = () => {
   const isLowBalance = totalBalance <= account.lowBalanceAlert && account.lowBalanceAlert > 0;
 
   const sendWhatsApp = (syrAmount: number, mtnAmt: number, note: string) => {
+    if (!account.whatsappEnabled && account.whatsappEnabled !== undefined) return;
+    if (!account.phone) return;
     const phone = account.phone.replace(/^0/, '963');
-    const parts: string[] = [];
-    if (syrAmount > 0) parts.push(`سيريتل: ${syrAmount.toLocaleString()}`);
-    if (mtnAmt > 0) parts.push(`MTN: ${mtnAmt.toLocaleString()}`);
     const totalAmount = syrAmount + mtnAmt;
-    let message = (account.whatsappMessage || 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س')
+    let message = (account.whatsappMessage || 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س\nسيريتل: {syriatel} | MTN: {mtn}')
       .replace('{amount}', totalAmount.toLocaleString())
+      .replace('{syriatel}', syrAmount > 0 ? syrAmount.toLocaleString() : '0')
+      .replace('{mtn}', mtnAmt > 0 ? mtnAmt.toLocaleString() : '0')
       .replace('{note}', note || '');
-    if (parts.length === 2) {
-      message += `\n${parts.join(' | ')}`;
-    }
     if (note && !message.includes(note)) {
       message += `\nملاحظة: ${note}`;
     }
@@ -80,7 +79,7 @@ const Distributor = () => {
     if (syrAmt > 0) addTransaction(type, syrAmt, txNote.trim(), 'syriatel');
     if (mtnAmt > 0) addTransaction(type, mtnAmt, txNote.trim(), 'mtn');
     setAccount(getDistributorAccount());
-    if (type === 'topup' && account.phone) {
+    if (type === 'topup') {
       sendWhatsApp(syrAmt > 0 ? syrAmt : 0, mtnAmt > 0 ? mtnAmt : 0, txNote.trim());
     }
     setSyriatelAmount('');
@@ -97,7 +96,7 @@ const Distributor = () => {
   };
 
   const handleSaveSettings = () => {
-    const updated = { ...account, name: editName.trim(), phone: editPhone.trim(), lowBalanceAlert: Number(editAlert) || 0, whatsappMessage: editMessage.trim() };
+    const updated = { ...account, name: editName.trim(), phone: editPhone.trim(), lowBalanceAlert: Number(editAlert) || 0, whatsappEnabled: editWhatsappEnabled, whatsappMessage: editMessage.trim() };
     saveDistributorAccount(updated);
     setAccount(updated);
     toast.success("تم حفظ إعدادات الموزع");
@@ -373,22 +372,32 @@ const Distributor = () => {
             </div>
 
             <div className="bg-card border border-border rounded-2xl p-4 shadow-card space-y-3">
-              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                💬 رسالة واتساب
-              </h3>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">نص الرسالة عند طلب الرصيد</label>
-                <textarea
-                  value={editMessage}
-                  onChange={(e) => setEditMessage(e.target.value)}
-                  placeholder="مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س"
-                  className="w-full min-h-[80px] rounded-xl border border-border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-                  dir="rtl"
-                />
-                <p className="text-[10px] text-muted-foreground">
-                  استخدم <span className="font-mono bg-muted px-1 rounded">{'{amount}'}</span> للمبلغ و <span className="font-mono bg-muted px-1 rounded">{'{note}'}</span> للملاحظة
-                </p>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  💬 رسالة واتساب
+                </h3>
+                <button
+                  onClick={() => setEditWhatsappEnabled(!editWhatsappEnabled)}
+                  className={`w-11 h-6 rounded-full transition-smooth relative ${editWhatsappEnabled ? 'bg-primary' : 'bg-muted'}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-smooth ${editWhatsappEnabled ? 'left-[1.375rem]' : 'left-0.5'}`} />
+                </button>
               </div>
+              {editWhatsappEnabled && (
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">نص الرسالة عند طلب الرصيد</label>
+                  <textarea
+                    value={editMessage}
+                    onChange={(e) => setEditMessage(e.target.value)}
+                    placeholder="مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س"
+                    className="w-full min-h-[80px] rounded-xl border border-border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                    dir="rtl"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    المتغيرات: <span className="font-mono bg-muted px-1 rounded">{'{amount}'}</span> الإجمالي · <span className="font-mono bg-muted px-1 rounded">{'{syriatel}'}</span> سيريتل · <span className="font-mono bg-muted px-1 rounded">{'{mtn}'}</span> MTN · <span className="font-mono bg-muted px-1 rounded">{'{note}'}</span> ملاحظة
+                  </p>
+                </div>
+              )}
             </div>
 
             <Button onClick={handleSaveSettings} className="w-full h-11 font-bold rounded-xl">

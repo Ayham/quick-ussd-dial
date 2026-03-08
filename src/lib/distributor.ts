@@ -21,8 +21,9 @@ export interface DistributorAccount {
   name: string;
   phone: string;
   transactions: DistributorTransaction[];
-  lowBalanceAlert: number; // threshold
-  whatsappMessage: string; // template with {amount} and {note} placeholders
+  lowBalanceAlert: number;
+  whatsappEnabled: boolean;
+  whatsappMessage: string; // {amount}, {syriatel}, {mtn}, {note}
 }
 
 const DEFAULT_ACCOUNT: DistributorAccount = {
@@ -30,7 +31,8 @@ const DEFAULT_ACCOUNT: DistributorAccount = {
   phone: '',
   transactions: [],
   lowBalanceAlert: 50000,
-  whatsappMessage: 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س',
+  whatsappEnabled: true,
+  whatsappMessage: 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س\nسيريتل: {syriatel} | MTN: {mtn}',
 };
 
 export function getDistributorAccount(): DistributorAccount {
