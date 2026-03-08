@@ -8,7 +8,7 @@ import type { AppRelease } from './marketing';
 const GITHUB_REPO = 'mobi1298-del/ussd';
 const GITHUB_API = `https://api.github.com/repos/${GITHUB_REPO}/releases`;
 const CACHE_KEY = 'github_releases_cache_v1';
-const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 
 interface GitHubRelease {
   tag_name: string;
