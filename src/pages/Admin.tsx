@@ -783,10 +783,14 @@ const Admin = () => {
                     <Trash2 className="w-3.5 h-3.5 text-destructive" />
                     بيانات قابلة للحذف
                   </h3>
-                  <div className="bg-muted rounded-lg px-3 py-2 text-xs">
-                    <div className="flex items-center justify-between">
+                  <div className="bg-muted rounded-lg divide-y divide-border text-xs">
+                    <div className="flex items-center justify-between px-3 py-2">
                       <span className="text-muted-foreground">سجل التحويلات</span>
                       <span className="font-bold text-foreground">{getHistory().length} عملية</span>
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <span className="text-muted-foreground">بيانات الرصيد المحفوظة</span>
+                      <span className="font-bold text-foreground">{localStorage.getItem('saved_balances_v1') ? '✅ محفوظة' : '—'}</span>
                     </div>
                   </div>
                 </div>
