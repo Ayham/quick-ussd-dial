@@ -134,7 +134,13 @@ const Admin = () => {
   const [mktReleases, setMktReleases] = useState<AppRelease[]>(() => getReleases());
   const [newRelease, setNewRelease] = useState({ version: '', downloadUrl: '', changelog: '' });
 
-  // Stats
+  // Central Licenses
+  const [centralLicenses, setCentralLicenses] = useState<CentralLicense[]>([]);
+  const [centralLoading, setCentralLoading] = useState(false);
+  const [licenseApiUrl, setLicenseApiUrl] = useState(() => getLicenseApiEndpoint());
+  const [extendDeviceId, setExtendDeviceId] = useState<string | null>(null);
+  const [extendDate, setExtendDate] = useState('');
+
   const stats = useMemo(() => getLicenseStats(), [licenseHistory]);
   const keyGenLog = useMemo(() => getKeyGenerationLog(), [hasKeys]);
 
