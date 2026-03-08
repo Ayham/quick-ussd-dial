@@ -31,6 +31,7 @@ import {
 import { getHistory } from "@/lib/transfer-history";
 import { seedDemoData, clearDemoData, seedDistributorData, clearDistributorData } from "@/lib/seed-demo-data";
 import { getCredentials, getPrefixes, getSimAssignment, getUssdTemplates, getBalanceTemplates, getPresets } from "@/lib/ussd-profiles";
+import { getPackages, savePackages, getAppConfig, saveAppConfig, type AppPackage, type AppConfig } from "@/lib/marketing";
 
 // ======= IndexedDB for RSA Keys =======
 const DB_NAME = 'LicenseAdminDB';
