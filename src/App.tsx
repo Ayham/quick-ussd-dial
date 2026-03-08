@@ -10,6 +10,7 @@ import Reports from "./pages/Reports";
 import Balance from "./pages/Balance";
 import Admin from "./pages/Admin";
 import Distributor from "./pages/Distributor";
+import Contacts from "./pages/Contacts";
 import NotFound from "./pages/NotFound";
 import Activation from "./pages/Activation";
 import { getAppStatus, type AppLicenseStatus } from "./lib/license";
@@ -56,6 +57,7 @@ const AppContent = () => {
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/distributor" element={<Distributor />} />
+        <Route path="/contacts" element={<Contacts />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/balance" element={<Balance />} />

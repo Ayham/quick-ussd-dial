@@ -48,6 +48,7 @@ const Index = () => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [contactName, setContactName] = useState('');
   const [showSaveName, setShowSaveName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
   const [importing, setImporting] = useState(false);
   
   const contactsRef = useRef<HTMLDivElement>(null);
@@ -214,7 +215,7 @@ const Index = () => {
               type="tel"
               placeholder="رقم أو اسم جهة الاتصال"
               value={phone}
-              onChange={(e) => { setPhone(e.target.value); setContactName(''); setShowSaveName(false); }}
+              onChange={(e) => { setPhone(e.target.value); setContactName(''); setShowSaveName(false); setNameInput(''); }}
               onFocus={() => setShowContacts(true)}
               className="text-left text-base h-12 tracking-wider rounded-xl border-2 border-border focus:border-primary transition-smooth"
               dir="ltr"
@@ -273,7 +274,7 @@ const Index = () => {
                 </span>
               ) : !showSaveName ? (
                 <button
-                  onClick={() => setShowSaveName(true)}
+                  onClick={() => { setShowSaveName(true); setNameInput(''); }}
                   className="text-[11px] text-primary flex items-center gap-1 hover:underline"
                 >
                   <UserPlus className="w-3 h-3" />
@@ -282,8 +283,8 @@ const Index = () => {
               ) : (
                 <div className="flex items-center gap-1.5">
                   <Input
-                    value={contactName}
-                    onChange={(e) => setContactName(e.target.value)}
+                    value={nameInput}
+                    onChange={(e) => setNameInput(e.target.value)}
                     placeholder="الاسم"
                     className="h-7 text-xs rounded-lg w-32"
                     dir="rtl"
@@ -293,8 +294,9 @@ const Index = () => {
                     size="sm"
                     className="h-7 text-[10px] rounded-lg px-2"
                     onClick={() => {
-                      if (contactName.trim()) {
-                        updateContactName(phone.trim(), contactName.trim());
+                      if (nameInput.trim()) {
+                        updateContactName(phone.trim(), nameInput.trim());
+                        setContactName(nameInput.trim());
                         toast.success("تم حفظ الاسم");
                       }
                       setShowSaveName(false);

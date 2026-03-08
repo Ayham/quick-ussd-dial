@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Send, Wallet, BarChart3, Settings, Zap, Menu, ChevronLeft, Users } from "lucide-react";
+import { Send, Wallet, BarChart3, Settings, Zap, Menu, ChevronLeft, Users, BookUser } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Sheet,
@@ -10,6 +10,7 @@ import {
 
 const menuItems = [
   { icon: Send, label: "تحويل", path: "/", description: "تحويل رصيد سريع" },
+  { icon: BookUser, label: "جهات الاتصال", path: "/contacts", description: "إدارة أسماء الزبائن" },
   { icon: Users, label: "الموزع", path: "/distributor", description: "إدارة حساب الموزع" },
   { icon: Wallet, label: "الرصيد", path: "/balance", description: "متابعة الرصيد" },
   { icon: BarChart3, label: "التقارير", path: "/reports", description: "إحصائيات التحويلات" },
