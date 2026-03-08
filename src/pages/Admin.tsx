@@ -273,7 +273,7 @@ const Admin = () => {
   // ======= Login =======
   if (!authenticated) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6" dir="rtl">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 safe-area-insets" dir="rtl">
         <div className="w-full max-w-sm space-y-6">
           <div className="text-center">
             <Shield className="w-16 h-16 mx-auto mb-4 text-primary" />
