@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { getPackages, getAppConfig, getReleases, getLatestRelease, type AppPackage, type AppConfig, type AppRelease } from "@/lib/marketing";
 import syriatelLogo from "@/assets/syriatel-logo.png";
 import mtnLogo from "@/assets/mtn-logo.png";
+import screenshotHome from "@/assets/screenshot-home.png";
+import screenshotReports from "@/assets/screenshot-reports.png";
+import screenshotContacts from "@/assets/screenshot-contacts.png";
 
 const Landing = () => {
   const [packages, setPackages] = useState<AppPackage[]>([]);
@@ -144,6 +147,59 @@ const Landing = () => {
           <div className="group relative bg-card border border-border rounded-2xl p-5 sm:p-7 shadow-card hover:shadow-elevated transition-all duration-300 flex flex-col items-center justify-center w-36 sm:w-48 h-28 sm:h-36 hover:border-primary/30 hover:-translate-y-1">
             <img src={syriatelLogo} alt="Syriatel سيريتل" className="max-h-12 sm:max-h-16 object-contain mb-2.5 group-hover:scale-105 transition-transform duration-300" />
             <span className="text-[10px] sm:text-xs font-bold text-muted-foreground group-hover:text-foreground transition-colors">سيريتل</span>
+          </div>
+        </div>
+      </section>
+
+      {/* ── App Screenshots ── */}
+      <section className="w-full py-12 sm:py-16 lg:py-20 bg-muted/30 overflow-hidden">
+        <div className="max-w-4xl mx-auto px-5 sm:px-8">
+          <div className="text-center mb-8 sm:mb-10">
+            <span className="inline-block text-[11px] font-bold text-primary bg-primary/10 rounded-full px-3 py-1 mb-2.5">لقطات من التطبيق</span>
+            <h2 className="text-base sm:text-lg md:text-2xl font-bold text-foreground">شاهد التطبيق من الداخل</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1.5">واجهة عربية بسيطة وسهلة الاستخدام</p>
+          </div>
+
+          <div className="flex items-end justify-center gap-4 sm:gap-6 md:gap-8">
+            {/* Side screenshot - Reports */}
+            <div className="hidden sm:block w-[160px] md:w-[200px] shrink-0 opacity-80 hover:opacity-100 transition-opacity duration-300">
+              <div className="rounded-[20px] md:rounded-[24px] overflow-hidden shadow-elevated border-[3px] border-border bg-card">
+                <img src={screenshotReports} alt="تقارير وإحصائيات" className="w-full h-auto" loading="lazy" />
+              </div>
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground text-center mt-2.5 font-medium">تقارير مفصّلة</p>
+            </div>
+
+            {/* Center screenshot - Home (hero) */}
+            <div className="w-[220px] sm:w-[230px] md:w-[260px] shrink-0 relative z-10">
+              <div className="rounded-[22px] md:rounded-[28px] overflow-hidden shadow-2xl border-[4px] border-primary/20 bg-card ring-4 ring-primary/5">
+                <img src={screenshotHome} alt="الشاشة الرئيسية - تحويل الرصيد" className="w-full h-auto" loading="lazy" />
+              </div>
+              <p className="text-[11px] sm:text-xs text-foreground text-center mt-3 font-bold">الشاشة الرئيسية</p>
+            </div>
+
+            {/* Side screenshot - Contacts */}
+            <div className="hidden sm:block w-[160px] md:w-[200px] shrink-0 opacity-80 hover:opacity-100 transition-opacity duration-300">
+              <div className="rounded-[20px] md:rounded-[24px] overflow-hidden shadow-elevated border-[3px] border-border bg-card">
+                <img src={screenshotContacts} alt="جهات الاتصال" className="w-full h-auto" loading="lazy" />
+              </div>
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground text-center mt-2.5 font-medium">جهات الاتصال</p>
+            </div>
+          </div>
+
+          {/* Mobile: horizontal scroll for side screenshots */}
+          <div className="flex sm:hidden gap-3 mt-4 overflow-x-auto pb-2 snap-x snap-mandatory px-8">
+            <div className="w-[160px] shrink-0 snap-center">
+              <div className="rounded-[18px] overflow-hidden shadow-card border-[3px] border-border bg-card">
+                <img src={screenshotReports} alt="تقارير وإحصائيات" className="w-full h-auto" loading="lazy" />
+              </div>
+              <p className="text-[10px] text-muted-foreground text-center mt-2 font-medium">تقارير مفصّلة</p>
+            </div>
+            <div className="w-[160px] shrink-0 snap-center">
+              <div className="rounded-[18px] overflow-hidden shadow-card border-[3px] border-border bg-card">
+                <img src={screenshotContacts} alt="جهات الاتصال" className="w-full h-auto" loading="lazy" />
+              </div>
+              <p className="text-[10px] text-muted-foreground text-center mt-2 font-medium">جهات الاتصال</p>
+            </div>
           </div>
         </div>
       </section>
