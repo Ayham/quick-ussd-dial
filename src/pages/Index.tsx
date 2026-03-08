@@ -33,6 +33,20 @@ const Index = () => {
   const [dialing, setDialing] = useState(false);
   const contactsRef = useRef<HTMLDivElement>(null);
 
+  // Hidden admin access: tap title 7 times
+  const tapCountRef = useRef(0);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const handleTitleTap = () => {
+    tapCountRef.current++;
+    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    if (tapCountRef.current >= 7) {
+      tapCountRef.current = 0;
+      navigate("/sys-panel");
+    } else {
+      tapTimerRef.current = setTimeout(() => { tapCountRef.current = 0; }, 2000);
+    }
+  };
+
   const operator = useMemo(() => detectOperator(phone), [phone]);
   const currentPresets: AmountPreset[] = operator ? presets[operator] : [];
   const matchingContacts = useMemo(() => getMatchingContacts(phone), [phone]);
@@ -121,9 +135,9 @@ const Index = () => {
     <div className="min-h-screen bg-background flex flex-col safe-area-insets">
       {/* Header */}
       <header className="bg-primary px-3 py-2 flex items-center justify-between shadow-md pt-safe">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" onClick={handleTitleTap}>
           <Zap className="w-5 h-5 text-primary-foreground" />
-          <h1 className="text-primary-foreground text-lg font-bold">تحويل رصيد</h1>
+          <h1 className="text-primary-foreground text-lg font-bold select-none">تحويل رصيد</h1>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => navigate("/balance")} className="text-primary-foreground p-1">

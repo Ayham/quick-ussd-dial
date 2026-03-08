@@ -19,7 +19,6 @@ import {
 } from "@/lib/ussd-profiles";
 import {
   getAppStatus, getSavedLicense, clearLicense, saveLicense, validateLicense,
-  getTrialDays, saveTrialDays,
   type AppLicenseStatus,
 } from "@/lib/license";
 import { getDeviceId } from "@/lib/device-id";
@@ -42,7 +41,6 @@ const Settings = () => {
   const [licenseStatus, setLicenseStatus] = useState<AppLicenseStatus | null>(null);
   const [newLicenseKey, setNewLicenseKey] = useState("");
   const [licenseLoading, setLicenseLoading] = useState(false);
-  const [trialDays, setTrialDaysState] = useState(() => getTrialDays());
   const deviceId = getDeviceId();
 
   useEffect(() => {
@@ -112,7 +110,7 @@ const Settings = () => {
     savePrefixes(prefixes);
     saveSimAssignment(simAssignment);
     saveBalanceTemplates(balanceTemplates);
-    saveTrialDays(trialDays);
+    toast.success("تم الحفظ بنجاح");
     toast.success("تم الحفظ بنجاح");
     navigate("/");
   };
@@ -125,7 +123,7 @@ const Settings = () => {
     setPrefixes({ mtn: [...DEFAULT_PREFIXES.mtn], syriatel: [...DEFAULT_PREFIXES.syriatel] });
     setSimAssignment({ ...DEFAULT_SIM_ASSIGNMENT });
     setBalanceTemplates({ ...DEFAULT_BALANCE_TEMPLATES });
-    setTrialDaysState(30);
+    toast.info("تم إعادة تعيين جميع الإعدادات");
     toast.info("تم إعادة تعيين جميع الإعدادات");
   };
 
@@ -259,27 +257,6 @@ const Settings = () => {
               </div>
             </div>
 
-            {/* Revoke */}
-            {getSavedLicense() && (
-              <Button onClick={handleRevokeLicense} variant="ghost" size="sm" className="text-destructive text-xs w-full">
-                إلغاء الترخيص الحالي
-              </Button>
-            )}
-
-            {/* Trial days setting */}
-            <div className="border-t border-border pt-3 space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">مدة الفترة التجريبية (بالأيام)</label>
-              <Input
-                type="number"
-                value={trialDays}
-                onChange={(e) => setTrialDaysState(Number(e.target.value) || 30)}
-                className="text-left h-9 text-xs w-24"
-                dir="ltr"
-                min={1}
-                max={365}
-                inputMode="numeric"
-              />
-            </div>
           </div>
         </Section>
 
