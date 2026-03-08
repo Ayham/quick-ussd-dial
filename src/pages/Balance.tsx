@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
-import { ArrowLeft, Wallet, RefreshCw, Edit, Check, TrendingDown, Clock } from "lucide-react";
+import { Wallet, RefreshCw, Edit, Check, TrendingDown, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import AppLayout from "@/components/AppLayout";
 import {
   buildBalanceCode,
   getCredentials,
@@ -246,20 +247,12 @@ const Balance = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col safe-area-insets">
-      <header className="bg-primary px-3 py-3 flex items-center gap-3 shadow-md pt-safe">
-        <button onClick={() => navigate("/")} className="text-primary-foreground">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <Wallet className="w-5 h-5 text-primary-foreground" />
-        <h1 className="text-primary-foreground text-lg font-bold">الرصيد</h1>
-      </header>
-
+    <AppLayout title="الرصيد">
       <main className="flex-1 p-4 w-full flex flex-col gap-4 pb-safe" dir="rtl">
         <OperatorCard operator="mtn" />
         <OperatorCard operator="syriatel" />
       </main>
-    </div>
+    </AppLayout>
   );
 };
 

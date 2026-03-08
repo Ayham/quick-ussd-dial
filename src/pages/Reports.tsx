@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
-import { ArrowLeft, BarChart3, Calendar, Smartphone, TrendingUp, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { BarChart3, Calendar, Smartphone, TrendingUp, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import AppLayout from "@/components/AppLayout";
 import { getHistory, type TransferRecord } from "@/lib/transfer-history";
 
 type TabType = "all" | "daily" | "weekly" | "monthly" | "cards";
@@ -203,14 +204,7 @@ const Reports = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col safe-area-insets">
-      <header className="bg-primary px-3 py-3 flex items-center gap-3 shadow-md pt-safe">
-        <button onClick={() => navigate("/")} className="text-primary-foreground">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <BarChart3 className="w-5 h-5 text-primary-foreground" />
-        <h1 className="text-primary-foreground text-lg font-bold">التقارير</h1>
-      </header>
+    <AppLayout title="التقارير">
 
       {/* Tabs */}
       <div className="flex gap-1 p-2 bg-muted/50">
@@ -346,7 +340,7 @@ const Reports = () => {
           </div>
         )}
       </main>
-    </div>
+    </AppLayout>
   );
 };
 

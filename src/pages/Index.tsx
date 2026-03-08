@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
-import { Phone, Settings, Zap, Clock, CheckCircle, Loader2, BarChart3, Wallet, Send, Menu } from "lucide-react";
+import { Phone, Clock, CheckCircle, Loader2, Send } from "lucide-react";
 import {
   detectOperator,
   buildUssdCode,
@@ -23,12 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import AppLayout from "@/components/AppLayout";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,7 +45,7 @@ const Index = () => {
   const [history, setHistory] = useState<TransferRecord[]>(() => getHistory());
   const [dialing, setDialing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  
   const contactsRef = useRef<HTMLDivElement>(null);
 
   // Hidden admin access: tap title 7 times
@@ -158,47 +153,7 @@ const Index = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background flex flex-col safe-area-insets">
-      {/* Header */}
-      <header className="bg-primary px-3 py-2.5 flex items-center justify-between shadow-md pt-safe">
-        <div className="flex items-center gap-2" onClick={handleTitleTap}>
-          <Zap className="w-5 h-5 text-primary-foreground" />
-          <h1 className="text-primary-foreground text-lg font-bold select-none">تحويل رصيد</h1>
-        </div>
-        <button onClick={() => setMenuOpen(true)} className="text-primary-foreground p-1 rounded-md hover:bg-primary-foreground/10 transition-colors">
-          <Menu className="w-6 h-6" />
-        </button>
-      </header>
-
-      {/* Side Menu */}
-      <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-        <SheetContent side="left" className="w-64 p-0">
-          <SheetHeader className="bg-primary px-4 py-4">
-            <SheetTitle className="text-primary-foreground flex items-center gap-2">
-              <Zap className="w-5 h-5" />
-              تحويل رصيد
-            </SheetTitle>
-          </SheetHeader>
-          <nav className="flex flex-col py-2">
-            {[
-              { icon: Send, label: "تحويل", path: "/" },
-              { icon: Wallet, label: "الرصيد", path: "/balance" },
-              { icon: BarChart3, label: "التقارير", path: "/reports" },
-              { icon: Settings, label: "الإعدادات", path: "/settings" },
-            ].map((item) => (
-              <button
-                key={item.path}
-                onClick={() => { setMenuOpen(false); navigate(item.path); }}
-                className="flex items-center gap-3 px-4 py-3 text-foreground hover:bg-muted transition-colors"
-              >
-                <item.icon className="w-5 h-5 text-muted-foreground" />
-                <span className="text-sm font-medium">{item.label}</span>
-              </button>
-            ))}
-          </nav>
-        </SheetContent>
-      </Sheet>
-
+    <AppLayout title="تحويل رصيد" onTitleClick={handleTitleTap}>
       <main className="flex-1 p-2 w-full space-y-2 overflow-y-auto pb-4">
         {/* Phone Input */}
         <div className="space-y-1">
@@ -360,8 +315,7 @@ const Index = () => {
           </div>
         )}
       </main>
-
-    </div>
+    </AppLayout>
   );
 };
 
