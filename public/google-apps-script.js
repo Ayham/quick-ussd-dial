@@ -27,8 +27,11 @@ function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
     
-    // ── License actions ──
+    // ── License or Release actions ──
     if (data.action) {
+      if (data.action === 'addRelease' || data.action === 'deleteRelease') {
+        return handleReleasePost(data);
+      }
       return handleLicensePost(data);
     }
     
