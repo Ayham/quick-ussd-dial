@@ -215,7 +215,6 @@ const ForceUpdate = ({ updateInfo, onRetry, checking }: ForceUpdateProps) => {
 
   return (
     <>
-      {showBanner && <UpdateBanner updateInfo={updateInfo} onDismiss={handleDismissBanner} />}
       {showDialog && (
         <UpdateDialog
           updateInfo={updateInfo}
