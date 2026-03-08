@@ -99,7 +99,7 @@ export const UpdateDialog = ({ updateInfo, onRetry, onSkip, checking }: UpdateDi
   );
 };
 
-const REMIND_INTERVAL_MS = 30 * 60 * 1000; // Remind every 30 minutes
+const REMIND_INTERVAL_MS = 24 * 60 * 60 * 1000; // Remind every 24 hours
 const DISMISS_KEY = 'app_update_dismissed_at';
 
 interface ForceUpdateProps {
