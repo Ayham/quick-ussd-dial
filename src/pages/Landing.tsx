@@ -95,7 +95,7 @@ const Landing = () => {
                 size="lg"
                 variant="ghost"
                 className="text-primary-foreground/80 hover:text-primary-foreground hover:bg-primary-foreground/10 font-semibold rounded-2xl h-11 sm:h-12 px-5 sm:px-6 text-sm"
-                onClick={() => window.open(config.downloadUrl, "_blank")}
+                onClick={() => { window.location.href = config.downloadUrl; }}
               >
                 <Download className="w-4 h-4 ml-2" />
                 تحميل التطبيق مباشرة
@@ -215,7 +215,7 @@ const Landing = () => {
                 className="font-bold rounded-xl h-11 px-8"
                 onClick={() => {
                   if (config.downloadUrl) {
-                    window.open(config.downloadUrl, "_blank");
+                    window.location.href = config.downloadUrl;
                   } else {
                     handleContact(trialPkg);
                   }
@@ -329,7 +329,7 @@ const Landing = () => {
                     <Button
                       size="lg"
                       className="font-bold rounded-xl h-12 px-8"
-                      onClick={() => window.open(latestRelease.downloadUrl, "_blank")}
+                      onClick={() => { window.location.href = latestRelease.downloadUrl; }}
                     >
                       <Download className="w-5 h-5 ml-2" />
                       تحميل أحدث نسخة
@@ -343,7 +343,7 @@ const Landing = () => {
                     <Button
                       size="lg"
                       className="font-bold rounded-xl h-12 px-8"
-                      onClick={() => window.open(config.downloadUrl, "_blank")}
+                      onClick={() => { window.location.href = config.downloadUrl; }}
                     >
                       <Download className="w-5 h-5 ml-2" />
                       تحميل APK
@@ -376,7 +376,7 @@ const Landing = () => {
                         variant="outline"
                         size="sm"
                         className="shrink-0 h-8 text-[11px] rounded-lg mr-3"
-                        onClick={() => window.open(release.downloadUrl, "_blank")}
+                        onClick={() => { window.location.href = release.downloadUrl; }}
                       >
                         <Download className="w-3.5 h-3.5 ml-1" />
                         تنزيل
