@@ -20,7 +20,7 @@ const PUBLIC_KEY_JWK: JsonWebKey = {
 
 export interface LicensePayload {
   deviceId: string;
-  expiryDate: string; // "YYYY-MM-DD"
+  expiryDate: string; // "YYYY-MM-DD" or "permanent"
   version?: string;
 }
 
