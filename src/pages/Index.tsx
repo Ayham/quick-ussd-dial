@@ -286,13 +286,13 @@ const Index = () => {
                     value={nameInput}
                     onChange={(e) => setNameInput(e.target.value)}
                     placeholder="الاسم"
-                    className="h-7 text-xs rounded-lg w-32"
+                    className="h-8 text-xs rounded-lg w-36"
                     dir="rtl"
                     autoFocus
                   />
                   <Button
                     size="sm"
-                    className="h-7 text-[10px] rounded-lg px-2"
+                    className="h-8 text-xs rounded-lg px-3"
                     onClick={() => {
                       if (nameInput.trim()) {
                         updateContactName(phone.trim(), nameInput.trim());

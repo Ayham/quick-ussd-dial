@@ -23,7 +23,7 @@ const Contacts = () => {
   const [newPhone, setNewPhone] = useState("");
   const [newName, setNewName] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [importing, setImporting] = useState(false);
+  
 
   const reload = () => setContacts(getSavedContacts());
 
