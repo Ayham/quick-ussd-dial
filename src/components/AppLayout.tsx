@@ -15,6 +15,7 @@ const menuItems = [
   { icon: Wallet, label: "الرصيد", path: "/balance", description: "متابعة الرصيد" },
   { icon: BarChart3, label: "التقارير", path: "/reports", description: "إحصائيات التحويلات" },
   { icon: Settings, label: "الإعدادات", path: "/settings", description: "إعدادات التطبيق" },
+  { icon: Download, label: "التحديثات", path: "/updates", description: "البحث عن تحديثات" },
 ];
 
 interface AppLayoutProps {
