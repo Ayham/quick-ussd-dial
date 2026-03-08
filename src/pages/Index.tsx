@@ -136,25 +136,14 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col safe-area-insets">
       {/* Header */}
-      <header className="bg-primary px-3 py-2 flex items-center justify-between shadow-md pt-safe">
+      <header className="bg-primary px-3 py-2.5 flex items-center justify-between shadow-md pt-safe">
         <div className="flex items-center gap-2" onClick={handleTitleTap}>
           <Zap className="w-5 h-5 text-primary-foreground" />
           <h1 className="text-primary-foreground text-lg font-bold select-none">تحويل رصيد</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => navigate("/balance")} className="text-primary-foreground p-1">
-            <Wallet className="w-6 h-6" />
-          </button>
-          <button onClick={() => navigate("/reports")} className="text-primary-foreground p-1">
-            <BarChart3 className="w-6 h-6" />
-          </button>
-          <button onClick={() => navigate("/settings")} className="text-primary-foreground p-1">
-            <Settings className="w-6 h-6" />
-          </button>
-        </div>
       </header>
 
-      <main className="flex-1 p-2 max-w-md mx-auto w-full space-y-2 overflow-y-auto pb-safe">
+      <main className="flex-1 p-2 w-full space-y-2 overflow-y-auto pb-20">
         {/* Phone Input */}
         <div className="space-y-1">
           <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
