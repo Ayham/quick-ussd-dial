@@ -1,0 +1,362 @@
+import { useState, useMemo } from "react";
+import {
+  Users, Plus, Minus, ArrowDownCircle, ArrowUpCircle,
+  TrendingUp, TrendingDown, Trash2, AlertTriangle, Settings, Calendar
+} from "lucide-react";
+import AppLayout from "@/components/AppLayout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import {
+  getDistributorAccount, saveDistributorAccount, addTransaction,
+  deleteTransaction, getBalance, getDistributorStats,
+  type TransactionType,
+} from "@/lib/distributor";
+
+type ViewTab = 'main' | 'history' | 'stats' | 'settings';
+
+const Distributor = () => {
+  const [account, setAccount] = useState(() => getDistributorAccount());
+  const [activeTab, setActiveTab] = useState<ViewTab>('main');
+  const [txType, setTxType] = useState<TransactionType>('topup');
+  const [txAmount, setTxAmount] = useState('');
+  const [txNote, setTxNote] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+
+  // Settings edit
+  const [editName, setEditName] = useState(account.name);
+  const [editPhone, setEditPhone] = useState(account.phone);
+  const [editAlert, setEditAlert] = useState(String(account.lowBalanceAlert));
+
+  const balance = useMemo(() => getBalance(), [account]);
+  const stats = useMemo(() => getDistributorStats(), [account]);
+  const isLowBalance = balance <= account.lowBalanceAlert && account.lowBalanceAlert > 0;
+
+  const handleAddTransaction = () => {
+    const amount = Number(txAmount);
+    if (!amount || amount <= 0) {
+      toast.error("أدخل مبلغاً صحيحاً");
+      return;
+    }
+    if (txType === 'payment' && amount > balance) {
+      toast.error("المبلغ أكبر من الرصيد المتاح");
+      return;
+    }
+    addTransaction(txType, amount, txNote.trim());
+    setAccount(getDistributorAccount());
+    setTxAmount('');
+    setTxNote('');
+    toast.success(txType === 'topup' ? 'تم تسجيل طلب الرصيد' : 'تم تسجيل الدفعة');
+  };
+
+  const handleDelete = (id: string) => {
+    deleteTransaction(id);
+    setAccount(getDistributorAccount());
+    setShowDeleteConfirm(null);
+    toast.info("تم حذف العملية");
+  };
+
+  const handleSaveSettings = () => {
+    const updated = { ...account, name: editName.trim(), phone: editPhone.trim(), lowBalanceAlert: Number(editAlert) || 0 };
+    saveDistributorAccount(updated);
+    setAccount(updated);
+    toast.success("تم حفظ إعدادات الموزع");
+  };
+
+  const tabs: { id: ViewTab; label: string }[] = [
+    { id: 'main', label: 'الرئيسية' },
+    { id: 'history', label: 'السجل' },
+    { id: 'stats', label: 'الإحصائيات' },
+    { id: 'settings', label: 'الإعدادات' },
+  ];
+
+  return (
+    <AppLayout title="الموزع">
+      {/* Tabs */}
+      <div className="flex gap-1 p-2 bg-card border-b border-border">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-smooth ${
+              activeTab === tab.id
+                ? "bg-primary text-primary-foreground shadow-card"
+                : "text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <main className="flex-1 p-3 w-full overflow-y-auto pb-safe space-y-3" dir="rtl">
+
+        {/* ===== MAIN TAB ===== */}
+        {activeTab === 'main' && (
+          <>
+            {/* Balance Card */}
+            <div className={`rounded-2xl p-5 text-center shadow-card ${
+              isLowBalance
+                ? "bg-destructive/10 border-2 border-destructive/30"
+                : "bg-card border border-border"
+            }`}>
+              {account.name && (
+                <p className="text-xs text-muted-foreground mb-1">{account.name}</p>
+              )}
+              <p className="text-xs text-muted-foreground">الرصيد عند الموزع</p>
+              <p className={`text-4xl font-bold tracking-tight mt-1 ${
+                balance < 0 ? "text-destructive" : isLowBalance ? "text-accent" : "text-primary"
+              }`}>
+                {balance.toLocaleString()}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">ل.س</p>
+              {isLowBalance && balance > 0 && (
+                <div className="flex items-center justify-center gap-1.5 mt-3 text-destructive text-xs font-medium">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  الرصيد منخفض — أقل من {account.lowBalanceAlert.toLocaleString()}
+                </div>
+              )}
+            </div>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-card border border-border rounded-xl p-3 text-center shadow-card">
+                <div className="flex items-center justify-center gap-1.5 mb-1">
+                  <ArrowDownCircle className="w-4 h-4 text-primary" />
+                  <span className="text-[11px] text-muted-foreground">طلبات اليوم</span>
+                </div>
+                <p className="text-lg font-bold text-foreground">{stats.todayTopups.toLocaleString()}</p>
+              </div>
+              <div className="bg-card border border-border rounded-xl p-3 text-center shadow-card">
+                <div className="flex items-center justify-center gap-1.5 mb-1">
+                  <ArrowUpCircle className="w-4 h-4 text-accent" />
+                  <span className="text-[11px] text-muted-foreground">دفعات اليوم</span>
+                </div>
+                <p className="text-lg font-bold text-foreground">{stats.todayPayments.toLocaleString()}</p>
+              </div>
+            </div>
+
+            {/* Add Transaction */}
+            <div className="bg-card border border-border rounded-2xl p-4 shadow-card space-y-3">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setTxType('topup')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-smooth ${
+                    txType === 'topup'
+                      ? "bg-primary text-primary-foreground shadow-card"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  <Plus className="w-4 h-4" />
+                  طلب رصيد
+                </button>
+                <button
+                  onClick={() => setTxType('payment')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-smooth ${
+                    txType === 'payment'
+                      ? "bg-accent text-accent-foreground shadow-card"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  <Minus className="w-4 h-4" />
+                  دفعة
+                </button>
+              </div>
+
+              <Input
+                type="number"
+                value={txAmount}
+                onChange={(e) => setTxAmount(e.target.value)}
+                placeholder="المبلغ"
+                className="h-12 text-center text-lg font-bold rounded-xl border-2"
+                dir="ltr"
+                inputMode="numeric"
+                onKeyDown={(e) => e.key === 'Enter' && handleAddTransaction()}
+              />
+
+              <Input
+                value={txNote}
+                onChange={(e) => setTxNote(e.target.value)}
+                placeholder="ملاحظة (اختياري)"
+                className="h-10 rounded-xl text-sm"
+              />
+
+              <Button
+                onClick={handleAddTransaction}
+                className="w-full h-11 font-bold rounded-xl shadow-elevated"
+                disabled={!txAmount || Number(txAmount) <= 0}
+              >
+                {txType === 'topup' ? (
+                  <><ArrowDownCircle className="w-4 h-4 ml-2" />تسجيل طلب رصيد</>
+                ) : (
+                  <><ArrowUpCircle className="w-4 h-4 ml-2" />تسجيل دفعة</>
+                )}
+              </Button>
+            </div>
+
+            {/* Recent Transactions */}
+            {account.transactions.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-muted-foreground px-1">آخر العمليات</p>
+                {account.transactions.slice(0, 5).map((tx) => (
+                  <TransactionRow key={tx.id} tx={tx} onDelete={null} />
+                ))}
+                {account.transactions.length > 5 && (
+                  <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => setActiveTab('history')}>
+                    عرض الكل ({account.transactions.length})
+                  </Button>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ===== HISTORY TAB ===== */}
+        {activeTab === 'history' && (
+          <div className="space-y-1.5">
+            {account.transactions.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-12">لا توجد عمليات بعد</p>
+            ) : (
+              account.transactions.map((tx) => (
+                <div key={tx.id} className="relative">
+                  <TransactionRow tx={tx} onDelete={() => setShowDeleteConfirm(tx.id)} />
+                  {showDeleteConfirm === tx.id && (
+                    <div className="absolute inset-0 bg-card/95 rounded-xl flex items-center justify-center gap-2 z-10 border border-destructive/30">
+                      <Button size="sm" variant="destructive" className="text-xs" onClick={() => handleDelete(tx.id)}>
+                        <Trash2 className="w-3 h-3 ml-1" />تأكيد الحذف
+                      </Button>
+                      <Button size="sm" variant="outline" className="text-xs" onClick={() => setShowDeleteConfirm(null)}>
+                        إلغاء
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* ===== STATS TAB ===== */}
+        {activeTab === 'stats' && (
+          <div className="space-y-3">
+            {/* Period Stats */}
+            {[
+              { label: 'اليوم', topups: stats.todayTopups, payments: stats.todayPayments },
+              { label: 'هذا الأسبوع', topups: stats.weekTopups, payments: stats.weekPayments },
+              { label: 'هذا الشهر', topups: stats.monthTopups, payments: stats.monthPayments },
+              { label: 'الإجمالي', topups: stats.totalTopups, payments: stats.totalPayments },
+            ].map((period) => (
+              <div key={period.label} className="bg-card border border-border rounded-xl p-4 shadow-card">
+                <p className="text-sm font-bold text-foreground flex items-center gap-2 mb-3">
+                  <Calendar className="w-4 h-4 text-primary" />
+                  {period.label}
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-primary/10 rounded-lg p-2 text-center">
+                    <p className="text-[10px] text-muted-foreground">طلبات رصيد</p>
+                    <p className="text-sm font-bold text-primary">{period.topups.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-accent/10 rounded-lg p-2 text-center">
+                    <p className="text-[10px] text-muted-foreground">دفعات</p>
+                    <p className="text-sm font-bold text-accent">{period.payments.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-muted rounded-lg p-2 text-center">
+                    <p className="text-[10px] text-muted-foreground">الفرق</p>
+                    <p className={`text-sm font-bold ${period.topups - period.payments >= 0 ? "text-primary" : "text-destructive"}`}>
+                      {(period.topups - period.payments).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <div className="bg-card border border-border rounded-xl p-4 shadow-card text-center">
+              <p className="text-xs text-muted-foreground">إجمالي العمليات</p>
+              <p className="text-2xl font-bold text-foreground">{stats.transactionCount}</p>
+            </div>
+          </div>
+        )}
+
+        {/* ===== SETTINGS TAB ===== */}
+        {activeTab === 'settings' && (
+          <div className="space-y-4">
+            <div className="bg-card border border-border rounded-2xl p-4 shadow-card space-y-3">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <Users className="w-4 h-4 text-primary" />
+                بيانات الموزع
+              </h3>
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">اسم الموزع</label>
+                  <Input value={editName} onChange={(e) => setEditName(e.target.value)}
+                    placeholder="مثال: أبو محمد" className="h-11 rounded-xl" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">رقم الهاتف</label>
+                  <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)}
+                    placeholder="09XXXXXXXX" className="h-11 rounded-xl text-left" dir="ltr" inputMode="tel" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-card border border-border rounded-2xl p-4 shadow-card space-y-3">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-accent" />
+                تنبيه الرصيد المنخفض
+              </h3>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">التنبيه عند انخفاض الرصيد تحت</label>
+                <Input type="number" value={editAlert} onChange={(e) => setEditAlert(e.target.value)}
+                  placeholder="50000" className="h-11 rounded-xl text-left" dir="ltr" inputMode="numeric" />
+                <p className="text-[10px] text-muted-foreground">اكتب 0 لإيقاف التنبيهات</p>
+              </div>
+            </div>
+
+            <Button onClick={handleSaveSettings} className="w-full h-11 font-bold rounded-xl">
+              حفظ الإعدادات
+            </Button>
+          </div>
+        )}
+      </main>
+    </AppLayout>
+  );
+};
+
+// Transaction Row Component
+const TransactionRow = ({ tx, onDelete }: { tx: { id: string; type: string; amount: number; note: string; timestamp: number }; onDelete: (() => void) | null }) => {
+  const isTopup = tx.type === 'topup';
+  return (
+    <div className="flex items-center justify-between bg-card border border-border rounded-xl px-4 py-3 shadow-card">
+      <div className="flex items-center gap-3">
+        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
+          isTopup ? "bg-primary/10" : "bg-accent/10"
+        }`}>
+          {isTopup ? (
+            <ArrowDownCircle className="w-4.5 h-4.5 text-primary" />
+          ) : (
+            <ArrowUpCircle className="w-4.5 h-4.5 text-accent" />
+          )}
+        </div>
+        <div>
+          <p className="text-sm font-medium text-foreground">{isTopup ? 'طلب رصيد' : 'دفعة'}</p>
+          <p className="text-[11px] text-muted-foreground">
+            {new Date(tx.timestamp).toLocaleDateString("ar-SY", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+            {tx.note && ` • ${tx.note}`}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className={`text-sm font-bold ${isTopup ? "text-primary" : "text-accent"}`}>
+          {isTopup ? '+' : '-'}{tx.amount.toLocaleString()}
+        </span>
+        {onDelete && (
+          <button onClick={onDelete} className="p-1 text-muted-foreground hover:text-destructive transition-smooth">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Distributor;

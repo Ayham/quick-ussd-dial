@@ -9,6 +9,7 @@ import Settings from "./pages/Settings";
 import Reports from "./pages/Reports";
 import Balance from "./pages/Balance";
 import Admin from "./pages/Admin";
+import Distributor from "./pages/Distributor";
 import NotFound from "./pages/NotFound";
 import Activation from "./pages/Activation";
 import { getAppStatus, type AppLicenseStatus } from "./lib/license";
@@ -54,6 +55,7 @@ const AppContent = () => {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Index />} />
+        <Route path="/distributor" element={<Distributor />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/balance" element={<Balance />} />
