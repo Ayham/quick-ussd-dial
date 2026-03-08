@@ -43,17 +43,15 @@ const Distributor = () => {
   const isLowBalance = totalBalance <= account.lowBalanceAlert && account.lowBalanceAlert > 0;
 
   const sendWhatsApp = (syrAmount: number, mtnAmt: number, note: string) => {
+    if (!account.whatsappEnabled && account.whatsappEnabled !== undefined) return;
+    if (!account.phone) return;
     const phone = account.phone.replace(/^0/, '963');
-    const parts: string[] = [];
-    if (syrAmount > 0) parts.push(`سيريتل: ${syrAmount.toLocaleString()}`);
-    if (mtnAmt > 0) parts.push(`MTN: ${mtnAmt.toLocaleString()}`);
     const totalAmount = syrAmount + mtnAmt;
-    let message = (account.whatsappMessage || 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س')
+    let message = (account.whatsappMessage || 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س\nسيريتل: {syriatel} | MTN: {mtn}')
       .replace('{amount}', totalAmount.toLocaleString())
+      .replace('{syriatel}', syrAmount > 0 ? syrAmount.toLocaleString() : '0')
+      .replace('{mtn}', mtnAmt > 0 ? mtnAmt.toLocaleString() : '0')
       .replace('{note}', note || '');
-    if (parts.length === 2) {
-      message += `\n${parts.join(' | ')}`;
-    }
     if (note && !message.includes(note)) {
       message += `\nملاحظة: ${note}`;
     }
