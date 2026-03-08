@@ -138,6 +138,38 @@ function doGet(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
     
+    if (action === 'getLatestRelease') {
+      var releasesSheet = ss.getSheetByName('Releases');
+      if (!releasesSheet) {
+        // Auto-create Releases sheet
+        releasesSheet = ss.insertSheet('Releases');
+        releasesSheet.appendRow(['Version', 'Download URL', 'Changelog', 'Release Date', 'Force Update']);
+        releasesSheet.getRange(1, 1, 1, 5).setFontWeight('bold');
+        releasesSheet.setFrozenRows(1);
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true, version: '', message: 'No releases yet'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      
+      var lastRow = releasesSheet.getLastRow();
+      if (lastRow <= 1) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true, version: '', message: 'No releases yet'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      
+      // Get the last row (latest release)
+      var row = releasesSheet.getRange(lastRow, 1, 1, 5).getValues()[0];
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        version: row[0] || '',
+        downloadUrl: row[1] || '',
+        changelog: row[2] || '',
+        releaseDate: row[3] || '',
+        forceUpdate: row[4] === true || row[4] === 'TRUE' || row[4] === 'true'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
     return ContentService.createTextOutput(JSON.stringify({
       success: true,
       message: 'Sync endpoint active'
