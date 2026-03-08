@@ -10,6 +10,7 @@ import {
 
 const menuItems = [
   { icon: Send, label: "تحويل", path: "/", description: "تحويل رصيد سريع" },
+  { icon: BookUser, label: "جهات الاتصال", path: "/contacts", description: "إدارة أسماء الزبائن" },
   { icon: Users, label: "الموزع", path: "/distributor", description: "إدارة حساب الموزع" },
   { icon: Wallet, label: "الرصيد", path: "/balance", description: "متابعة الرصيد" },
   { icon: BarChart3, label: "التقارير", path: "/reports", description: "إحصائيات التحويلات" },
