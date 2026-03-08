@@ -51,17 +51,14 @@ const Landing = () => {
         />
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
 
+        {/* Large background operator logos */}
+        <img src={mtnLogo} alt="" className="absolute top-1/2 left-[8%] -translate-y-1/2 w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 object-contain opacity-[0.12] pointer-events-none select-none" />
+        <img src={syriatelLogo} alt="" className="absolute top-1/2 right-[8%] -translate-y-1/2 w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 object-contain opacity-[0.12] pointer-events-none select-none" />
 
         <div className="relative w-full max-w-3xl mx-auto px-5 sm:px-8 text-center z-10 py-16 md:py-20">
           {/* App icon */}
           <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-5 sm:mb-6 rounded-[18px] sm:rounded-[22px] bg-primary-foreground/15 backdrop-blur-md border border-primary-foreground/20 flex items-center justify-center shadow-2xl">
             <Smartphone className="w-8 h-8 sm:w-10 sm:h-10 text-primary-foreground" />
-          </div>
-
-          {/* Operator logos */}
-          <div className="flex items-center justify-center gap-5 sm:gap-6 mb-5 sm:mb-6">
-            <img src={mtnLogo} alt="MTN" className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-contain bg-white/20 backdrop-blur-md border border-white/25 p-2.5 shadow-lg" />
-            <img src={syriatelLogo} alt="Syriatel" className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-contain bg-white/20 backdrop-blur-md border border-white/25 p-2.5 shadow-lg" />
           </div>
 
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl leading-tight font-black text-primary-foreground mb-3 sm:mb-4 tracking-tight">
