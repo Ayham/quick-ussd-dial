@@ -49,7 +49,6 @@ const Index = () => {
   const [contactName, setContactName] = useState('');
   const [showSaveName, setShowSaveName] = useState(false);
   const [nameInput, setNameInput] = useState('');
-  const [importing, setImporting] = useState(false);
   
   const contactsRef = useRef<HTMLDivElement>(null);
 
