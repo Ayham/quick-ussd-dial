@@ -33,7 +33,7 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children }: AppLayoutProps)
   return (
     <div className="min-h-screen bg-background flex flex-col safe-area-insets">
       {/* Header with gradient */}
-      <header className="header-gradient px-4 py-3 flex items-center justify-between shadow-elevated pt-safe">
+      <header className="header-gradient px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] flex items-center justify-between shadow-elevated">
         <div className="flex items-center gap-2.5 cursor-pointer" onClick={onTitleClick}>
           {titleIcon || (
             <div className="w-8 h-8 rounded-lg bg-primary-foreground/15 flex items-center justify-center backdrop-blur-sm">
