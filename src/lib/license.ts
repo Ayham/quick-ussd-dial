@@ -3,7 +3,8 @@ import { getDeviceId } from './device-id';
 const TRIAL_START_KEY = 'app_trial_start_v1';
 const LICENSE_KEY = 'app_license_v1';
 const LAST_DATE_KEY = 'app_last_date_v1';
-const TRIAL_DAYS = 30;
+const TRIAL_DAYS_KEY = 'app_trial_days_v1';
+const DEFAULT_TRIAL_DAYS = 30;
 
 // ============================================================
 // ⚠️ REPLACE THIS with your actual RSA Public Key (JWK format)
@@ -45,7 +46,7 @@ function checkClockTamper(): boolean {
   const lastDate = localStorage.getItem(LAST_DATE_KEY);
   const today = getToday();
   if (lastDate && today < lastDate) {
-    return true; // clock was rolled back
+    return true;
   }
   localStorage.setItem(LAST_DATE_KEY, today);
   return false;
@@ -62,11 +63,23 @@ function initTrial(): string {
   return today;
 }
 
+// Trial days management
+export function getTrialDays(): number {
+  try {
+    const stored = localStorage.getItem(TRIAL_DAYS_KEY);
+    if (stored) return Number(stored);
+  } catch {}
+  return DEFAULT_TRIAL_DAYS;
+}
+
+export function saveTrialDays(days: number) {
+  localStorage.setItem(TRIAL_DAYS_KEY, String(days));
+}
+
 // Verify RSA signature using Web Crypto
 async function verifySignature(data: string, signatureB64: string): Promise<boolean> {
   try {
     if (PUBLIC_KEY_JWK.n === "PLACEHOLDER_REPLACE_WITH_REAL_KEY") {
-      // Demo mode: accept any license for testing
       console.warn("⚠️ Using placeholder public key. Replace with real key for production.");
       return true;
     }
@@ -137,7 +150,6 @@ export function clearLicense() {
 }
 
 export async function getAppStatus(): Promise<AppLicenseStatus> {
-  // Check clock tampering
   if (checkClockTamper()) {
     return { status: 'clock_tampered' };
   }
@@ -155,7 +167,6 @@ export async function getAppStatus(): Promise<AppLicenseStatus> {
       }
       return { status: 'license_expired' };
     }
-    // License invalid or expired - check if it's just expired
     if (result.error === 'انتهت صلاحية الترخيص') {
       return { status: 'license_expired' };
     }
@@ -167,8 +178,9 @@ export async function getAppStatus(): Promise<AppLicenseStatus> {
     trialStart = initTrial();
   }
 
+  const trialDays = getTrialDays();
   const trialDaysUsed = daysBetween(trialStart, today);
-  const daysLeft = TRIAL_DAYS - trialDaysUsed;
+  const daysLeft = trialDays - trialDaysUsed;
 
   if (daysLeft > 0) {
     return { status: 'trial', daysLeft };
