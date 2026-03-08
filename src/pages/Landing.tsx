@@ -19,18 +19,20 @@ const Landing = () => {
   useEffect(() => {
     setPackages(getPackages().filter(p => p.enabled));
     setConfig(getAppConfig());
-    
-    // Load local releases first, then fetch from GitHub
-    const localReleases = getReleases();
-    setReleases(localReleases);
-    setLatestRelease(getLatestRelease());
 
-    // Fetch from GitHub Releases
+    // Fetch releases from GitHub (primary source)
     fetchReleasesFromGitHub().then(ghReleases => {
       if (ghReleases.length > 0) {
         setReleases(ghReleases);
         setLatestRelease(ghReleases.find(r => r.isLatest) || ghReleases[0]);
+      } else {
+        // Fallback to local data only if GitHub fails
+        setReleases(getReleases());
+        setLatestRelease(getLatestRelease());
       }
+    }).catch(() => {
+      setReleases(getReleases());
+      setLatestRelease(getLatestRelease());
     });
   }, []);
 
