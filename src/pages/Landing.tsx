@@ -208,7 +208,7 @@ const Landing = () => {
               <Download className="w-5 h-5 ml-2" />
               تحميل APK
             </Button>
-            <p className="text-[10px] text-muted-foreground mt-3">التطبيق يحدّث نفسه تلقائياً بعد التثبيت</p>
+            <p className="text-[10px] text-muted-foreground mt-3">حمّل أحدث نسخة وثبّتها على جهازك</p>
           </div>
         </section>
       )}
