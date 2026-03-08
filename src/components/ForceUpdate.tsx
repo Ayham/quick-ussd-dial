@@ -12,6 +12,19 @@ interface UpdateBannerProps {
 
 /** Non-blocking banner shown at top of app */
 export const UpdateBanner = ({ updateInfo, onDismiss }: UpdateBannerProps) => {
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    if (!updateInfo.downloadUrl) return;
+    setDownloading(true);
+    try {
+      await downloadAndInstallApk(updateInfo.downloadUrl);
+    } catch (e: any) {
+      toast({ title: "خطأ في التنزيل", description: e.message, variant: "destructive" });
+    }
+    setDownloading(false);
+  };
+
   return (
     <div className="bg-primary/10 border-b border-primary/20 px-4 py-2.5 flex items-center justify-between gap-2" dir="rtl">
       <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -25,9 +38,10 @@ export const UpdateBanner = ({ updateInfo, onDismiss }: UpdateBannerProps) => {
           <Button
             size="sm"
             className="h-7 text-[11px] px-3 rounded-lg"
-            onClick={() => { window.location.href = updateInfo.downloadUrl!; }}
+            onClick={handleDownload}
+            disabled={downloading}
           >
-            تحديث
+            {downloading ? <Loader2 className="w-3 h-3 animate-spin" /> : "تحديث"}
           </Button>
         )}
         <button onClick={onDismiss} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
