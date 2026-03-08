@@ -343,7 +343,7 @@ const Landing = () => {
                     <Button
                       size="lg"
                       className="font-bold rounded-xl h-12 px-8"
-                      onClick={() => window.open(config.downloadUrl, "_blank")}
+                      onClick={() => { window.location.href = config.downloadUrl; }}
                     >
                       <Download className="w-5 h-5 ml-2" />
                       تحميل APK
