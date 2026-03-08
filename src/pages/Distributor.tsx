@@ -79,7 +79,7 @@ const Distributor = () => {
     if (syrAmt > 0) addTransaction(type, syrAmt, txNote.trim(), 'syriatel');
     if (mtnAmt > 0) addTransaction(type, mtnAmt, txNote.trim(), 'mtn');
     setAccount(getDistributorAccount());
-    if (type === 'topup' && account.phone) {
+    if (type === 'topup') {
       sendWhatsApp(syrAmt > 0 ? syrAmt : 0, mtnAmt > 0 ? mtnAmt : 0, txNote.trim());
     }
     setSyriatelAmount('');
