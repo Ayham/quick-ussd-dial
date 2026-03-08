@@ -6,10 +6,12 @@
 const DISTRIBUTOR_KEY = 'distributor_account_v1';
 
 export type TransactionType = 'topup' | 'payment';
+export type Operator = 'syriatel' | 'mtn';
 
 export interface DistributorTransaction {
   id: string;
   type: TransactionType;
+  operator: Operator;
   amount: number;
   note: string;
   timestamp: number;
@@ -43,11 +45,12 @@ export function saveDistributorAccount(account: DistributorAccount) {
   localStorage.setItem(DISTRIBUTOR_KEY, JSON.stringify(account));
 }
 
-export function addTransaction(type: TransactionType, amount: number, note: string): DistributorTransaction {
+export function addTransaction(type: TransactionType, amount: number, note: string, operator: Operator): DistributorTransaction {
   const account = getDistributorAccount();
   const tx: DistributorTransaction = {
     id: crypto.randomUUID(),
     type,
+    operator,
     amount,
     note,
     timestamp: Date.now(),
@@ -63,14 +66,16 @@ export function deleteTransaction(id: string) {
   saveDistributorAccount(account);
 }
 
-export function getBalance(): number {
+export function getBalance(operator?: Operator): number {
   const account = getDistributorAccount();
-  return account.transactions.reduce((bal, tx) => {
-    return tx.type === 'topup' ? bal + tx.amount : bal - tx.amount;
-  }, 0);
+  return account.transactions
+    .filter(tx => !operator || tx.operator === operator)
+    .reduce((bal, tx) => {
+      return tx.type === 'topup' ? bal + tx.amount : bal - tx.amount;
+    }, 0);
 }
 
-export function getDistributorStats() {
+export function getDistributorStats(operator?: Operator) {
   const account = getDistributorAccount();
   const now = Date.now();
   const todayStart = new Date().setHours(0, 0, 0, 0);
@@ -81,8 +86,11 @@ export function getDistributorStats() {
   let monthTopups = 0, monthPayments = 0;
   let weekTopups = 0, weekPayments = 0;
   let todayTopups = 0, todayPayments = 0;
+  let count = 0;
 
   account.transactions.forEach(tx => {
+    if (operator && tx.operator !== operator) return;
+    count++;
     if (tx.type === 'topup') {
       totalTopups += tx.amount;
       if (tx.timestamp >= monthStart) monthTopups += tx.amount;
@@ -102,6 +110,6 @@ export function getDistributorStats() {
     monthTopups, monthPayments,
     weekTopups, weekPayments,
     todayTopups, todayPayments,
-    transactionCount: account.transactions.length,
+    transactionCount: count,
   };
 }
