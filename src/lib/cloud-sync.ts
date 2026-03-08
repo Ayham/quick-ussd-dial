@@ -103,11 +103,11 @@ async function flushQueue(): Promise<{ sent: number; failed: number }> {
     // Use no-cors mode to avoid CORS preflight issues with Google Apps Script
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
+      mode: 'no-cors',
       body: JSON.stringify({ events: queue }),
-      redirect: 'follow',
     });
 
+    // no-cors always returns opaque response, assume success
     if (response.ok || response.type === 'opaque') {
       const sent = queue.length;
       saveQueue([]);
