@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
-import { Phone, Clock, CheckCircle, Loader2, Send } from "lucide-react";
+import { Phone, Clock, CheckCircle, Loader2, Send, TrendingUp } from "lucide-react";
 import {
   detectOperator,
   buildUssdCode,
@@ -148,9 +148,33 @@ const Index = () => {
 
   // History filtered by entered phone number
   const phoneHistory = useMemo(
-    () => (phone.trim().length >= 3 ? history.filter((r) => r.phone.includes(phone.trim())) : []).slice(0, 10),
+    () => (phone.trim().length >= 3 ? history.filter((r) => r.phone.includes(phone.trim()) && r.status === "success") : []),
     [history, phone]
   );
+
+  // Phone stats: today, week, month
+  const phoneStats = useMemo(() => {
+    if (phoneHistory.length === 0) return null;
+    const now = Date.now();
+    const todayStart = new Date().setHours(0, 0, 0, 0);
+    const weekAgo = now - 7 * 86400000;
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+
+    let todaySum = 0, todayCount = 0;
+    let weekSum = 0, weekCount = 0;
+    let monthSum = 0, monthCount = 0;
+    let totalSum = 0;
+
+    phoneHistory.forEach((r) => {
+      const amt = Number(r.amount);
+      totalSum += amt;
+      if (r.timestamp >= todayStart) { todaySum += amt; todayCount++; }
+      if (r.timestamp >= weekAgo) { weekSum += amt; weekCount++; }
+      if (r.timestamp >= monthStart) { monthSum += amt; monthCount++; }
+    });
+
+    return { todaySum, todayCount, weekSum, weekCount, monthSum, monthCount, totalSum, totalCount: phoneHistory.length };
+  }, [phoneHistory]);
 
   return (
     <AppLayout title="تحويل رصيد" onTitleClick={handleTitleTap}>
@@ -282,15 +306,45 @@ const Index = () => {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Phone-specific history */}
-        {phoneHistory.length > 0 && (
-          <div className="space-y-1">
+        {/* Phone-specific stats + history */}
+        {phoneStats && (
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
+              <TrendingUp className="w-3 h-3" />
+              ملخص التحويلات لهذا الرقم
+            </p>
+
+            {/* Stats row */}
+            <div className="grid grid-cols-4 gap-1">
+              <div className="bg-card border border-border rounded-md p-1.5 text-center">
+                <p className="text-[8px] text-muted-foreground">اليوم</p>
+                <p className="text-xs font-bold text-foreground">{phoneStats.todaySum.toLocaleString()}</p>
+                <p className="text-[8px] text-muted-foreground">{phoneStats.todayCount}×</p>
+              </div>
+              <div className="bg-card border border-border rounded-md p-1.5 text-center">
+                <p className="text-[8px] text-muted-foreground">الأسبوع</p>
+                <p className="text-xs font-bold text-foreground">{phoneStats.weekSum.toLocaleString()}</p>
+                <p className="text-[8px] text-muted-foreground">{phoneStats.weekCount}×</p>
+              </div>
+              <div className="bg-card border border-border rounded-md p-1.5 text-center">
+                <p className="text-[8px] text-muted-foreground">الشهر</p>
+                <p className="text-xs font-bold text-foreground">{phoneStats.monthSum.toLocaleString()}</p>
+                <p className="text-[8px] text-muted-foreground">{phoneStats.monthCount}×</p>
+              </div>
+              <div className="bg-card border border-border rounded-md p-1.5 text-center">
+                <p className="text-[8px] text-muted-foreground">الإجمالي</p>
+                <p className="text-xs font-bold text-foreground">{phoneStats.totalSum.toLocaleString()}</p>
+                <p className="text-[8px] text-muted-foreground">{phoneStats.totalCount}×</p>
+              </div>
+            </div>
+
+            {/* Recent records */}
             <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              سجل التحويلات لهذا الرقم
+              آخر العمليات
             </p>
-            <div className="space-y-0.5 max-h-[140px] overflow-y-auto">
-              {phoneHistory.map((record, i) => (
+            <div className="space-y-0.5 max-h-[120px] overflow-y-auto">
+              {phoneHistory.slice(0, 10).map((record, i) => (
                 <div
                   key={i}
                   className="flex items-center justify-between bg-card border border-border rounded-md px-2 py-1.5 text-xs"
