@@ -17,7 +17,7 @@ import {
   getHistory,
   type TransferRecord,
 } from "@/lib/transfer-history";
-import { updateContactName, importPhoneContacts, type SavedContact } from "@/lib/contacts";
+import { updateContactName, pickPhoneContact, type SavedContact } from "@/lib/contacts";
 import { dialUssdDirect } from "@/lib/ussd-dialer";
 import { trackTransfer } from "@/lib/cloud-sync";
 import { Button } from "@/components/ui/button";
