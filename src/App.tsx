@@ -103,7 +103,6 @@ const AppContent = () => {
 
   return (
     <BrowserRouter>
-      {updateOverlay}
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/distributor" element={<Distributor />} />
