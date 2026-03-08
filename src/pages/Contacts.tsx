@@ -65,16 +65,15 @@ const Contacts = () => {
     toast.info("تم حذف جهة الاتصال");
   };
 
-  const handleImport = async () => {
-    setImporting(true);
+  const handlePickContact = async () => {
     try {
-      const imported = await importPhoneContacts();
-      reload();
-      toast.success(`تم استيراد ${imported.length} جهة اتصال`);
+      const picked = await pickPhoneContact();
+      if (picked) {
+        reload();
+        toast.success(`تم إضافة ${picked.name || picked.phone}`);
+      }
     } catch {
-      toast.error("تعذر الوصول لجهات الاتصال");
-    } finally {
-      setImporting(false);
+      toast.error("تعذر فتح سجل الاتصال");
     }
   };
 
