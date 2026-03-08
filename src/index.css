@@ -114,12 +114,18 @@
 
 /* Safe area insets for Android status bar and navigation bar */
 .safe-area-insets {
-  padding-top: env(safe-area-inset-top, 20px);
+  padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-.pt-safe {
-  padding-top: env(safe-area-inset-top, 20px);
+/* Only add status bar padding in native app */
+.native-app .pt-safe {
+  padding-top: env(safe-area-inset-top, 28px);
+}
+
+/* Fallback: if no native-app class, no extra padding */
+:not(.native-app) .pt-safe {
+  padding-top: 0px;
 }
 
 .pb-safe {
