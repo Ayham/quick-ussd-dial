@@ -52,12 +52,12 @@ const Landing = () => {
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
 
         {/* Floating operator logos in background */}
-        <img src={mtnLogo} alt="" className="absolute top-[8%] left-[5%] w-14 h-14 sm:w-20 sm:h-20 opacity-[0.08] blur-[0.5px] rotate-[-12deg] pointer-events-none" />
-        <img src={syriatelLogo} alt="" className="absolute top-[12%] right-[6%] w-12 h-12 sm:w-16 sm:h-16 opacity-[0.08] blur-[0.5px] rotate-[10deg] pointer-events-none" />
-        <img src={mtnLogo} alt="" className="absolute bottom-[22%] right-[8%] w-16 h-16 sm:w-24 sm:h-24 opacity-[0.06] blur-[0.5px] rotate-[18deg] pointer-events-none" />
-        <img src={syriatelLogo} alt="" className="absolute bottom-[18%] left-[7%] w-14 h-14 sm:w-20 sm:h-20 opacity-[0.06] blur-[0.5px] rotate-[-8deg] pointer-events-none" />
-        <img src={mtnLogo} alt="" className="absolute top-[45%] left-[15%] w-10 h-10 sm:w-14 sm:h-14 opacity-[0.04] rotate-[25deg] pointer-events-none" />
-        <img src={syriatelLogo} alt="" className="absolute top-[40%] right-[12%] w-10 h-10 sm:w-14 sm:h-14 opacity-[0.04] rotate-[-15deg] pointer-events-none" />
+        <img src={mtnLogo} alt="" className="absolute top-[6%] left-[3%] w-20 h-20 sm:w-28 sm:h-28 opacity-[0.18] rotate-[-15deg] pointer-events-none" />
+        <img src={syriatelLogo} alt="" className="absolute top-[8%] right-[4%] w-16 h-16 sm:w-24 sm:h-24 opacity-[0.18] rotate-[12deg] pointer-events-none" />
+        <img src={mtnLogo} alt="" className="absolute bottom-[20%] right-[5%] w-24 h-24 sm:w-32 sm:h-32 opacity-[0.15] rotate-[20deg] pointer-events-none" />
+        <img src={syriatelLogo} alt="" className="absolute bottom-[15%] left-[4%] w-20 h-20 sm:w-28 sm:h-28 opacity-[0.15] rotate-[-10deg] pointer-events-none" />
+        <img src={mtnLogo} alt="" className="absolute top-[42%] left-[10%] w-14 h-14 sm:w-20 sm:h-20 opacity-[0.1] rotate-[30deg] pointer-events-none" />
+        <img src={syriatelLogo} alt="" className="absolute top-[38%] right-[8%] w-14 h-14 sm:w-20 sm:h-20 opacity-[0.1] rotate-[-20deg] pointer-events-none" />
 
         <div className="relative w-full max-w-3xl mx-auto px-5 sm:px-8 text-center z-10 py-16 md:py-20">
           {/* Operator logos + App icon */}
