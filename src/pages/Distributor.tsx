@@ -413,6 +413,50 @@ const Distributor = () => {
             <Button onClick={handleSaveSettings} className="w-full h-11 font-bold rounded-xl">
               حفظ الإعدادات
             </Button>
+
+            {/* Clear all transactions */}
+            <div className="bg-card border border-destructive/20 rounded-2xl p-4 shadow-card space-y-3">
+              <h3 className="text-sm font-bold text-destructive flex items-center gap-2">
+                <Trash2 className="w-4 h-4" />
+                حذف جميع العمليات
+              </h3>
+              <p className="text-[11px] text-muted-foreground">سيتم حذف جميع عمليات الموزع نهائياً (الطلبات والدفعات). لا يمكن التراجع.</p>
+              {!showClearAll ? (
+                <Button variant="outline" className="w-full text-destructive border-destructive/30 hover:bg-destructive hover:text-destructive-foreground" onClick={() => setShowClearAll(true)}>
+                  حذف جميع العمليات
+                </Button>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-destructive font-semibold">اكتب "حذف" للتأكيد:</p>
+                  <Input
+                    value={clearConfirmText}
+                    onChange={(e) => setClearConfirmText(e.target.value)}
+                    placeholder="اكتب حذف هنا"
+                    className="h-10 rounded-xl text-center border-destructive/30"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      variant="destructive"
+                      className="flex-1 h-10 font-bold rounded-xl"
+                      disabled={clearConfirmText !== 'حذف'}
+                      onClick={() => {
+                        const updated = { ...account, transactions: [] };
+                        saveDistributorAccount(updated);
+                        setAccount(updated);
+                        setShowClearAll(false);
+                        setClearConfirmText('');
+                        toast.success("تم حذف جميع العمليات");
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4 ml-1" />تأكيد الحذف
+                    </Button>
+                    <Button variant="outline" className="flex-1 h-10 rounded-xl" onClick={() => { setShowClearAll(false); setClearConfirmText(''); }}>
+                      إلغاء
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>
