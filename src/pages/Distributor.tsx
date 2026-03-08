@@ -24,9 +24,9 @@ const Distributor = () => {
   const [account, setAccount] = useState(() => getDistributorAccount());
   const [activeTab, setActiveTab] = useState<ViewTab>('main');
   const [txType, setTxType] = useState<TransactionType>('topup');
-  const [txAmount, setTxAmount] = useState('');
+  const [syriatelAmount, setSyriatelAmount] = useState('');
+  const [mtnAmount, setMtnAmount] = useState('');
   const [txNote, setTxNote] = useState('');
-  const [txOperator, setTxOperator] = useState<Operator>('syriatel');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   // Settings edit
