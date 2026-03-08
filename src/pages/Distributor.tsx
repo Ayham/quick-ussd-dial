@@ -24,9 +24,9 @@ const Distributor = () => {
   const [account, setAccount] = useState(() => getDistributorAccount());
   const [activeTab, setActiveTab] = useState<ViewTab>('main');
   const [txType, setTxType] = useState<TransactionType>('topup');
-  const [txAmount, setTxAmount] = useState('');
+  const [syriatelAmount, setSyriatelAmount] = useState('');
+  const [mtnAmount, setMtnAmount] = useState('');
   const [txNote, setTxNote] = useState('');
-  const [txOperator, setTxOperator] = useState<Operator>('syriatel');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   // Settings edit
@@ -41,11 +41,18 @@ const Distributor = () => {
   const stats = useMemo(() => getDistributorStats(), [account]);
   const isLowBalance = totalBalance <= account.lowBalanceAlert && account.lowBalanceAlert > 0;
 
-  const sendWhatsApp = (amount: number, note: string) => {
+  const sendWhatsApp = (syrAmount: number, mtnAmt: number, note: string) => {
     const phone = account.phone.replace(/^0/, '963');
+    const parts: string[] = [];
+    if (syrAmount > 0) parts.push(`سيريتل: ${syrAmount.toLocaleString()}`);
+    if (mtnAmt > 0) parts.push(`MTN: ${mtnAmt.toLocaleString()}`);
+    const totalAmount = syrAmount + mtnAmt;
     let message = (account.whatsappMessage || 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س')
-      .replace('{amount}', amount.toLocaleString())
+      .replace('{amount}', totalAmount.toLocaleString())
       .replace('{note}', note || '');
+    if (parts.length === 2) {
+      message += `\n${parts.join(' | ')}`;
+    }
     if (note && !message.includes(note)) {
       message += `\nملاحظة: ${note}`;
     }
@@ -53,26 +60,33 @@ const Distributor = () => {
     window.open(url, '_blank');
   };
 
-  const handleAddTransaction = (type?: TransactionType) => {
-    const actualType = type || txType;
-    const amount = Number(txAmount);
-    if (!amount || amount <= 0) {
-      toast.error("أدخل مبلغاً صحيحاً");
+  const handleAddTransaction = (type: TransactionType) => {
+    const syrAmt = Number(syriatelAmount);
+    const mtnAmt = Number(mtnAmount);
+    if ((!syrAmt || syrAmt <= 0) && (!mtnAmt || mtnAmt <= 0)) {
+      toast.error("أدخل مبلغاً واحداً على الأقل");
       return;
     }
-    const operatorBalance = txOperator === 'syriatel' ? syriatelBalance : mtnBalance;
-    if (actualType === 'payment' && amount > operatorBalance) {
-      toast.error("المبلغ أكبر من الرصيد المتاح");
-      return;
+    if (type === 'payment') {
+      if (syrAmt > 0 && syrAmt > syriatelBalance) {
+        toast.error("مبلغ سيريتل أكبر من الرصيد المتاح");
+        return;
+      }
+      if (mtnAmt > 0 && mtnAmt > mtnBalance) {
+        toast.error("مبلغ MTN أكبر من الرصيد المتاح");
+        return;
+      }
     }
-    addTransaction(actualType, amount, txNote.trim(), txOperator);
+    if (syrAmt > 0) addTransaction(type, syrAmt, txNote.trim(), 'syriatel');
+    if (mtnAmt > 0) addTransaction(type, mtnAmt, txNote.trim(), 'mtn');
     setAccount(getDistributorAccount());
-    if (actualType === 'topup' && account.phone) {
-      sendWhatsApp(amount, txNote.trim());
+    if (type === 'topup' && account.phone) {
+      sendWhatsApp(syrAmt > 0 ? syrAmt : 0, mtnAmt > 0 ? mtnAmt : 0, txNote.trim());
     }
-    setTxAmount('');
+    setSyriatelAmount('');
+    setMtnAmount('');
     setTxNote('');
-    toast.success(actualType === 'topup' ? 'تم تسجيل طلب الرصيد' : 'تم تسجيل الدفعة');
+    toast.success(type === 'topup' ? 'تم تسجيل طلب الرصيد' : 'تم تسجيل الدفعة');
   };
 
   const handleDelete = (id: string) => {
@@ -165,35 +179,33 @@ const Distributor = () => {
 
             {/* Add Transaction */}
             <div className="space-y-2">
-              {/* Operator selector */}
-              <div className="flex gap-2">
-                {OPERATORS.map((op) => (
-                  <button
-                    key={op.id}
-                    onClick={() => setTxOperator(op.id)}
-                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-smooth ${
-                      txOperator === op.id
-                        ? op.id === 'syriatel'
-                          ? "bg-red-500/15 text-red-500 border-2 border-red-500/30"
-                          : "bg-yellow-500/15 text-yellow-500 border-2 border-yellow-500/30"
-                        : "bg-muted text-muted-foreground border-2 border-transparent"
-                    }`}
-                  >
-                    {op.label}
-                  </button>
-                ))}
+              {/* Per-operator amount inputs */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-red-500 text-center block">سيريتل</label>
+                  <Input
+                    type="number"
+                    value={syriatelAmount}
+                    onChange={(e) => setSyriatelAmount(e.target.value)}
+                    placeholder="0"
+                    className="h-12 text-center text-lg font-bold rounded-xl border-2 border-red-500/20"
+                    dir="ltr"
+                    inputMode="numeric"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-yellow-500 text-center block">MTN</label>
+                  <Input
+                    type="number"
+                    value={mtnAmount}
+                    onChange={(e) => setMtnAmount(e.target.value)}
+                    placeholder="0"
+                    className="h-12 text-center text-lg font-bold rounded-xl border-2 border-yellow-500/20"
+                    dir="ltr"
+                    inputMode="numeric"
+                  />
+                </div>
               </div>
-
-              <Input
-                type="number"
-                value={txAmount}
-                onChange={(e) => setTxAmount(e.target.value)}
-                placeholder="المبلغ"
-                className="h-12 text-center text-lg font-bold rounded-xl border-2 border-border"
-                dir="ltr"
-                inputMode="numeric"
-                onKeyDown={(e) => e.key === 'Enter' && handleAddTransaction()}
-              />
 
               <Input
                 value={txNote}
@@ -207,7 +219,7 @@ const Distributor = () => {
                   onClick={() => handleAddTransaction('topup')}
                   variant="outline"
                   className="h-12 font-bold rounded-xl border-2 border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground"
-                  disabled={!txAmount || Number(txAmount) <= 0}
+                  disabled={(!syriatelAmount || Number(syriatelAmount) <= 0) && (!mtnAmount || Number(mtnAmount) <= 0)}
                 >
                   <ArrowDownCircle className="w-5 h-5 ml-2" />
                   طلب رصيد
@@ -216,7 +228,7 @@ const Distributor = () => {
                   onClick={() => handleAddTransaction('payment')}
                   variant="outline"
                   className="h-12 font-bold rounded-xl border-2 border-accent/30 text-accent hover:bg-accent hover:text-accent-foreground"
-                  disabled={!txAmount || Number(txAmount) <= 0}
+                  disabled={(!syriatelAmount || Number(syriatelAmount) <= 0) && (!mtnAmount || Number(mtnAmount) <= 0)}
                 >
                   <ArrowUpCircle className="w-5 h-5 ml-2" />
                   دفعة
