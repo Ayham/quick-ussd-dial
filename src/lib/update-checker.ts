@@ -1,10 +1,10 @@
 /**
  * Update Checker — التحقق من وجود تحديثات
- * يجلب أحدث نسخة من Google Sheets ويقارنها مع النسخة الحالية
+ * يجلب أحدث نسخة من GitHub Releases ويقارنها مع النسخة الحالية
  */
 
 import { getAppConfig } from './marketing';
-import { getSyncEndpoint } from './cloud-sync';
+import { getLatestGitHubRelease } from './github-releases';
 
 const CURRENT_VERSION_KEY = 'app_current_version';
 const UPDATE_CHECK_KEY = 'app_update_check_v1';
@@ -22,7 +22,6 @@ export interface UpdateInfo {
 
 // Get current app version
 export function getCurrentVersion(): string {
-  // First check localStorage (set by admin), then fallback to config
   const stored = localStorage.getItem(CURRENT_VERSION_KEY);
   if (stored) return stored;
   return getAppConfig().appVersion || '1.0.0';
@@ -45,7 +44,7 @@ function isNewerVersion(remote: string, local: string): boolean {
   return false;
 }
 
-// Check for updates via the sync endpoint
+// Check for updates via GitHub Releases API
 export async function checkForUpdate(): Promise<UpdateInfo> {
   const currentVersion = getCurrentVersion();
   const noUpdate: UpdateInfo = {
@@ -58,37 +57,24 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
     forceUpdate: false,
   };
 
-  const endpoint = getSyncEndpoint();
-  if (!endpoint) return noUpdate;
-
   try {
-    const url = `${endpoint}?action=getLatestRelease`;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const latest = await getLatestGitHubRelease();
+    if (!latest || !latest.version) return noUpdate;
 
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeout);
-
-    if (!res.ok) return noUpdate;
-    const data = await res.json();
-
-    if (!data.version) return noUpdate;
-
-    const hasUpdate = isNewerVersion(data.version, currentVersion);
+    const hasUpdate = isNewerVersion(latest.version, currentVersion);
 
     const result: UpdateInfo = {
       hasUpdate,
       currentVersion,
-      latestVersion: data.version,
-      downloadUrl: data.downloadUrl || '',
-      changelog: data.changelog || '',
-      releaseDate: data.releaseDate || '',
-      forceUpdate: data.forceUpdate === true || hasUpdate, // Force by default
+      latestVersion: latest.version,
+      downloadUrl: latest.downloadUrl,
+      changelog: latest.changelog,
+      releaseDate: latest.releaseDate,
+      forceUpdate: hasUpdate,
     };
 
     // Cache result
     localStorage.setItem(UPDATE_CHECK_KEY, JSON.stringify(result));
-
     return result;
   } catch {
     // Return cached result if offline

@@ -25,11 +25,11 @@ const Landing = () => {
     setReleases(localReleases);
     setLatestRelease(getLatestRelease());
 
-    // Fetch from Google Sheets (cloud)
-    fetchReleasesFromCloud().then(cloudReleases => {
-      if (cloudReleases.length > 0) {
-        setReleases(cloudReleases);
-        setLatestRelease(cloudReleases.find(r => r.isLatest) || cloudReleases[0]);
+    // Fetch from GitHub Releases
+    fetchReleasesFromGitHub().then(ghReleases => {
+      if (ghReleases.length > 0) {
+        setReleases(ghReleases);
+        setLatestRelease(ghReleases.find(r => r.isLatest) || ghReleases[0]);
       }
     });
   }, []);
