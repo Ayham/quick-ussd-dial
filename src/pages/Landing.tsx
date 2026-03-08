@@ -273,29 +273,83 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* ── Download ── */}
-      {config.downloadUrl && (
+      {/* ── Download & Releases ── */}
+      {(latestRelease || config.downloadUrl) && (
         <section className="w-full max-w-3xl mx-auto px-5 sm:px-8 pb-12 sm:pb-16">
-          <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 text-center shadow-sm">
-            <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <Download className="w-7 h-7 text-primary" />
+          <div className="space-y-4">
+            {/* Latest version card */}
+            <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 text-center shadow-sm">
+              <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <Download className="w-7 h-7 text-primary" />
+              </div>
+              <h2 className="text-lg sm:text-xl font-bold text-foreground mb-1">حمّل التطبيق الآن</h2>
+              {latestRelease ? (
+                <>
+                  <p className="text-sm text-primary font-bold mb-1">v{latestRelease.version}</p>
+                  {latestRelease.changelog && (
+                    <p className="text-[11px] sm:text-xs text-muted-foreground mb-4 bg-muted rounded-xl px-3 py-2 inline-block whitespace-pre-wrap max-w-sm">{latestRelease.changelog}</p>
+                  )}
+                  <div>
+                    <Button
+                      size="lg"
+                      className="font-bold rounded-xl h-12 px-8"
+                      onClick={() => window.open(latestRelease.downloadUrl, "_blank")}
+                    >
+                      <Download className="w-5 h-5 ml-2" />
+                      تحميل أحدث نسخة
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-4">الإصدار {config.appVersion}</p>
+                  <div>
+                    <Button
+                      size="lg"
+                      className="font-bold rounded-xl h-12 px-8"
+                      onClick={() => window.open(config.downloadUrl, "_blank")}
+                    >
+                      <Download className="w-5 h-5 ml-2" />
+                      تحميل APK
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
-            <h2 className="text-lg sm:text-xl font-bold text-foreground mb-1">حمّل التطبيق الآن</h2>
-            <p className="text-xs sm:text-sm text-muted-foreground mb-1">الإصدار {config.appVersion}</p>
-            {config.changelog && (
-              <p className="text-[11px] sm:text-xs text-muted-foreground mb-4 bg-muted rounded-xl px-3 py-2 inline-block">{config.changelog}</p>
+
+            {/* Previous versions */}
+            {releases.length > 1 && (
+              <div className="bg-card border border-border rounded-2xl p-5 sm:p-6">
+                <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4 text-primary" />
+                  النسخ السابقة
+                </h3>
+                <div className="divide-y divide-border">
+                  {releases.filter(r => !r.isLatest).map((release) => (
+                    <div key={release.id} className="py-3 flex items-center justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="font-mono text-xs font-bold text-foreground">v{release.version}</span>
+                          <span className="text-[10px] text-muted-foreground">{release.releaseDate}</span>
+                        </div>
+                        {release.changelog && (
+                          <p className="text-[11px] text-muted-foreground line-clamp-2">{release.changelog}</p>
+                        )}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0 h-8 text-[11px] rounded-lg mr-3"
+                        onClick={() => window.open(release.downloadUrl, "_blank")}
+                      >
+                        <Download className="w-3.5 h-3.5 ml-1" />
+                        تنزيل
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
-            <div>
-              <Button
-                size="lg"
-                className="font-bold rounded-xl h-12 px-8"
-                onClick={() => window.open(config.downloadUrl, "_blank")}
-              >
-                <Download className="w-5 h-5 ml-2" />
-                تحميل APK
-              </Button>
-            </div>
-            <p className="text-[10px] text-muted-foreground mt-3">حمّل أحدث نسخة وثبّتها على جهازك</p>
           </div>
         </section>
       )}
