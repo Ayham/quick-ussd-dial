@@ -16,6 +16,8 @@ import {
   setAdminAuthenticated,
   getAdminCredentials,
   saveAdminCredentials,
+  getLockoutInfo,
+  getRemainingAttempts,
 } from "@/lib/admin-auth";
 import {
   getLicenseApiEndpoint, saveLicenseApiEndpoint,
