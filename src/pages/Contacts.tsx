@@ -221,10 +221,29 @@ const Contacts = () => {
           </div>
         )}
 
-        {/* Stats */}
-        <p className="text-[11px] text-muted-foreground px-1">
-          {filtered.length} جهة اتصال {search && `من أصل ${contacts.length}`}
-        </p>
+        {/* Stats + Export/Import */}
+        <div className="flex items-center justify-between px-1">
+          <p className="text-[11px] text-muted-foreground">
+            {filtered.length} جهة اتصال {search && `من أصل ${contacts.length}`}
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleImportFile}
+              className="text-[11px] text-primary flex items-center gap-1 hover:underline"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              استيراد
+            </button>
+            <span className="text-muted-foreground text-[10px]">|</span>
+            <button
+              onClick={handleExport}
+              className="text-[11px] text-primary flex items-center gap-1 hover:underline"
+            >
+              <Download className="w-3.5 h-3.5" />
+              تصدير VCF
+            </button>
+          </div>
+        </div>
 
         {/* Contacts List */}
         <div className="space-y-1.5">
