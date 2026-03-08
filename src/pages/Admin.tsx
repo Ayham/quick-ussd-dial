@@ -22,6 +22,10 @@ import {
   getLicenseStats,
   type LicenseRecord,
 } from "@/lib/license-history";
+import {
+  getSyncEndpoint, saveSyncEndpoint, isSyncEnabled,
+  getQueueSize, getLastSyncTime, syncNow,
+} from "@/lib/cloud-sync";
 
 // ======= IndexedDB for RSA Keys =======
 const DB_NAME = 'LicenseAdminDB';
