@@ -5,7 +5,8 @@ import {
   ArrowDown, Sparkles, BadgeCheck, HeadphonesIcon, RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getPackages, getAppConfig, getReleases, getLatestRelease, fetchReleasesFromCloud, type AppPackage, type AppConfig, type AppRelease } from "@/lib/marketing";
+import { getPackages, getAppConfig, getReleases, getLatestRelease, type AppPackage, type AppConfig, type AppRelease } from "@/lib/marketing";
+import { fetchReleasesFromGitHub } from "@/lib/github-releases";
 import syriatelLogo from "@/assets/syriatel-logo.png";
 import mtnLogo from "@/assets/mtn-logo.png";
 
@@ -24,11 +25,11 @@ const Landing = () => {
     setReleases(localReleases);
     setLatestRelease(getLatestRelease());
 
-    // Fetch from Google Sheets (cloud)
-    fetchReleasesFromCloud().then(cloudReleases => {
-      if (cloudReleases.length > 0) {
-        setReleases(cloudReleases);
-        setLatestRelease(cloudReleases.find(r => r.isLatest) || cloudReleases[0]);
+    // Fetch from GitHub Releases
+    fetchReleasesFromGitHub().then(ghReleases => {
+      if (ghReleases.length > 0) {
+        setReleases(ghReleases);
+        setLatestRelease(ghReleases.find(r => r.isLatest) || ghReleases[0]);
       }
     });
   }, []);
