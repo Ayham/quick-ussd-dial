@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
-import { Phone, Clock, CheckCircle, Loader2, Send, TrendingUp } from "lucide-react";
+import { Phone, Clock, CheckCircle, Loader2, Send, TrendingUp, BookUser, UserPlus, Download } from "lucide-react";
 import {
   detectOperator,
   buildUssdCode,
@@ -17,6 +17,7 @@ import {
   getHistory,
   type TransferRecord,
 } from "@/lib/transfer-history";
+import { updateContactName, importPhoneContacts, type SavedContact } from "@/lib/contacts";
 import { dialUssdDirect } from "@/lib/ussd-dialer";
 import { trackTransfer } from "@/lib/cloud-sync";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,9 @@ const Index = () => {
   const [history, setHistory] = useState<TransferRecord[]>(() => getHistory());
   const [dialing, setDialing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [contactName, setContactName] = useState('');
+  const [showSaveName, setShowSaveName] = useState(false);
+  const [importing, setImporting] = useState(false);
   
   const contactsRef = useRef<HTMLDivElement>(null);
 
@@ -139,8 +143,9 @@ const Index = () => {
     }
   }, [phone, operator, selectedAmount, credentials]);
 
-  const selectContact = (contact: string) => {
-    setPhone(contact);
+  const selectContact = (contact: SavedContact) => {
+    setPhone(contact.phone);
+    setContactName(contact.name || '');
     setShowContacts(false);
   };
 
@@ -178,35 +183,60 @@ const Index = () => {
         
         {/* Phone Input Card */}
         <div className="bg-card rounded-2xl p-4 shadow-card space-y-2 animate-slide-up">
-          <label className="text-xs font-semibold text-foreground flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center">
-              <Phone className="w-3.5 h-3.5 text-primary" />
-            </div>
-            رقم الهاتف
+          <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center">
+                <Phone className="w-3.5 h-3.5 text-primary" />
+              </div>
+              رقم الهاتف
+            </span>
+            <button
+              onClick={async () => {
+                setImporting(true);
+                try {
+                  const imported = await importPhoneContacts();
+                  toast.success(`تم استيراد ${imported.length} جهة اتصال`);
+                } catch {
+                  toast.error("تعذر الوصول لجهات الاتصال");
+                } finally {
+                  setImporting(false);
+                }
+              }}
+              disabled={importing}
+              className="p-1.5 rounded-lg hover:bg-muted transition-smooth text-muted-foreground hover:text-primary"
+              title="استيراد من الهاتف"
+            >
+              <Download className="w-4 h-4" />
+            </button>
           </label>
           <div className="relative" ref={contactsRef}>
             <Input
               type="tel"
-              placeholder="09XXXXXXXX"
+              placeholder="رقم أو اسم جهة الاتصال"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => { setPhone(e.target.value); setContactName(''); setShowSaveName(false); }}
               onFocus={() => setShowContacts(true)}
               className="text-left text-base h-12 tracking-wider rounded-xl border-2 border-border focus:border-primary transition-smooth"
               dir="ltr"
               inputMode="tel"
             />
             {showContacts && matchingContacts.length > 0 && (
-              <div className="absolute z-10 top-full mt-1.5 w-full bg-card border border-border rounded-xl shadow-elevated max-h-40 overflow-y-auto">
+              <div className="absolute z-10 top-full mt-1.5 w-full bg-card border border-border rounded-xl shadow-elevated max-h-48 overflow-y-auto">
                 {matchingContacts.map((contact) => {
-                  const op = detectOperator(contact);
+                  const op = detectOperator(contact.phone);
                   return (
                     <button
-                      key={contact}
+                      key={contact.phone}
                       onClick={() => selectContact(contact)}
                       className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-muted transition-smooth text-left first:rounded-t-xl last:rounded-b-xl"
                       dir="ltr"
                     >
-                      <span className="font-mono text-foreground text-sm tracking-wider">{contact}</span>
+                      <div className="flex flex-col">
+                        {contact.name && (
+                          <span className="text-xs font-medium text-foreground" dir="rtl">{contact.name}</span>
+                        )}
+                        <span className="font-mono text-muted-foreground text-sm tracking-wider">{contact.phone}</span>
+                      </div>
                       {op && (
                         <span
                           className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
@@ -224,7 +254,59 @@ const Index = () => {
               </div>
             )}
           </div>
-          {phone.length >= 3 && operator && (
+          {/* Contact name + operator badge */}
+          {phone.length >= 10 && operator && (
+            <div className="flex items-center justify-between">
+              <span
+                className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                  operator === "mtn"
+                    ? "bg-operator-mtn text-operator-mtn-foreground"
+                    : "bg-operator-syriatel text-operator-syriatel-foreground"
+                }`}
+              >
+                {operator === "mtn" ? "MTN" : "Syriatel"}
+              </span>
+              {contactName ? (
+                <span className="text-xs text-foreground font-medium flex items-center gap-1">
+                  <BookUser className="w-3 h-3 text-primary" />
+                  {contactName}
+                </span>
+              ) : !showSaveName ? (
+                <button
+                  onClick={() => setShowSaveName(true)}
+                  className="text-[11px] text-primary flex items-center gap-1 hover:underline"
+                >
+                  <UserPlus className="w-3 h-3" />
+                  حفظ الاسم
+                </button>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    placeholder="الاسم"
+                    className="h-7 text-xs rounded-lg w-32"
+                    dir="rtl"
+                    autoFocus
+                  />
+                  <Button
+                    size="sm"
+                    className="h-7 text-[10px] rounded-lg px-2"
+                    onClick={() => {
+                      if (contactName.trim()) {
+                        updateContactName(phone.trim(), contactName.trim());
+                        toast.success("تم حفظ الاسم");
+                      }
+                      setShowSaveName(false);
+                    }}
+                  >
+                    حفظ
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+          {phone.length >= 3 && phone.length < 10 && operator && (
             <span
               className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold ${
                 operator === "mtn"
@@ -299,6 +381,12 @@ const Index = () => {
                     <span className="text-muted-foreground text-sm">السعر</span>
                     <span className="font-bold text-foreground">{selectedAmount?.price.toLocaleString()} ل.س</span>
                   </div>
+                  {contactName && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground text-sm">الاسم</span>
+                      <span className="font-bold text-foreground">{contactName}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground text-sm">الرقم</span>
                     <span className="font-bold text-foreground font-mono" dir="ltr">{phone.trim()}</span>

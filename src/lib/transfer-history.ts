@@ -1,3 +1,5 @@
+import { saveContact, searchContacts, type SavedContact } from './contacts';
+
 export interface TransferRecord {
   phone: string;
   amount: string;
@@ -7,7 +9,6 @@ export interface TransferRecord {
 }
 
 const HISTORY_KEY = "transfer-history";
-const CONTACTS_KEY = "saved-contacts";
 
 export function getHistory(): TransferRecord[] {
   try {
@@ -36,23 +37,10 @@ export function getHistoryForPhone(phone: string): TransferRecord[] {
   return getHistory().filter((r) => r.phone === phone);
 }
 
-export function getSavedContacts(): string[] {
-  try {
-    const stored = localStorage.getItem(CONTACTS_KEY);
-    if (stored) return JSON.parse(stored);
-  } catch {}
-  return [];
+export function getSavedContacts(): SavedContact[] {
+  return searchContacts('');
 }
 
-function saveContact(phone: string) {
-  const contacts = getSavedContacts();
-  if (!contacts.includes(phone)) {
-    contacts.unshift(phone);
-    localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts.slice(0, 50)));
-  }
-}
-
-export function getMatchingContacts(input: string): string[] {
-  if (!input.trim()) return getSavedContacts();
-  return getSavedContacts().filter((c) => c.includes(input));
+export function getMatchingContacts(input: string): SavedContact[] {
+  return searchContacts(input);
 }
