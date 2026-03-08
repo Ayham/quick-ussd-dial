@@ -135,9 +135,9 @@ const Index = () => {
     <div className="min-h-screen bg-background flex flex-col safe-area-insets">
       {/* Header */}
       <header className="bg-primary px-3 py-2 flex items-center justify-between shadow-md pt-safe">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" onClick={handleTitleTap}>
           <Zap className="w-5 h-5 text-primary-foreground" />
-          <h1 className="text-primary-foreground text-lg font-bold">تحويل رصيد</h1>
+          <h1 className="text-primary-foreground text-lg font-bold select-none">تحويل رصيد</h1>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => navigate("/balance")} className="text-primary-foreground p-1">
