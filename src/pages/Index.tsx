@@ -143,8 +143,9 @@ const Index = () => {
     }
   }, [phone, operator, selectedAmount, credentials]);
 
-  const selectContact = (contact: string) => {
-    setPhone(contact);
+  const selectContact = (contact: SavedContact) => {
+    setPhone(contact.phone);
+    setContactName(contact.name || '');
     setShowContacts(false);
   };
 
