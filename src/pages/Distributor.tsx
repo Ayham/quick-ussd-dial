@@ -35,7 +35,12 @@ const Distributor = () => {
 
   const sendWhatsApp = (amount: number, note: string) => {
     const phone = account.phone.replace(/^0/, '963');
-    const message = `مرحباً، أرجو تحويل رصيد بقيمة ${amount.toLocaleString()} ل.س${note ? `\nملاحظة: ${note}` : ''}`;
+    let message = (account.whatsappMessage || 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س')
+      .replace('{amount}', amount.toLocaleString())
+      .replace('{note}', note || '');
+    if (note && !message.includes(note)) {
+      message += `\nملاحظة: ${note}`;
+    }
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
   };
