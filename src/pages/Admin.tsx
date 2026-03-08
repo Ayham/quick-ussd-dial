@@ -16,6 +16,8 @@ import {
   setAdminAuthenticated,
   getAdminCredentials,
   saveAdminCredentials,
+  getLockoutInfo,
+  getRemainingAttempts,
 } from "@/lib/admin-auth";
 import {
   getLicenseApiEndpoint, saveLicenseApiEndpoint,
@@ -177,12 +179,25 @@ const Admin = () => {
 
 
   const handleLogin = () => {
-    if (verifyAdmin(username, password)) {
+    const lockout = getLockoutInfo();
+    if (lockout.locked) {
+      toast.error(`تم قفل الحساب مؤقتاً. حاول بعد ${Math.ceil(lockout.remainingSeconds / 60)} دقيقة`);
+      return;
+    }
+    const result = verifyAdmin(username, password);
+    if (result === 'success') {
       setAdminAuthenticated(true);
       setAuthenticated(true);
       toast.success("تم تسجيل الدخول");
+    } else if (result === 'locked') {
+      toast.error("تم قفل الحساب مؤقتاً بسبب كثرة المحاولات الخاطئة");
     } else {
-      toast.error("اسم المستخدم أو كلمة السر غير صحيحة");
+      const remaining = getRemainingAttempts();
+      if (remaining > 0) {
+        toast.error(`كلمة السر غير صحيحة — متبقي ${remaining} محاولات`);
+      } else {
+        toast.error("تم قفل الحساب لمدة 5 دقائق ⛔");
+      }
     }
   };
 
@@ -332,6 +347,7 @@ const Admin = () => {
 
   // ======= Login / First Setup =======
   if (!authenticated) {
+    const lockout = getLockoutInfo();
     // Login only — no first-setup allowed
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 safe-area-insets" dir="rtl">
@@ -341,24 +357,40 @@ const Admin = () => {
             <h1 className="text-2xl font-bold text-foreground">لوحة الإدارة</h1>
             <p className="text-sm text-muted-foreground mt-1">سجّل دخولك للمتابعة</p>
           </div>
-          <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-muted-foreground">اسم المستخدم</label>
-              <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin" className="h-11" dir="ltr"
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
+          {lockout.locked ? (
+            <div className="bg-destructive/10 border border-destructive/30 rounded-2xl p-5 text-center space-y-3">
+              <AlertTriangle className="w-12 h-12 mx-auto text-destructive" />
+              <h2 className="text-lg font-bold text-destructive">تم قفل الحساب مؤقتاً</h2>
+              <p className="text-sm text-muted-foreground">
+                بسبب {lockout.attempts} محاولات دخول خاطئة
+              </p>
+              <p className="text-sm font-bold text-foreground">
+                حاول مرة أخرى بعد {Math.ceil(lockout.remainingSeconds / 60)} دقيقة
+              </p>
+              <Button variant="ghost" onClick={() => navigate("/")} className="w-full h-10 text-muted-foreground">
+                العودة للرئيسية
+              </Button>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-muted-foreground">كلمة السر</label>
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••" className="h-11" dir="ltr"
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
+          ) : (
+            <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-muted-foreground">اسم المستخدم</label>
+                <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin" className="h-11" dir="ltr"
+                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-muted-foreground">كلمة السر</label>
+                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••" className="h-11" dir="ltr"
+                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
+              </div>
+              <Button onClick={handleLogin} className="w-full h-11 font-bold rounded-xl">
+                <Lock className="w-4 h-4 ml-2" />دخول
+              </Button>
+              <Button variant="ghost" onClick={() => navigate("/")} className="w-full h-10 text-muted-foreground">
+                العودة للرئيسية
+              </Button>
             </div>
-            <Button onClick={handleLogin} className="w-full h-11 font-bold rounded-xl">
-              <Lock className="w-4 h-4 ml-2" />دخول
-            </Button>
-            <Button variant="ghost" onClick={() => navigate("/")} className="w-full h-10 text-muted-foreground">
-              العودة للرئيسية
-            </Button>
-          </div>
+          )}
         </div>
       </div>
     );
