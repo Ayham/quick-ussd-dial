@@ -258,27 +258,6 @@ const Settings = () => {
               </div>
             </div>
 
-            {/* Revoke */}
-            {getSavedLicense() && (
-              <Button onClick={handleRevokeLicense} variant="ghost" size="sm" className="text-destructive text-xs w-full">
-                إلغاء الترخيص الحالي
-              </Button>
-            )}
-
-            {/* Trial days setting */}
-            <div className="border-t border-border pt-3 space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">مدة الفترة التجريبية (بالأيام)</label>
-              <Input
-                type="number"
-                value={trialDays}
-                onChange={(e) => setTrialDaysState(Number(e.target.value) || 30)}
-                className="text-left h-9 text-xs w-24"
-                dir="ltr"
-                min={1}
-                max={365}
-                inputMode="numeric"
-              />
-            </div>
           </div>
         </Section>
 
