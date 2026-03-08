@@ -126,14 +126,14 @@ const Index = () => {
           <h1 className="text-primary-foreground text-lg font-bold">تحويل رصيد</h1>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => navigate("/balance")} className="text-primary-foreground">
-            <Wallet className="w-5 h-5" />
+          <button onClick={() => navigate("/balance")} className="text-primary-foreground p-1">
+            <Wallet className="w-6 h-6" />
           </button>
-          <button onClick={() => navigate("/reports")} className="text-primary-foreground">
-            <BarChart3 className="w-5 h-5" />
+          <button onClick={() => navigate("/reports")} className="text-primary-foreground p-1">
+            <BarChart3 className="w-6 h-6" />
           </button>
-          <button onClick={() => navigate("/settings")} className="text-primary-foreground">
-            <Settings className="w-5 h-5" />
+          <button onClick={() => navigate("/settings")} className="text-primary-foreground p-1">
+            <Settings className="w-6 h-6" />
           </button>
         </div>
       </header>
