@@ -315,8 +315,7 @@ const Index = () => {
           </div>
         )}
       </main>
-
-    </div>
+    </AppLayout>
   );
 };
 
