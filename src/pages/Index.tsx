@@ -283,8 +283,8 @@ const Index = () => {
               ) : (
                 <div className="flex items-center gap-1.5">
                   <Input
-                    value={contactName}
-                    onChange={(e) => setContactName(e.target.value)}
+                    value={nameInput}
+                    onChange={(e) => setNameInput(e.target.value)}
                     placeholder="الاسم"
                     className="h-7 text-xs rounded-lg w-32"
                     dir="rtl"
@@ -294,8 +294,9 @@ const Index = () => {
                     size="sm"
                     className="h-7 text-[10px] rounded-lg px-2"
                     onClick={() => {
-                      if (contactName.trim()) {
-                        updateContactName(phone.trim(), contactName.trim());
+                      if (nameInput.trim()) {
+                        updateContactName(phone.trim(), nameInput.trim());
+                        setContactName(nameInput.trim());
                         toast.success("تم حفظ الاسم");
                       }
                       setShowSaveName(false);
