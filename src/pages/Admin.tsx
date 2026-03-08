@@ -118,6 +118,11 @@ const Admin = () => {
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmLicenseClear, setConfirmLicenseClear] = useState(false);
 
+  // Marketing
+  const [mktPackages, setMktPackages] = useState<AppPackage[]>(() => getPackages());
+  const [mktConfig, setMktConfig] = useState<AppConfig>(() => getAppConfig());
+  const [editPkgId, setEditPkgId] = useState<string | null>(null);
+
   // Stats
   const stats = useMemo(() => getLicenseStats(), [licenseHistory]);
   const keyGenLog = useMemo(() => getKeyGenerationLog(), [hasKeys]);
