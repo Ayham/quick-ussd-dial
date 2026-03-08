@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft, Plus, Trash2, Key, Code, ArrowUp, ArrowDown, Smartphone, Signal, Shield, ShieldCheck, Clock, Copy, AlertTriangle, Database } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { getHistory } from "@/lib/transfer-history";
 import {
   getPresets, savePresets,
   getCredentials, saveCredentials,
