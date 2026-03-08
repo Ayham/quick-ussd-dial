@@ -12,8 +12,8 @@ export function isNativeApp(): boolean {
 }
 
 export function isDevPreview(): boolean {
-  const host = window.location.hostname;
-  return host.includes('lovable.app') || host.includes('lovable.dev') || host === 'localhost';
+  const { hostname, search } = window.location;
+  return hostname.includes('-preview--') || search.includes('__lovable_token=') || hostname === 'localhost';
 }
 
 export function isWebBrowser(): boolean {
