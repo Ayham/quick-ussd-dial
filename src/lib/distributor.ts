@@ -20,6 +20,7 @@ export interface DistributorAccount {
   phone: string;
   transactions: DistributorTransaction[];
   lowBalanceAlert: number; // threshold
+  whatsappMessage: string; // template with {amount} and {note} placeholders
 }
 
 const DEFAULT_ACCOUNT: DistributorAccount = {
@@ -27,6 +28,7 @@ const DEFAULT_ACCOUNT: DistributorAccount = {
   phone: '',
   transactions: [],
   lowBalanceAlert: 50000,
+  whatsappMessage: 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س',
 };
 
 export function getDistributorAccount(): DistributorAccount {

@@ -27,6 +27,7 @@ const Distributor = () => {
   const [editName, setEditName] = useState(account.name);
   const [editPhone, setEditPhone] = useState(account.phone);
   const [editAlert, setEditAlert] = useState(String(account.lowBalanceAlert));
+  const [editMessage, setEditMessage] = useState(account.whatsappMessage || 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س');
 
   const balance = useMemo(() => getBalance(), [account]);
   const stats = useMemo(() => getDistributorStats(), [account]);
@@ -34,7 +35,12 @@ const Distributor = () => {
 
   const sendWhatsApp = (amount: number, note: string) => {
     const phone = account.phone.replace(/^0/, '963');
-    const message = `مرحباً، أرجو تحويل رصيد بقيمة ${amount.toLocaleString()} ل.س${note ? `\nملاحظة: ${note}` : ''}`;
+    let message = (account.whatsappMessage || 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س')
+      .replace('{amount}', amount.toLocaleString())
+      .replace('{note}', note || '');
+    if (note && !message.includes(note)) {
+      message += `\nملاحظة: ${note}`;
+    }
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
   };
@@ -69,7 +75,7 @@ const Distributor = () => {
   };
 
   const handleSaveSettings = () => {
-    const updated = { ...account, name: editName.trim(), phone: editPhone.trim(), lowBalanceAlert: Number(editAlert) || 0 };
+    const updated = { ...account, name: editName.trim(), phone: editPhone.trim(), lowBalanceAlert: Number(editAlert) || 0, whatsappMessage: editMessage.trim() };
     saveDistributorAccount(updated);
     setAccount(updated);
     toast.success("تم حفظ إعدادات الموزع");
@@ -310,6 +316,25 @@ const Distributor = () => {
                 <Input type="number" value={editAlert} onChange={(e) => setEditAlert(e.target.value)}
                   placeholder="50000" className="h-11 rounded-xl text-left" dir="ltr" inputMode="numeric" />
                 <p className="text-[10px] text-muted-foreground">اكتب 0 لإيقاف التنبيهات</p>
+              </div>
+            </div>
+
+            <div className="bg-card border border-border rounded-2xl p-4 shadow-card space-y-3">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                💬 رسالة واتساب
+              </h3>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">نص الرسالة عند طلب الرصيد</label>
+                <textarea
+                  value={editMessage}
+                  onChange={(e) => setEditMessage(e.target.value)}
+                  placeholder="مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س"
+                  className="w-full min-h-[80px] rounded-xl border border-border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                  dir="rtl"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  استخدم <span className="font-mono bg-muted px-1 rounded">{'{amount}'}</span> للمبلغ و <span className="font-mono bg-muted px-1 rounded">{'{note}'}</span> للملاحظة
+                </p>
               </div>
             </div>
 
