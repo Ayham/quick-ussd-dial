@@ -110,6 +110,7 @@ const Admin = () => {
   const [syncQueue, setSyncQueue] = useState(() => getQueueSize());
   const [syncing, setSyncing] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmLicenseClear, setConfirmLicenseClear] = useState(false);
 
   // Stats
   const stats = useMemo(() => getLicenseStats(), [licenseHistory]);
