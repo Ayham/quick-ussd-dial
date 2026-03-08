@@ -19,7 +19,7 @@ const BALANCE_STORAGE_KEY = "saved_balances_v1";
 
 interface SavedBalance {
   amount: number;
-  timestamp: number; // when user entered it
+  timestamp: number;
 }
 
 interface BalanceStore {
@@ -49,7 +49,6 @@ const Balance = () => {
   const history = useMemo(() => getHistory().filter(r => r.status === "success"), []);
   const presets = useMemo(() => getPresets(), []);
 
-  // Calculate spent since last balance entry
   const getSpentSince = (operator: Operator): { totalAmount: number; totalPrice: number; count: number } => {
     const saved = balances[operator];
     if (!saved) return { totalAmount: 0, totalPrice: 0, count: 0 };
@@ -126,25 +125,27 @@ const Balance = () => {
     const isEditing = editingOp === operator;
 
     return (
-      <div className={`rounded-2xl border-2 overflow-hidden ${
-        isMtn ? "border-operator-mtn/30" : "border-operator-syriatel/30"
-      }`}>
+      <div className="rounded-2xl overflow-hidden shadow-card animate-slide-up">
         {/* Header */}
-        <div className={`px-4 py-3 flex items-center justify-between ${
+        <div className={`px-5 py-4 flex items-center justify-between ${
           isMtn ? "bg-operator-mtn" : "bg-operator-syriatel"
         }`}>
-          <div className="flex items-center gap-2">
-            <Wallet className={`w-5 h-5 ${isMtn ? "text-operator-mtn-foreground" : "text-operator-syriatel-foreground"}`} />
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+              isMtn ? "bg-operator-mtn-foreground/15" : "bg-operator-syriatel-foreground/15"
+            }`}>
+              <Wallet className={`w-5 h-5 ${isMtn ? "text-operator-mtn-foreground" : "text-operator-syriatel-foreground"}`} />
+            </div>
             <span className={`font-bold text-lg ${isMtn ? "text-operator-mtn-foreground" : "text-operator-syriatel-foreground"}`}>
               {isMtn ? "MTN" : "Syriatel"}
             </span>
           </div>
           <button
             onClick={() => handleBalanceCheck(operator)}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold ${
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-smooth ${
               isMtn 
-                ? "bg-operator-mtn-foreground/20 text-operator-mtn-foreground" 
-                : "bg-operator-syriatel-foreground/20 text-operator-syriatel-foreground"
+                ? "bg-operator-mtn-foreground/20 text-operator-mtn-foreground hover:bg-operator-mtn-foreground/30" 
+                : "bg-operator-syriatel-foreground/20 text-operator-syriatel-foreground hover:bg-operator-syriatel-foreground/30"
             }`}
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -153,18 +154,18 @@ const Balance = () => {
         </div>
 
         {/* Body */}
-        <div className="bg-card p-4 space-y-3">
+        <div className="bg-card p-5 space-y-4">
           {/* Estimated Balance */}
           {estimated !== null && !isEditing && (
-            <div className="text-center space-y-1">
-              <p className="text-[10px] text-muted-foreground">الرصيد المتوقع</p>
-              <p className={`text-3xl font-bold ${
+            <div className="text-center space-y-1.5">
+              <p className="text-xs text-muted-foreground">الرصيد المتوقع</p>
+              <p className={`text-4xl font-bold tracking-tight ${
                 isMtn ? "text-operator-mtn" : "text-operator-syriatel"
               }`}>
                 {estimated.toLocaleString()}
               </p>
               {saved && (
-                <p className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
+                <p className="text-[11px] text-muted-foreground flex items-center justify-center gap-1.5">
                   <Clock className="w-3 h-3" />
                   آخر تحديث: {timeSince(saved.timestamp)}
                 </p>
@@ -174,29 +175,32 @@ const Balance = () => {
 
           {/* No balance saved */}
           {!saved && !isEditing && (
-            <div className="text-center py-2">
-              <p className="text-sm text-muted-foreground mb-2">لم يتم إدخال الرصيد بعد</p>
+            <div className="text-center py-4">
+              <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-2">
+                <Wallet className="w-6 h-6 text-muted-foreground" />
+              </div>
+              <p className="text-sm text-muted-foreground">لم يتم إدخال الرصيد بعد</p>
             </div>
           )}
 
           {/* Spent since last update */}
           {saved && spent.count > 0 && !isEditing && (
-            <div className="bg-muted rounded-xl p-3 space-y-1.5">
-              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <TrendingDown className="w-3 h-3" />
+            <div className="bg-muted rounded-xl p-4 space-y-2">
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
+                <TrendingDown className="w-3.5 h-3.5" />
                 التحويلات منذ آخر تحديث
               </p>
-              <div className="flex justify-between text-xs">
+              <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">{spent.count} عملية</span>
                 <span className="font-bold text-destructive">-{spent.totalAmount.toLocaleString()}</span>
               </div>
               {spent.totalPrice > 0 && (
-                <div className="flex justify-between text-xs">
+                <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">التكلفة</span>
                   <span className="font-bold text-foreground">{spent.totalPrice.toLocaleString()} ل.س</span>
                 </div>
               )}
-              <div className="flex justify-between text-xs border-t border-border pt-1.5">
+              <div className="flex justify-between text-sm border-t border-border pt-2">
                 <span className="text-muted-foreground">الرصيد الأصلي</span>
                 <span className="font-bold text-foreground">{saved.amount.toLocaleString()}</span>
               </div>
@@ -205,22 +209,22 @@ const Balance = () => {
 
           {/* Edit mode */}
           {isEditing && (
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground text-center">أدخل الرصيد الحالي بعد الاستعلام</p>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground text-center">أدخل الرصيد الحالي بعد الاستعلام</p>
               <div className="flex gap-2">
                 <Input
                   type="number"
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
                   placeholder="مثال: 50000"
-                  className="h-10 text-center text-sm font-bold"
+                  className="h-12 text-center text-base font-bold rounded-xl border-2"
                   dir="ltr"
                   inputMode="numeric"
                   autoFocus
                   onKeyDown={(e) => e.key === "Enter" && handleSaveBalance(operator)}
                 />
-                <Button onClick={() => handleSaveBalance(operator)} size="sm" className="h-10 px-3">
-                  <Check className="w-4 h-4" />
+                <Button onClick={() => handleSaveBalance(operator)} className="h-12 px-4 rounded-xl">
+                  <Check className="w-5 h-5" />
                 </Button>
               </div>
             </div>
@@ -234,10 +238,9 @@ const Balance = () => {
                 setEditValue(saved ? String(saved.amount) : "");
               }}
               variant="outline"
-              size="sm"
-              className="w-full text-xs"
+              className="w-full h-11 text-sm rounded-xl border-2"
             >
-              <Edit className="w-3.5 h-3.5 ml-1" />
+              <Edit className="w-4 h-4 ml-1.5" />
               {saved ? "تحديث الرصيد" : "إدخال الرصيد"}
             </Button>
           )}
@@ -248,7 +251,7 @@ const Balance = () => {
 
   return (
     <AppLayout title="الرصيد">
-      <main className="flex-1 p-4 w-full flex flex-col gap-4 pb-safe" dir="rtl">
+      <main className="flex-1 p-3 w-full flex flex-col gap-3 pb-safe" dir="rtl">
         <OperatorCard operator="mtn" />
         <OperatorCard operator="syriatel" />
       </main>
