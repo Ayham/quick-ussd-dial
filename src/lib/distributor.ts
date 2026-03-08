@@ -24,6 +24,8 @@ export interface DistributorAccount {
   lowBalanceAlert: number;
   whatsappEnabled: boolean;
   whatsappMessage: string; // {amount}, {syriatel}, {mtn}, {note}
+  syriatelMarkup: number; // نسبة العمولة % لسيريتل
+  mtnMarkup: number; // نسبة العمولة % لـ MTN
 }
 
 const DEFAULT_ACCOUNT: DistributorAccount = {
