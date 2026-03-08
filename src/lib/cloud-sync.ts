@@ -36,7 +36,10 @@ export interface SyncEvent {
 // ============ Endpoint Management ============
 
 export function getSyncEndpoint(): string {
-  return localStorage.getItem(SYNC_ENDPOINT_KEY) || DEFAULT_SYNC_ENDPOINT;
+  const stored = localStorage.getItem(SYNC_ENDPOINT_KEY);
+  // Use stored only if it's set and different from known old endpoints
+  if (stored && stored.trim()) return stored.trim();
+  return DEFAULT_SYNC_ENDPOINT;
 }
 
 export function saveSyncEndpoint(url: string) {
