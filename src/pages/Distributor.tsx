@@ -223,8 +223,6 @@ const Distributor = () => {
 
         {/* ===== STATS TAB ===== */}
         {activeTab === 'stats' && (
-          <div className="space-y-3">
-            {/* Period Stats */}
           <div className="space-y-2">
             {/* Summary row */}
             <div className="bg-card border border-border rounded-xl p-4 shadow-card">
