@@ -41,11 +41,18 @@ const Distributor = () => {
   const stats = useMemo(() => getDistributorStats(), [account]);
   const isLowBalance = totalBalance <= account.lowBalanceAlert && account.lowBalanceAlert > 0;
 
-  const sendWhatsApp = (amount: number, note: string) => {
+  const sendWhatsApp = (syrAmount: number, mtnAmt: number, note: string) => {
     const phone = account.phone.replace(/^0/, '963');
+    const parts: string[] = [];
+    if (syrAmount > 0) parts.push(`سيريتل: ${syrAmount.toLocaleString()}`);
+    if (mtnAmt > 0) parts.push(`MTN: ${mtnAmt.toLocaleString()}`);
+    const totalAmount = syrAmount + mtnAmt;
     let message = (account.whatsappMessage || 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س')
-      .replace('{amount}', amount.toLocaleString())
+      .replace('{amount}', totalAmount.toLocaleString())
       .replace('{note}', note || '');
+    if (parts.length === 2) {
+      message += `\n${parts.join(' | ')}`;
+    }
     if (note && !message.includes(note)) {
       message += `\nملاحظة: ${note}`;
     }
@@ -53,26 +60,33 @@ const Distributor = () => {
     window.open(url, '_blank');
   };
 
-  const handleAddTransaction = (type?: TransactionType) => {
-    const actualType = type || txType;
-    const amount = Number(txAmount);
-    if (!amount || amount <= 0) {
-      toast.error("أدخل مبلغاً صحيحاً");
+  const handleAddTransaction = (type: TransactionType) => {
+    const syrAmt = Number(syriatelAmount);
+    const mtnAmt = Number(mtnAmount);
+    if ((!syrAmt || syrAmt <= 0) && (!mtnAmt || mtnAmt <= 0)) {
+      toast.error("أدخل مبلغاً واحداً على الأقل");
       return;
     }
-    const operatorBalance = txOperator === 'syriatel' ? syriatelBalance : mtnBalance;
-    if (actualType === 'payment' && amount > operatorBalance) {
-      toast.error("المبلغ أكبر من الرصيد المتاح");
-      return;
+    if (type === 'payment') {
+      if (syrAmt > 0 && syrAmt > syriatelBalance) {
+        toast.error("مبلغ سيريتل أكبر من الرصيد المتاح");
+        return;
+      }
+      if (mtnAmt > 0 && mtnAmt > mtnBalance) {
+        toast.error("مبلغ MTN أكبر من الرصيد المتاح");
+        return;
+      }
     }
-    addTransaction(actualType, amount, txNote.trim(), txOperator);
+    if (syrAmt > 0) addTransaction(type, syrAmt, txNote.trim(), 'syriatel');
+    if (mtnAmt > 0) addTransaction(type, mtnAmt, txNote.trim(), 'mtn');
     setAccount(getDistributorAccount());
-    if (actualType === 'topup' && account.phone) {
-      sendWhatsApp(amount, txNote.trim());
+    if (type === 'topup' && account.phone) {
+      sendWhatsApp(syrAmt > 0 ? syrAmt : 0, mtnAmt > 0 ? mtnAmt : 0, txNote.trim());
     }
-    setTxAmount('');
+    setSyriatelAmount('');
+    setMtnAmount('');
     setTxNote('');
-    toast.success(actualType === 'topup' ? 'تم تسجيل طلب الرصيد' : 'تم تسجيل الدفعة');
+    toast.success(type === 'topup' ? 'تم تسجيل طلب الرصيد' : 'تم تسجيل الدفعة');
   };
 
   const handleDelete = (id: string) => {
