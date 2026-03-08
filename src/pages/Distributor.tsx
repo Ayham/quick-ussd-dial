@@ -159,7 +159,7 @@ const Distributor = () => {
 
               <div className="grid grid-cols-2 gap-2">
                 <Button
-                  onClick={() => { setTxType('topup'); setTimeout(handleAddTransaction, 0); }}
+                  onClick={() => handleAddTransaction('topup')}
                   variant="outline"
                   className="h-12 font-bold rounded-xl border-2 border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground"
                   disabled={!txAmount || Number(txAmount) <= 0}
@@ -168,7 +168,7 @@ const Distributor = () => {
                   طلب رصيد
                 </Button>
                 <Button
-                  onClick={() => { setTxType('payment'); setTimeout(handleAddTransaction, 0); }}
+                  onClick={() => handleAddTransaction('payment')}
                   variant="outline"
                   className="h-12 font-bold rounded-xl border-2 border-accent/30 text-accent hover:bg-accent hover:text-accent-foreground"
                   disabled={!txAmount || Number(txAmount) <= 0}
