@@ -735,6 +735,106 @@ const Admin = () => {
                 </p>
               </div>
             </SectionCard>
+
+            {/* Data Reset */}
+            <SectionCard title="إدارة البيانات" icon={<Database className="w-4 h-4" />}>
+              <div className="space-y-4">
+                {/* Protected Data - Read Only */}
+                <div>
+                  <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5 mb-2">
+                    <ShieldCheck className="w-3.5 h-3.5 text-green-500" />
+                    بيانات محمية (لا يمكن حذفها)
+                  </h3>
+                  <div className="bg-muted rounded-lg divide-y divide-border text-xs">
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <span className="text-muted-foreground">رابط المزامنة</span>
+                      <span className="text-foreground font-mono text-[10px] max-w-[140px] truncate">{getSyncEndpoint() ? '✅ محفوظ' : '—'}</span>
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <span className="text-muted-foreground">بيانات الأدمن</span>
+                      <span className="text-foreground">✅ محفوظة</span>
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <span className="text-muted-foreground">مفاتيح RSA</span>
+                      <span className="text-foreground">{hasKeys ? '✅ موجودة' : '—'}</span>
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <span className="text-muted-foreground">الترخيص المفعّل</span>
+                      <span className="text-foreground">✅ محمي</span>
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <span className="text-muted-foreground">بيانات الشريحة والبادئات</span>
+                      <span className="text-foreground">✅ محمية</span>
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <span className="text-muted-foreground">أكواد USSD والاستعلام</span>
+                      <span className="text-foreground">✅ محمية</span>
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <span className="text-muted-foreground">قوائم المبالغ</span>
+                      <span className="text-foreground">✅ محمية</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Deletable Data */}
+                <div>
+                  <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5 mb-2">
+                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                    بيانات قابلة للحذف
+                  </h3>
+                  <div className="bg-muted rounded-lg px-3 py-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">سجل التحويلات</span>
+                      <span className="font-bold text-foreground">{getHistory().length} عملية</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reset Button */}
+                {!confirmReset ? (
+                  <Button
+                    onClick={() => setConfirmReset(true)}
+                    variant="destructive"
+                    size="sm"
+                    className="w-full text-xs"
+                    disabled={getHistory().length === 0}
+                  >
+                    <Trash2 className="w-3.5 h-3.5 ml-1" />
+                    حذف سجل التحويلات
+                  </Button>
+                ) : (
+                  <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 space-y-2">
+                    <p className="text-xs text-destructive font-bold flex items-center gap-1">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      هل أنت متأكد؟ سيتم حذف سجل التحويلات نهائياً
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => {
+                          localStorage.removeItem('transfer-history');
+                          localStorage.removeItem('saved-contacts');
+                          setConfirmReset(false);
+                          toast.success("تم حذف سجل التحويلات بنجاح");
+                        }}
+                        variant="destructive"
+                        size="sm"
+                        className="text-xs flex-1"
+                      >
+                        تأكيد الحذف
+                      </Button>
+                      <Button onClick={() => setConfirmReset(false)} variant="outline" size="sm" className="text-xs">
+                        إلغاء
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  يتم حذف سجل التحويلات فقط. جميع البيانات الأساسية (الترخيص، المفاتيح، الإعدادات، البادئات، الأكواد) محمية ولا تتأثر.
+                </p>
+              </div>
+            </SectionCard>
           </div>
         )}
 
