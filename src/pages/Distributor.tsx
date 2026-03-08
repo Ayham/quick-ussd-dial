@@ -32,6 +32,13 @@ const Distributor = () => {
   const stats = useMemo(() => getDistributorStats(), [account]);
   const isLowBalance = balance <= account.lowBalanceAlert && account.lowBalanceAlert > 0;
 
+  const sendWhatsApp = (amount: number, note: string) => {
+    const phone = account.phone.replace(/^0/, '963');
+    const message = `مرحباً، أرجو تحويل رصيد بقيمة ${amount.toLocaleString()} ل.س${note ? `\nملاحظة: ${note}` : ''}`;
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+  };
+
   const handleAddTransaction = (type?: TransactionType) => {
     const actualType = type || txType;
     const amount = Number(txAmount);
@@ -45,6 +52,10 @@ const Distributor = () => {
     }
     addTransaction(actualType, amount, txNote.trim());
     setAccount(getDistributorAccount());
+    // Send WhatsApp for topup requests if phone exists
+    if (actualType === 'topup' && account.phone) {
+      sendWhatsApp(amount, txNote.trim());
+    }
     setTxAmount('');
     setTxNote('');
     toast.success(actualType === 'topup' ? 'تم تسجيل طلب الرصيد' : 'تم تسجيل الدفعة');
