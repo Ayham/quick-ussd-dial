@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
-import { Phone, Clock, CheckCircle, Loader2, Send, TrendingUp } from "lucide-react";
+import { Phone, Clock, CheckCircle, Loader2, Send, TrendingUp, BookUser, UserPlus, Download } from "lucide-react";
 import {
   detectOperator,
   buildUssdCode,
@@ -17,6 +17,7 @@ import {
   getHistory,
   type TransferRecord,
 } from "@/lib/transfer-history";
+import { updateContactName, importPhoneContacts, type SavedContact } from "@/lib/contacts";
 import { dialUssdDirect } from "@/lib/ussd-dialer";
 import { trackTransfer } from "@/lib/cloud-sync";
 import { Button } from "@/components/ui/button";
