@@ -179,12 +179,25 @@ const Admin = () => {
 
 
   const handleLogin = () => {
-    if (verifyAdmin(username, password)) {
+    const lockout = getLockoutInfo();
+    if (lockout.locked) {
+      toast.error(`تم قفل الحساب مؤقتاً. حاول بعد ${Math.ceil(lockout.remainingSeconds / 60)} دقيقة`);
+      return;
+    }
+    const result = verifyAdmin(username, password);
+    if (result === 'success') {
       setAdminAuthenticated(true);
       setAuthenticated(true);
       toast.success("تم تسجيل الدخول");
+    } else if (result === 'locked') {
+      toast.error("تم قفل الحساب مؤقتاً بسبب كثرة المحاولات الخاطئة");
     } else {
-      toast.error("اسم المستخدم أو كلمة السر غير صحيحة");
+      const remaining = getRemainingAttempts();
+      if (remaining > 0) {
+        toast.error(`كلمة السر غير صحيحة — متبقي ${remaining} محاولات`);
+      } else {
+        toast.error("تم قفل الحساب لمدة 5 دقائق ⛔");
+      }
     }
   };
 
