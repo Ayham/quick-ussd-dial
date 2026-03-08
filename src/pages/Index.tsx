@@ -136,25 +136,14 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col safe-area-insets">
       {/* Header */}
-      <header className="bg-primary px-3 py-2 flex items-center justify-between shadow-md pt-safe">
+      <header className="bg-primary px-3 py-2.5 flex items-center justify-between shadow-md pt-safe">
         <div className="flex items-center gap-2" onClick={handleTitleTap}>
           <Zap className="w-5 h-5 text-primary-foreground" />
           <h1 className="text-primary-foreground text-lg font-bold select-none">تحويل رصيد</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => navigate("/balance")} className="text-primary-foreground p-1">
-            <Wallet className="w-6 h-6" />
-          </button>
-          <button onClick={() => navigate("/reports")} className="text-primary-foreground p-1">
-            <BarChart3 className="w-6 h-6" />
-          </button>
-          <button onClick={() => navigate("/settings")} className="text-primary-foreground p-1">
-            <Settings className="w-6 h-6" />
-          </button>
-        </div>
       </header>
 
-      <main className="flex-1 p-2 max-w-md mx-auto w-full space-y-2 overflow-y-auto pb-safe">
+      <main className="flex-1 p-2 w-full space-y-2 overflow-y-auto pb-20">
         {/* Phone Input */}
         <div className="space-y-1">
           <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
@@ -294,6 +283,31 @@ const Index = () => {
           </div>
         )}
       </main>
+
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border pb-safe" style={{ maxWidth: '100%' }}>
+        <div className="flex items-stretch" style={{ maxWidth: '500px', margin: '0 auto' }}>
+          {[
+            { icon: Wallet, label: "الرصيد", path: "/balance" },
+            { icon: BarChart3, label: "التقارير", path: "/reports" },
+            { icon: Zap, label: "تحويل", path: "/", active: true },
+            { icon: Settings, label: "الإعدادات", path: "/settings" },
+          ].map((item) => (
+            <button
+              key={item.path}
+              onClick={() => item.active ? window.scrollTo(0, 0) : navigate(item.path)}
+              className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-colors ${
+                item.active
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <item.icon className={`w-5 h-5 ${item.active ? "text-primary" : ""}`} />
+              <span className={`text-[10px] font-bold ${item.active ? "text-primary" : ""}`}>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 };
