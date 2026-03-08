@@ -42,7 +42,6 @@ const Settings = () => {
   const [newLicenseKey, setNewLicenseKey] = useState("");
   const [licenseLoading, setLicenseLoading] = useState(false);
   const deviceId = getDeviceId();
-  const deviceId = getDeviceId();
 
   useEffect(() => {
     getAppStatus().then(setLicenseStatus);
