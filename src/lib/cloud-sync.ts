@@ -100,9 +100,10 @@ async function flushQueue(): Promise<{ sent: number; failed: number }> {
   if (queue.length === 0) return { sent: 0, failed: 0 };
 
   try {
-    // Use text/plain to avoid CORS preflight (Google Apps Script doesn't support OPTIONS)
+    // Use no-cors mode to avoid CORS preflight issues with Google Apps Script
     const response = await fetch(endpoint, {
       method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ events: queue }),
       redirect: 'follow',
     });

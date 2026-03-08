@@ -7,14 +7,9 @@
  * 1. افتح Google Sheets جديد
  * 2. اذهب إلى Extensions > Apps Script
  * 3. احذف الكود الموجود والصق هذا الكود
- * 4. اضغط Deploy > New deployment > Web app
+ * 4. اضغط Deploy > Manage deployments > Edit > New version > Deploy
  * 5. اختر "Anyone" في Who has access
  * 6. انسخ الرابط وضعه في إعدادات التطبيق
- * 
- * سيتم إنشاء 3 أوراق تلقائياً:
- * - الأجهزة: معلومات الأجهزة المسجلة
- * - السجل: كل الأحداث والعمليات (مفصّل وواضح)
- * - ملخص يومي: ملخص يومي
  */
 
 function doPost(e) {
@@ -24,43 +19,35 @@ function doPost(e) {
     
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     
-    // إنشاء الأوراق إذا لم تكن موجودة
-    var devicesSheet = getOrCreateSheet(ss, 'الأجهزة', [
-      'معرف الجهاز', 'أول ظهور', 'آخر ظهور', 'المنصة', 'الشاشة', 'اللغة', 'المنطقة الزمنية', 'عدد الفتحات', 'عدد التحويلات', 'حالة الترخيص'
+    var devicesSheet = getOrCreateSheet(ss, 'Devices', [
+      'Device ID', 'First Seen', 'Last Seen', 'Platform', 'Screen', 'Language', 'Timezone', 'App Opens', 'Transfers', 'License Status'
     ]);
     
-    var eventsSheet = getOrCreateSheet(ss, 'السجل', [
-      'التاريخ', 'الوقت', 'معرف الجهاز', 'نوع الحدث', 'الوصف', 'تفاصيل إضافية'
+    var eventsSheet = getOrCreateSheet(ss, 'Events', [
+      'Date', 'Time', 'Device ID', 'Event Type', 'Description', 'Details'
     ]);
     
-    var summarySheet = getOrCreateSheet(ss, 'ملخص يومي', [
-      'التاريخ', 'أجهزة جديدة', 'أجهزة نشطة', 'تحويلات', 'تفعيلات', 'انتهاء تجريبي'
+    var summarySheet = getOrCreateSheet(ss, 'Summary', [
+      'Date', 'New Devices', 'Active Devices', 'Transfers', 'Activations', 'Trial Expired'
     ]);
     
     for (var i = 0; i < events.length; i++) {
       var evt = events[i];
       
-      // تسجيل الحدث بشكل مقروء
       var dateTime = new Date(evt.timestamp);
       var dateStr = Utilities.formatDate(dateTime, Session.getScriptTimeZone(), 'yyyy-MM-dd');
       var timeStr = Utilities.formatDate(dateTime, Session.getScriptTimeZone(), 'HH:mm:ss');
-      
-      var eventDesc = getEventDescription(evt.event, evt.data);
-      var extraDetails = getExtraDetails(evt.event, evt.data);
       
       eventsSheet.appendRow([
         dateStr,
         timeStr,
         evt.deviceId,
-        getEventArabicName(evt.event),
-        eventDesc,
-        extraDetails
+        getEventName(evt.event),
+        getEventDescription(evt.event, evt.data || {}),
+        getExtraDetails(evt.event, evt.data || {})
       ]);
       
-      // تحديث بيانات الجهاز
       updateDevice(devicesSheet, evt);
-      
-      // تحديث الملخص اليومي
       updateSummary(summarySheet, evt, dateStr);
     }
     
@@ -77,111 +64,91 @@ function doPost(e) {
   }
 }
 
-// ترجمة اسم الحدث للعربية
-function getEventArabicName(event) {
+function getEventName(event) {
   var names = {
-    'device_register': 'تسجيل جهاز',
-    'app_open': 'فتح التطبيق',
-    'heartbeat': 'نبض',
-    'trial_started': 'بدء تجريبي',
-    'trial_expired': 'انتهاء تجريبي',
-    'license_activated': 'تفعيل ترخيص',
-    'license_expired': 'انتهاء ترخيص',
-    'transfer': 'تحويل رصيد',
-    'settings_changed': 'تغيير إعدادات'
+    'device_register': 'Device Register',
+    'app_open': 'App Open',
+    'heartbeat': 'Heartbeat',
+    'trial_started': 'Trial Started',
+    'trial_expired': 'Trial Expired',
+    'license_activated': 'License Activated',
+    'license_expired': 'License Expired',
+    'transfer': 'Transfer',
+    'settings_changed': 'Settings Changed'
   };
   return names[event] || event;
 }
 
-// وصف مقروء للحدث
 function getEventDescription(event, data) {
   switch (event) {
     case 'device_register':
-      return 'جهاز جديد — ' + (data.platform || 'غير معروف') + ' — ' + (data.language || '');
+      return (data.platform || 'Unknown') + ' - ' + (data.language || '');
     case 'app_open':
-      return 'تم فتح التطبيق';
+      return 'App opened';
     case 'heartbeat':
-      return 'الجهاز متصل ونشط';
+      return 'Device active';
     case 'trial_started':
-      return 'بدأت الفترة التجريبية';
+      return 'Trial started';
     case 'trial_expired':
-      return 'انتهت الفترة التجريبية';
+      return 'Trial expired';
     case 'license_activated':
       var expiry = data.expiryDate || '';
-      return expiry === 'permanent' ? 'تم التفعيل — ترخيص دائم ✨' : 'تم التفعيل حتى ' + expiry;
+      return expiry === 'permanent' ? 'Permanent license' : 'Licensed until ' + expiry;
     case 'license_expired':
-      return 'انتهت صلاحية الترخيص';
+      return 'License expired';
     case 'transfer':
-      return 'تحويل ' + (data.amount || '') + ' إلى ' + (data.phone || '') + ' (' + (data.operator || '') + ') — ' + (data.status || '');
+      return (data.amount || '') + ' to ' + (data.phone || '') + ' (' + (data.operator || '') + ') - ' + (data.status || '');
     case 'settings_changed':
-      return 'تم تغيير الإعدادات';
+      return 'Settings changed';
     default:
       return event;
   }
 }
 
-// تفاصيل إضافية
 function getExtraDetails(event, data) {
   switch (event) {
     case 'device_register':
-      return 'شاشة: ' + (data.screenWidth || '?') + 'x' + (data.screenHeight || '?') + ' | منطقة: ' + (data.timezone || '');
+      return 'Screen: ' + (data.screenWidth || '?') + 'x' + (data.screenHeight || '?') + ' | TZ: ' + (data.timezone || '');
     case 'transfer':
-      return 'مشغل: ' + (data.operator || '') + ' | حالة: ' + (data.status || '');
+      return 'Operator: ' + (data.operator || '') + ' | Status: ' + (data.status || '');
     case 'heartbeat':
-      return 'إصدار: ' + (data.appVersion || '') + ' | متصل: ' + (data.online ? 'نعم' : 'لا');
+      return 'Version: ' + (data.appVersion || '') + ' | Online: ' + (data.online ? 'Yes' : 'No');
     default:
       return '';
   }
 }
 
 function doGet(e) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var action = (e.parameter && e.parameter.action) || 'status';
-  
-  if (action === 'status') {
-    var devicesSheet = ss.getSheetByName('الأجهزة');
-    var eventsSheet = ss.getSheetByName('السجل');
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var action = (e && e.parameter && e.parameter.action) || 'status';
     
-    var totalDevices = devicesSheet ? Math.max(0, devicesSheet.getLastRow() - 1) : 0;
-    var totalEvents = eventsSheet ? Math.max(0, eventsSheet.getLastRow() - 1) : 0;
-    
-    return ContentService.createTextOutput(JSON.stringify({
-      success: true,
-      totalDevices: totalDevices,
-      totalEvents: totalEvents,
-      lastUpdated: new Date().toISOString()
-    })).setMimeType(ContentService.MimeType.JSON);
-  }
-  
-  if (action === 'devices') {
-    var devicesSheet = ss.getSheetByName('الأجهزة');
-    if (!devicesSheet) {
-      return ContentService.createTextOutput(JSON.stringify({ success: true, devices: [] }))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-    
-    var data = devicesSheet.getDataRange().getValues();
-    var headers = data[0];
-    var devices = [];
-    
-    for (var i = 1; i < data.length; i++) {
-      var device = {};
-      for (var j = 0; j < headers.length; j++) {
-        device[headers[j]] = data[i][j];
-      }
-      devices.push(device);
+    if (action === 'status') {
+      var devicesSheet = ss.getSheetByName('Devices');
+      var eventsSheet = ss.getSheetByName('Events');
+      
+      var totalDevices = devicesSheet ? Math.max(0, devicesSheet.getLastRow() - 1) : 0;
+      var totalEvents = eventsSheet ? Math.max(0, eventsSheet.getLastRow() - 1) : 0;
+      
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        totalDevices: totalDevices,
+        totalEvents: totalEvents,
+        lastUpdated: new Date().toISOString()
+      })).setMimeType(ContentService.MimeType.JSON);
     }
     
     return ContentService.createTextOutput(JSON.stringify({
       success: true,
-      devices: devices
+      message: 'Sync endpoint active'
+    })).setMimeType(ContentService.MimeType.JSON);
+    
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: error.message
     })).setMimeType(ContentService.MimeType.JSON);
   }
-  
-  return ContentService.createTextOutput(JSON.stringify({
-    success: false,
-    error: 'Unknown action'
-  })).setMimeType(ContentService.MimeType.JSON);
 }
 
 function getOrCreateSheet(ss, name, headers) {
@@ -190,13 +157,7 @@ function getOrCreateSheet(ss, name, headers) {
     sheet = ss.insertSheet(name);
     sheet.appendRow(headers);
     sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
-    sheet.getRange(1, 1, 1, headers.length).setBackground('#4285f4');
-    sheet.getRange(1, 1, 1, headers.length).setFontColor('#ffffff');
     sheet.setFrozenRows(1);
-    // Auto-resize columns
-    for (var i = 1; i <= headers.length; i++) {
-      sheet.setColumnWidth(i, 150);
-    }
   }
   return sheet;
 }
@@ -214,23 +175,22 @@ function updateDevice(sheet, evt) {
   }
   
   var now = evt.timestamp;
+  var evtData = evt.data || {};
   
   if (rowIndex === -1) {
-    // جهاز جديد
-    var platform = (evt.data && evt.data.platform) || '';
-    var screen = (evt.data && evt.data.screenWidth) ? evt.data.screenWidth + 'x' + evt.data.screenHeight : '';
-    var lang = (evt.data && evt.data.language) || '';
-    var tz = (evt.data && evt.data.timezone) || '';
+    var platform = evtData.platform || '';
+    var screen = evtData.screenWidth ? evtData.screenWidth + 'x' + evtData.screenHeight : '';
+    var lang = evtData.language || '';
+    var tz = evtData.timezone || '';
     
     sheet.appendRow([
       deviceId, now, now, platform, screen, lang, tz,
       evt.event === 'app_open' ? 1 : 0,
       evt.event === 'transfer' ? 1 : 0,
-      getLicenseStatus(evt.event, evt.data)
+      getLicenseLabel(evt.event, evtData)
     ]);
   } else {
-    // تحديث جهاز موجود
-    sheet.getRange(rowIndex, 3).setValue(now); // آخر ظهور
+    sheet.getRange(rowIndex, 3).setValue(now);
     
     if (evt.event === 'app_open') {
       var opens = sheet.getRange(rowIndex, 8).getValue() || 0;
@@ -243,20 +203,20 @@ function updateDevice(sheet, evt) {
     }
     
     if (evt.event === 'license_activated') {
-      var expiry = (evt.data && evt.data.expiryDate) || '';
-      sheet.getRange(rowIndex, 10).setValue(expiry === 'permanent' ? 'مفعّل دائم ✨' : 'مفعّل حتى ' + expiry);
+      var expiry = evtData.expiryDate || '';
+      sheet.getRange(rowIndex, 10).setValue(expiry === 'permanent' ? 'PERMANENT' : 'Licensed until ' + expiry);
     } else if (evt.event === 'trial_expired' || evt.event === 'license_expired') {
-      sheet.getRange(rowIndex, 10).setValue('منتهي ❌');
+      sheet.getRange(rowIndex, 10).setValue('EXPIRED');
     }
   }
 }
 
-function getLicenseStatus(event, data) {
+function getLicenseLabel(event, data) {
   if (event === 'license_activated') {
-    var expiry = (data && data.expiryDate) || '';
-    return expiry === 'permanent' ? 'مفعّل دائم ✨' : 'مفعّل حتى ' + expiry;
+    var expiry = data.expiryDate || '';
+    return expiry === 'permanent' ? 'PERMANENT' : 'Licensed until ' + expiry;
   }
-  return 'تجريبي';
+  return 'Trial';
 }
 
 function updateSummary(sheet, evt, dateStr) {
