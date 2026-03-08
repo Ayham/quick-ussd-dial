@@ -1,28 +1,31 @@
 const ADMIN_CREDENTIALS_KEY = 'app_admin_creds_v1';
-
-// Default credentials — change on first login
-const DEFAULT_USERNAME = 'admin';
-const DEFAULT_PASSWORD = 'Password@5@164';
+const ADMIN_INITIALIZED_KEY = 'app_admin_init_v1';
 
 export interface AdminCredentials {
   username: string;
   password: string;
 }
 
-export function getAdminCredentials(): AdminCredentials {
+export function isAdminInitialized(): boolean {
+  return localStorage.getItem(ADMIN_INITIALIZED_KEY) === 'true';
+}
+
+export function getAdminCredentials(): AdminCredentials | null {
   try {
     const stored = localStorage.getItem(ADMIN_CREDENTIALS_KEY);
     if (stored) return JSON.parse(stored);
   } catch {}
-  return { username: DEFAULT_USERNAME, password: DEFAULT_PASSWORD };
+  return null;
 }
 
 export function saveAdminCredentials(creds: AdminCredentials) {
   localStorage.setItem(ADMIN_CREDENTIALS_KEY, JSON.stringify(creds));
+  localStorage.setItem(ADMIN_INITIALIZED_KEY, 'true');
 }
 
 export function verifyAdmin(username: string, password: string): boolean {
   const creds = getAdminCredentials();
+  if (!creds) return false; // No credentials set yet
   return username === creds.username && password === creds.password;
 }
 
