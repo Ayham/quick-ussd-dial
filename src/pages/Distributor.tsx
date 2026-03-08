@@ -319,6 +319,25 @@ const Distributor = () => {
               </div>
             </div>
 
+            <div className="bg-card border border-border rounded-2xl p-4 shadow-card space-y-3">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                💬 رسالة واتساب
+              </h3>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">نص الرسالة عند طلب الرصيد</label>
+                <textarea
+                  value={editMessage}
+                  onChange={(e) => setEditMessage(e.target.value)}
+                  placeholder="مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س"
+                  className="w-full min-h-[80px] rounded-xl border border-border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                  dir="rtl"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  استخدم <span className="font-mono bg-muted px-1 rounded">{'{amount}'}</span> للمبلغ و <span className="font-mono bg-muted px-1 rounded">{'{note}'}</span> للملاحظة
+                </p>
+              </div>
+            </div>
+
             <Button onClick={handleSaveSettings} className="w-full h-11 font-bold rounded-xl">
               حفظ الإعدادات
             </Button>
