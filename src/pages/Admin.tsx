@@ -16,7 +16,6 @@ import {
   setAdminAuthenticated,
   getAdminCredentials,
   saveAdminCredentials,
-  isAdminInitialized,
 } from "@/lib/admin-auth";
 import {
   getLicenseApiEndpoint, saveLicenseApiEndpoint,
