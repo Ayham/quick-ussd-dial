@@ -630,6 +630,81 @@ const Admin = () => {
                 </div>
               )}
             </SectionCard>
+
+            {/* Cloud Sync */}
+            <SectionCard title="المزامنة السحابية (Google Sheets)" icon={<Cloud className="w-4 h-4" />}>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">رابط Google Apps Script</label>
+                  <Input
+                    value={syncEndpoint}
+                    onChange={(e) => setSyncEndpoint(e.target.value)}
+                    placeholder="https://script.google.com/macros/s/.../exec"
+                    className="text-left h-9 text-xs font-mono" dir="ltr"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={() => {
+                    saveSyncEndpoint(syncEndpoint);
+                    toast.success("تم حفظ رابط المزامنة");
+                  }} size="sm" className="text-xs flex-1">
+                    حفظ الرابط
+                  </Button>
+                  <Button onClick={async () => {
+                    setSyncing(true);
+                    try {
+                      const result = await syncNow();
+                      setSyncQueue(getQueueSize());
+                      if (result.sent > 0) {
+                        toast.success(`تم مزامنة ${result.sent} حدث بنجاح`);
+                      } else if (result.failed > 0) {
+                        toast.error("فشلت المزامنة — تحقق من الرابط");
+                      } else {
+                        toast.info("لا توجد بيانات للمزامنة");
+                      }
+                    } catch {
+                      toast.error("خطأ في المزامنة");
+                    } finally {
+                      setSyncing(false);
+                    }
+                  }} size="sm" variant="outline" className="text-xs" disabled={syncing || !syncEndpoint}>
+                    <RefreshCw className={`w-3.5 h-3.5 ml-1 ${syncing ? 'animate-spin' : ''}`} />
+                    مزامنة الآن
+                  </Button>
+                </div>
+
+                {/* Sync status */}
+                <div className="bg-muted rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">الحالة</span>
+                    <span className="flex items-center gap-1">
+                      {isSyncEnabled() ? (
+                        <><Wifi className="w-3.5 h-3.5 text-green-500" /> مفعّلة</>
+                      ) : (
+                        <><WifiOff className="w-3.5 h-3.5 text-muted-foreground" /> غير مفعّلة</>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">في الانتظار</span>
+                    <span className="font-bold text-foreground">{syncQueue} حدث</span>
+                  </div>
+                  {getLastSyncTime() && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">آخر مزامنة</span>
+                      <span className="text-foreground">
+                        {new Date(getLastSyncTime()!).toLocaleString('ar-SY')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  البيانات تُحفظ محلياً وتُرسل تلقائياً عند توفر الإنترنت. 
+                  راجع ملف <span className="font-mono">google-apps-script.js</span> للحصول على كود Google Apps Script.
+                </p>
+              </div>
+            </SectionCard>
           </div>
         )}
 
