@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { seedDemoData, clearDemoData } from "@/lib/seed-demo-data";
+
 import {
   Plus, Trash2, Key, Code, ArrowUp, ArrowDown, Smartphone, Signal,
   Shield, ShieldCheck, Clock, Copy, AlertTriangle, Database, Settings as SettingsIcon
