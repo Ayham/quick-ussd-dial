@@ -218,6 +218,27 @@ const Distributor = () => {
                 </div>
               </div>
 
+              {/* Cost preview with markup */}
+              {(Number(syriatelAmount) > 0 || Number(mtnAmount) > 0) && (account.syriatelMarkup > 0 || account.mtnMarkup > 0) && (
+                <div className="bg-muted/50 border border-border rounded-xl p-2.5 text-center space-y-0.5">
+                  <p className="text-[10px] text-muted-foreground">التكلفة الفعلية (مع العمولة)</p>
+                  <div className="flex justify-center gap-4">
+                    {Number(syriatelAmount) > 0 && account.syriatelMarkup > 0 && (
+                      <span className="text-xs font-bold text-foreground">
+                        سيريتل: {getActualCost(Number(syriatelAmount), 'syriatel').toLocaleString()}
+                        <span className="text-[10px] text-muted-foreground mr-1">(+{account.syriatelMarkup}%)</span>
+                      </span>
+                    )}
+                    {Number(mtnAmount) > 0 && account.mtnMarkup > 0 && (
+                      <span className="text-xs font-bold text-foreground">
+                        MTN: {getActualCost(Number(mtnAmount), 'mtn').toLocaleString()}
+                        <span className="text-[10px] text-muted-foreground mr-1">(+{account.mtnMarkup}%)</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <Input
                 value={txNote}
                 onChange={(e) => setTxNote(e.target.value)}
