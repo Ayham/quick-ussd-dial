@@ -74,7 +74,12 @@ const Contacts = () => {
         toast.success(`تم إضافة ${picked.name || picked.phone}`);
       }
     } catch (err: any) {
-      toast.error(err?.message === 'WEB_ONLY' ? "هذه الميزة تعمل فقط على الجهاز" : "تعذر فتح سجل الاتصال");
+      console.error('pickPhoneContact error:', err);
+      if (err?.message === 'WEB_ONLY') {
+        toast.error("هذه الميزة تعمل فقط على الجهاز");
+      } else {
+        toast.error(`تعذر فتح سجل الاتصال: ${err?.message || err}`);
+      }
     }
   };
 
