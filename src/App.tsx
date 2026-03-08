@@ -18,6 +18,7 @@ import ForceUpdate from "./components/ForceUpdate";
 import { getAppStatus, type AppLicenseStatus } from "./lib/license";
 import { startBackgroundSync, trackAppOpen, trackDeviceInfo, trackLicenseEvent } from "./lib/cloud-sync";
 import { isWebBrowser } from "./lib/platform";
+import { initDeviceId } from "./lib/device-id";
 import { verifyLicenseOnline, getLicenseApiEndpoint } from "./lib/license-api";
 import { checkForUpdate, type UpdateInfo } from "./lib/update-checker";
 
@@ -59,14 +60,17 @@ const AppContent = () => {
   };
 
   useEffect(() => {
-    if (!isWeb) {
-      // Check for updates first, then check license
-      doUpdateCheck();
-      checkStatus();
-      startBackgroundSync();
-      trackDeviceInfo();
-      trackAppOpen();
-    }
+    const init = async () => {
+      await initDeviceId(); // Must run first — generates stable device ID
+      if (!isWeb) {
+        doUpdateCheck();
+        checkStatus();
+        startBackgroundSync();
+        trackDeviceInfo();
+        trackAppOpen();
+      }
+    };
+    init();
   }, []);
 
   // Web browser: only Landing page + Admin
