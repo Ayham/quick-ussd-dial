@@ -27,8 +27,11 @@ function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
     
-    // ── License actions ──
+    // ── License or Release actions ──
     if (data.action) {
+      if (data.action === 'addRelease' || data.action === 'deleteRelease') {
+        return handleReleasePost(data);
+      }
       return handleLicensePost(data);
     }
     
@@ -114,6 +117,11 @@ function doGet(e) {
       return handleGetLatestRelease(ss);
     }
     
+    // ── List all releases ──
+    if (action === 'listReleases') {
+      return handleListReleases(ss);
+    }
+    
     // ── License: verify ──
     if (action === 'verify') {
       return handleLicenseVerify(e.parameter.deviceId);
@@ -148,7 +156,88 @@ function handleGetLatestRelease(ss) {
   var lastRow = releasesSheet.getLastRow();
   if (lastRow <= 1) {
     return jsonOut({ success: true, version: '', message: 'No releases yet' });
+}
+
+function getReleasesSheet(ss) {
+  var sheet = ss.getSheetByName('Releases');
+  if (!sheet) {
+    sheet = ss.insertSheet('Releases');
+    sheet.appendRow(['Version', 'Download URL', 'Changelog', 'Release Date', 'Force Update']);
+    sheet.getRange(1, 1, 1, 5).setFontWeight('bold');
+    sheet.setFrozenRows(1);
   }
+  return sheet;
+}
+
+function handleListReleases(ss) {
+  var sheet = getReleasesSheet(ss);
+  var lastRow = sheet.getLastRow();
+  if (lastRow <= 1) {
+    return jsonOut({ success: true, releases: [] });
+  }
+  
+  var data = sheet.getRange(2, 1, lastRow - 1, 5).getValues();
+  var releases = [];
+  
+  for (var i = 0; i < data.length; i++) {
+    var row = data[i];
+    if (!row[0]) continue;
+    releases.push({
+      id: 'r-' + (i + 2), // row number as ID
+      version: row[0] || '',
+      downloadUrl: row[1] || '',
+      changelog: row[2] || '',
+      releaseDate: row[3] instanceof Date 
+        ? Utilities.formatDate(row[3], Session.getScriptTimeZone(), 'yyyy-MM-dd') 
+        : String(row[3] || ''),
+      isLatest: i === data.length - 1 // آخر صف = أحدث نسخة
+    });
+  }
+  
+  // ترتيب من الأحدث للأقدم
+  releases.reverse();
+  
+  return jsonOut({ success: true, releases: releases });
+}
+
+function handleReleasePost(body) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = getReleasesSheet(ss);
+  
+  if (body.action === 'addRelease') {
+    if (!body.version || !body.downloadUrl) {
+      return jsonOut({ success: false, message: 'Missing version or downloadUrl' });
+    }
+    
+    sheet.appendRow([
+      body.version,
+      body.downloadUrl,
+      body.changelog || '',
+      body.releaseDate || getTodayStr(),
+      body.forceUpdate === true ? true : false
+    ]);
+    
+    return jsonOut({ success: true, message: 'تم إضافة النسخة ' + body.version });
+  }
+  
+  if (body.action === 'deleteRelease') {
+    if (!body.version) {
+      return jsonOut({ success: false, message: 'Missing version' });
+    }
+    
+    var data = sheet.getDataRange().getValues();
+    for (var i = data.length - 1; i >= 1; i--) {
+      if (String(data[i][0]) === String(body.version)) {
+        sheet.deleteRow(i + 1);
+        return jsonOut({ success: true, message: 'تم حذف النسخة ' + body.version });
+      }
+    }
+    
+    return jsonOut({ success: false, message: 'النسخة غير موجودة' });
+  }
+  
+  return jsonOut({ success: false, message: 'Unknown release action' });
+}
   
   var row = releasesSheet.getRange(lastRow, 1, 1, 5).getValues()[0];
   return jsonOut({

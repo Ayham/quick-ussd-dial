@@ -1,7 +1,10 @@
 /**
  * Marketing & App Config
  * إدارة الباقات والتحديثات والروابط
+ * يجلب النسخ من Google Sheets مع fallback لـ localStorage
  */
+
+import { getSyncEndpoint } from './cloud-sync';
 
 const PACKAGES_KEY = 'app-packages-v1';
 const APP_CONFIG_KEY = 'app-config-v1';
@@ -116,7 +119,7 @@ export function saveAppConfig(config: AppConfig) {
   localStorage.setItem(APP_CONFIG_KEY, JSON.stringify(config));
 }
 
-// ======= Releases =======
+// ======= Releases (localStorage) =======
 
 export function getReleases(): AppRelease[] {
   try {
@@ -132,7 +135,6 @@ export function saveReleases(releases: AppRelease[]) {
 
 export function addRelease(release: Omit<AppRelease, 'id'>): AppRelease[] {
   const releases = getReleases();
-  // Mark all as not latest
   if (release.isLatest) {
     releases.forEach(r => r.isLatest = false);
   }
@@ -150,4 +152,65 @@ export function deleteRelease(id: string): AppRelease[] {
 
 export function getLatestRelease(): AppRelease | undefined {
   return getReleases().find(r => r.isLatest) || getReleases()[0];
+}
+
+// ======= Releases (Cloud — Google Sheets) =======
+
+export async function fetchReleasesFromCloud(): Promise<AppRelease[]> {
+  const endpoint = getSyncEndpoint();
+  if (!endpoint) return [];
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(`${endpoint}?action=listReleases`, { signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (!res.ok) return [];
+    const data = await res.json();
+
+    if (data.success && Array.isArray(data.releases)) {
+      return data.releases as AppRelease[];
+    }
+  } catch {}
+  return [];
+}
+
+export async function addReleaseToCloud(release: {
+  version: string;
+  downloadUrl: string;
+  changelog?: string;
+  releaseDate?: string;
+}): Promise<boolean> {
+  const endpoint = getSyncEndpoint();
+  if (!endpoint) return false;
+
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'addRelease', ...release }),
+    });
+    const data = await res.json();
+    return data.success === true;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteReleaseFromCloud(version: string): Promise<boolean> {
+  const endpoint = getSyncEndpoint();
+  if (!endpoint) return false;
+
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'deleteRelease', version }),
+    });
+    const data = await res.json();
+    return data.success === true;
+  } catch {
+    return false;
+  }
 }
