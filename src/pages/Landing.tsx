@@ -329,7 +329,7 @@ const Landing = () => {
                     <Button
                       size="lg"
                       className="font-bold rounded-xl h-12 px-8"
-                      onClick={() => window.open(latestRelease.downloadUrl, "_blank")}
+                      onClick={() => { window.location.href = latestRelease.downloadUrl; }}
                     >
                       <Download className="w-5 h-5 ml-2" />
                       تحميل أحدث نسخة
