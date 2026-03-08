@@ -16,7 +16,14 @@ import {
   setAdminAuthenticated,
   getAdminCredentials,
   saveAdminCredentials,
+  isAdminInitialized,
 } from "@/lib/admin-auth";
+import {
+  getLicenseApiEndpoint, saveLicenseApiEndpoint,
+  getAllLicensesOnline, registerLicenseOnline, revokeLicenseOnline,
+  reactivateLicenseOnline, extendLicenseOnline,
+  type CentralLicense,
+} from "@/lib/license-api";
 import { getTrialDays, saveTrialDays } from "@/lib/license";
 import {
   getLicenseHistory, addLicenseRecord, deleteLicenseRecord, updateLicenseNote,
@@ -67,16 +74,18 @@ async function loadKeyFromDB(name: string): Promise<JsonWebKey | undefined> {
 }
 
 // ======= Admin Tabs =======
-type AdminTab = 'dashboard' | 'generate' | 'archive' | 'keys' | 'settings' | 'marketing';
+type AdminTab = 'dashboard' | 'generate' | 'archive' | 'keys' | 'settings' | 'marketing' | 'central';
 
 const Admin = () => {
   const navigate = useNavigate();
   const [authenticated, setAuthenticated] = useState(isAdminAuthenticated());
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
+  const [isFirstSetup, setIsFirstSetup] = useState(!isAdminInitialized());
 
   // Login
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [setupConfirmPassword, setSetupConfirmPassword] = useState("");
 
   // Keys
   const [hasKeys, setHasKeys] = useState(false);
@@ -125,7 +134,13 @@ const Admin = () => {
   const [mktReleases, setMktReleases] = useState<AppRelease[]>(() => getReleases());
   const [newRelease, setNewRelease] = useState({ version: '', downloadUrl: '', changelog: '' });
 
-  // Stats
+  // Central Licenses
+  const [centralLicenses, setCentralLicenses] = useState<CentralLicense[]>([]);
+  const [centralLoading, setCentralLoading] = useState(false);
+  const [licenseApiUrl, setLicenseApiUrl] = useState(() => getLicenseApiEndpoint());
+  const [extendDeviceId, setExtendDeviceId] = useState<string | null>(null);
+  const [extendDate, setExtendDate] = useState('');
+
   const stats = useMemo(() => getLicenseStats(), [licenseHistory]);
   const keyGenLog = useMemo(() => getKeyGenerationLog(), [hasKeys]);
 
@@ -159,6 +174,17 @@ const Admin = () => {
         console.error('Auto key generation failed:', e);
       }
     }
+  };
+
+  const handleFirstSetup = () => {
+    if (!username.trim()) { toast.error("أدخل اسم المستخدم"); return; }
+    if (!password.trim() || password.length < 6) { toast.error("كلمة السر 6 أحرف على الأقل"); return; }
+    if (password !== setupConfirmPassword) { toast.error("كلمة السر غير متطابقة"); return; }
+    saveAdminCredentials({ username: username.trim(), password });
+    setAdminAuthenticated(true);
+    setAuthenticated(true);
+    setIsFirstSetup(false);
+    toast.success("تم إنشاء حساب الأدمن بنجاح! 🎉");
   };
 
   const handleLogin = () => {
@@ -303,8 +329,56 @@ const Admin = () => {
     );
   }, [licenseHistory, searchQuery]);
 
-  // ======= Login =======
+  // Central licenses fetch
+  const fetchCentralLicenses = async () => {
+    setCentralLoading(true);
+    const result = await getAllLicensesOnline();
+    if (result.success && result.licenses) {
+      setCentralLicenses(result.licenses);
+    } else {
+      toast.error(result.message || 'فشل جلب التراخيص');
+    }
+    setCentralLoading(false);
+  };
+
+  // ======= Login / First Setup =======
   if (!authenticated) {
+    // First time setup — no password exists
+    if (isFirstSetup) {
+      return (
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 safe-area-insets" dir="rtl">
+          <div className="w-full max-w-sm space-y-6">
+            <div className="text-center">
+              <ShieldCheck className="w-16 h-16 mx-auto mb-4 text-primary" />
+              <h1 className="text-2xl font-bold text-foreground">إعداد لوحة الإدارة</h1>
+              <p className="text-sm text-muted-foreground mt-1">أنشئ بيانات الدخول الخاصة بك (أول مرة)</p>
+            </div>
+            <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-muted-foreground">اسم المستخدم</label>
+                <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin" className="h-11" dir="ltr" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-muted-foreground">كلمة السر</label>
+                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="6 أحرف على الأقل" className="h-11" dir="ltr" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-muted-foreground">تأكيد كلمة السر</label>
+                <Input type="password" value={setupConfirmPassword} onChange={(e) => setSetupConfirmPassword(e.target.value)} placeholder="أعد كتابة كلمة السر" className="h-11" dir="ltr" />
+              </div>
+              <Button onClick={handleFirstSetup} className="w-full h-11 font-bold rounded-xl">
+                <ShieldCheck className="w-4 h-4 ml-2" />إنشاء الحساب
+              </Button>
+            </div>
+            <p className="text-[10px] text-muted-foreground text-center">
+              ⚠️ احفظ بيانات الدخول في مكان آمن — لا يمكن استعادتها
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // Normal login
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 safe-area-insets" dir="rtl">
         <div className="w-full max-w-sm space-y-6">
@@ -353,6 +427,7 @@ const Admin = () => {
       <div className="bg-card border-b border-border px-2 py-1.5 flex gap-1 overflow-x-auto">
         {([
           { id: 'dashboard' as AdminTab, label: 'الرئيسية', icon: BarChart3 },
+          { id: 'central' as AdminTab, label: 'التراخيص', icon: Cloud },
           { id: 'generate' as AdminTab, label: 'توليد ترخيص', icon: Shield },
           { id: 'archive' as AdminTab, label: 'الأرشيف', icon: History },
           { id: 'keys' as AdminTab, label: 'المفاتيح', icon: Key },
@@ -435,7 +510,149 @@ const Admin = () => {
           </div>
         )}
 
-        {/* ===== GENERATE TAB ===== */}
+        {/* ===== CENTRAL LICENSES TAB ===== */}
+        {activeTab === 'central' && (
+          <div className="space-y-4">
+            {/* API Endpoint */}
+            <SectionCard title="رابط API التراخيص" icon={<Cloud className="w-4 h-4" />}>
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">رابط Google Apps Script</label>
+                  <Input
+                    value={licenseApiUrl}
+                    onChange={(e) => setLicenseApiUrl(e.target.value)}
+                    placeholder="https://script.google.com/macros/s/.../exec"
+                    className="text-left h-9 text-xs font-mono" dir="ltr"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={() => {
+                    saveLicenseApiEndpoint(licenseApiUrl);
+                    toast.success("تم حفظ رابط API");
+                  }} size="sm" className="text-xs flex-1">حفظ الرابط</Button>
+                  <Button onClick={fetchCentralLicenses} size="sm" variant="outline" className="text-xs" disabled={centralLoading || !licenseApiUrl}>
+                    <RefreshCw className={`w-3.5 h-3.5 ml-1 ${centralLoading ? 'animate-spin' : ''}`} />
+                    جلب التراخيص
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  راجع ملف <span className="font-mono">license-api-script.js</span> لإعداد Google Apps Script
+                </p>
+              </div>
+            </SectionCard>
+
+            {/* License List */}
+            <SectionCard title={`التراخيص المركزية (${centralLicenses.length})`} icon={<Users className="w-4 h-4" />}>
+              <div className="space-y-2">
+                {centralLicenses.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-6">
+                    {licenseApiUrl ? "اضغط 'جلب التراخيص' لعرض البيانات" : "عيّن رابط API أولاً"}
+                  </p>
+                ) : (
+                  centralLicenses.map((lic) => (
+                    <div key={lic.deviceId} className={`border rounded-xl p-3 space-y-2 ${
+                      lic.status === 'active' ? 'border-green-500/30 bg-green-500/5'
+                        : lic.status === 'revoked' ? 'border-destructive/30 bg-destructive/5'
+                        : 'border-border'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2.5 h-2.5 rounded-full ${
+                            lic.status === 'active' ? 'bg-green-500' : lic.status === 'revoked' ? 'bg-destructive' : 'bg-muted-foreground'
+                          }`} />
+                          <span className="text-sm font-bold text-foreground">{lic.customerName || 'بدون اسم'}</span>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          lic.status === 'active' ? 'bg-green-500/15 text-green-600'
+                            : lic.status === 'revoked' ? 'bg-destructive/15 text-destructive'
+                            : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {lic.status === 'active' ? 'فعّال' : lic.status === 'revoked' ? 'ملغي' : 'منتهي'}
+                        </span>
+                      </div>
+
+                      <div className="text-[10px] text-muted-foreground space-y-0.5">
+                        <div className="flex items-center justify-between">
+                          <span>معرف الجهاز</span>
+                          <span className="font-mono text-foreground">{lic.deviceId.substring(0, 20)}...</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>الانتهاء</span>
+                          <span className="text-foreground">{lic.expiryDate === 'permanent' ? 'دائم ✨' : lic.expiryDate}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>آخر فحص</span>
+                          <span className="text-foreground">{lic.lastCheck || '—'}</span>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-1.5 pt-1">
+                        {lic.status === 'active' ? (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="text-[10px] h-7 flex-1"
+                            onClick={async () => {
+                              const res = await revokeLicenseOnline(lic.deviceId);
+                              if (res.success) { toast.success("تم إلغاء الترخيص"); fetchCentralLicenses(); }
+                              else toast.error(res.message);
+                            }}
+                          >
+                            <X className="w-3 h-3 ml-1" />إلغاء
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-[10px] h-7 flex-1"
+                            onClick={async () => {
+                              const res = await reactivateLicenseOnline(lic.deviceId);
+                              if (res.success) { toast.success("تم إعادة التفعيل"); fetchCentralLicenses(); }
+                              else toast.error(res.message);
+                            }}
+                          >
+                            <Check className="w-3 h-3 ml-1" />تفعيل
+                          </Button>
+                        )}
+
+                        {extendDeviceId === lic.deviceId ? (
+                          <div className="flex gap-1 flex-1">
+                            <Input
+                              type="date"
+                              value={extendDate}
+                              onChange={(e) => setExtendDate(e.target.value)}
+                              className="h-7 text-[10px] flex-1"
+                              dir="ltr"
+                            />
+                            <Button size="sm" className="h-7 text-[10px] px-2" onClick={async () => {
+                              if (!extendDate) return;
+                              const res = await extendLicenseOnline(lic.deviceId, extendDate);
+                              if (res.success) { toast.success("تم التمديد"); setExtendDeviceId(null); fetchCentralLicenses(); }
+                              else toast.error(res.message);
+                            }}>
+                              <Check className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-[10px] h-7 flex-1"
+                            onClick={() => { setExtendDeviceId(lic.deviceId); setExtendDate(lic.expiryDate === 'permanent' ? '' : lic.expiryDate); }}
+                          >
+                            <Clock className="w-3 h-3 ml-1" />تمديد
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </SectionCard>
+          </div>
+        )}
+
         {activeTab === 'generate' && (
           <div className="space-y-4">
             {/* Guide Steps */}
@@ -947,7 +1164,7 @@ const Admin = () => {
 
             <SectionCard title="بيانات الدخول" icon={<Lock className="w-4 h-4" />}>
               {!showPasswordChange ? (
-                <Button onClick={() => { setNewUsername(getAdminCredentials().username); setShowPasswordChange(true); }}
+                <Button onClick={() => { setNewUsername(getAdminCredentials()?.username || ''); setShowPasswordChange(true); }}
                   variant="outline" size="sm" className="text-xs">
                   <Lock className="w-3.5 h-3.5 ml-1" />تغيير بيانات الدخول
                 </Button>

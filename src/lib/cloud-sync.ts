@@ -6,7 +6,7 @@
 
 import { getDeviceId } from './device-id';
 
-const DEFAULT_SYNC_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwLPQxxAiHkenT1xhkKDchPVP6dSnSvwjWUFs6jVi9_rq7fOKX4VLnFLu4TtPLzVJl6cw/exec';
+const DEFAULT_SYNC_ENDPOINT = ''; // Set via Admin panel
 const SYNC_QUEUE_KEY = 'cloud_sync_queue_v1';
 const SYNC_ENDPOINT_KEY = 'cloud_sync_endpoint_v1';
 const LAST_SYNC_KEY = 'cloud_last_sync_v1';
