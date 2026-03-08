@@ -24,13 +24,8 @@ export const APP_VERSION = '1.0.5';
 
 // Get current app version
 export function getCurrentVersion(): string {
-  const stored = localStorage.getItem(CURRENT_VERSION_KEY);
-  if (stored && isNewerVersion(stored, APP_VERSION)) return stored;
+  // Always use the bundled APP_VERSION as the true installed version
   return APP_VERSION;
-}
-
-export function setCurrentVersion(version: string) {
-  localStorage.setItem(CURRENT_VERSION_KEY, version);
 }
 
 // Compare versions: returns true if remote > local
