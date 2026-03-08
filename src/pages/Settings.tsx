@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Plus, Trash2, Key, Code, ArrowUp, ArrowDown, Smartphone, Signal, Shield, ShieldCheck, Clock, Copy, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Key, Code, ArrowUp, ArrowDown, Smartphone, Signal, Shield, ShieldCheck, Clock, Copy, AlertTriangle, Database } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   getPresets, savePresets,
@@ -420,6 +420,54 @@ const Settings = () => {
             إضافة مبلغ
           </button>
         </div>
+
+        {/* Data Cleanup */}
+        <Section title="إدارة البيانات" icon={<Database className="w-5 h-5" />}>
+          <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+            <p className="text-xs text-muted-foreground">حذف سجل التحويلات وبيانات الرصيد القديمة لتحرير المساحة</p>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+                  try {
+                    const historyRaw = localStorage.getItem('transfer-history');
+                    if (historyRaw) {
+                      const history = JSON.parse(historyRaw);
+                      const filtered = history.filter((r: { timestamp: number }) => r.timestamp > monthAgo);
+                      const removed = history.length - filtered.length;
+                      localStorage.setItem('transfer-history', JSON.stringify(filtered));
+                      toast.success(`تم حذف ${removed} عملية أقدم من شهر`);
+                    } else {
+                      toast.info("لا توجد بيانات للحذف");
+                    }
+                  } catch { toast.error("خطأ في الحذف"); }
+                }}
+                variant="outline"
+                size="sm"
+                className="flex-1 text-xs"
+              >
+                <Clock className="w-3.5 h-3.5 ml-1" />
+                حذف أقدم من شهر
+              </Button>
+              <Button
+                onClick={() => {
+                  if (confirm("هل أنت متأكد من حذف جميع سجلات التحويل وبيانات الرصيد؟")) {
+                    localStorage.removeItem('transfer-history');
+                    localStorage.removeItem('saved-contacts');
+                    localStorage.removeItem('saved_balances_v1');
+                    toast.success("تم حذف جميع البيانات المؤقتة");
+                  }
+                }}
+                variant="destructive"
+                size="sm"
+                className="flex-1 text-xs"
+              >
+                <Trash2 className="w-3.5 h-3.5 ml-1" />
+                حذف الكل
+              </Button>
+            </div>
+          </div>
+        </Section>
 
         {/* Actions */}
         <div className="mt-8 space-y-3 pb-4">
