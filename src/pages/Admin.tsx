@@ -79,7 +79,7 @@ const Admin = () => {
   const navigate = useNavigate();
   const [authenticated, setAuthenticated] = useState(isAdminAuthenticated());
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
-  const [isFirstSetup, setIsFirstSetup] = useState(!isAdminInitialized());
+  
 
   // Login
   const [username, setUsername] = useState("");
