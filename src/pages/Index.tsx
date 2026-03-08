@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
-import { Phone, Settings, Zap, Clock, CheckCircle, Loader2, BarChart3, Wallet, Send } from "lucide-react";
+import { Phone, Settings, Zap, Clock, CheckCircle, Loader2, BarChart3, Wallet, Send, Menu, X } from "lucide-react";
 import {
   detectOperator,
   buildUssdCode,
@@ -44,6 +44,7 @@ const Index = () => {
   const [history, setHistory] = useState<TransferRecord[]>(() => getHistory());
   const [dialing, setDialing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const contactsRef = useRef<HTMLDivElement>(null);
 
   // Hidden admin access: tap title 7 times
@@ -158,9 +159,32 @@ const Index = () => {
           <Zap className="w-5 h-5 text-primary-foreground" />
           <h1 className="text-primary-foreground text-lg font-bold select-none">تحويل رصيد</h1>
         </div>
+        <button onClick={() => setMenuOpen(!menuOpen)} className="text-primary-foreground p-1 rounded-md hover:bg-primary-foreground/10 transition-colors">
+          {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
       </header>
 
-      <main className="flex-1 p-2 w-full space-y-2 overflow-y-auto pb-20">
+      {/* Slide-down Menu */}
+      {menuOpen && (
+        <div className="bg-card border-b border-border shadow-lg animate-in slide-in-from-top-2 duration-200">
+          {[
+            { icon: Wallet, label: "الرصيد", path: "/balance" },
+            { icon: BarChart3, label: "التقارير", path: "/reports" },
+            { icon: Settings, label: "الإعدادات", path: "/settings" },
+          ].map((item) => (
+            <button
+              key={item.path}
+              onClick={() => { setMenuOpen(false); navigate(item.path); }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-foreground hover:bg-muted transition-colors border-b border-border last:border-b-0"
+            >
+              <item.icon className="w-5 h-5 text-muted-foreground" />
+              <span className="text-sm font-medium">{item.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <main className="flex-1 p-2 w-full space-y-2 overflow-y-auto pb-4">
         {/* Phone Input */}
         <div className="space-y-1">
           <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
@@ -322,30 +346,6 @@ const Index = () => {
         )}
       </main>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border pb-safe" style={{ maxWidth: '100%' }}>
-        <div className="flex items-stretch" style={{ maxWidth: '500px', margin: '0 auto' }}>
-          {[
-            { icon: Wallet, label: "الرصيد", path: "/balance" },
-            { icon: BarChart3, label: "التقارير", path: "/reports" },
-            { icon: Zap, label: "تحويل", path: "/", active: true },
-            { icon: Settings, label: "الإعدادات", path: "/settings" },
-          ].map((item) => (
-            <button
-              key={item.path}
-              onClick={() => item.active ? window.scrollTo(0, 0) : navigate(item.path)}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-colors ${
-                item.active
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <item.icon className={`w-5 h-5 ${item.active ? "text-primary" : ""}`} />
-              <span className={`text-[10px] font-bold ${item.active ? "text-primary" : ""}`}>{item.label}</span>
-            </button>
-          ))}
-        </div>
-      </nav>
     </div>
   );
 };
