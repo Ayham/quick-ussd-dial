@@ -192,11 +192,12 @@ const Admin = () => {
 
   const handleGenerateLicense = async () => {
     if (!deviceId.trim()) { toast.error("أدخل معرف الجهاز"); return; }
-    if (!expiryDate) { toast.error("اختر تاريخ الانتهاء"); return; }
+    if (!isPermanent && !expiryDate) { toast.error("اختر تاريخ الانتهاء"); return; }
     try {
       const privJwk = await loadKeyFromDB('privateKey');
       if (!privJwk) { toast.error("لم يتم توليد المفاتيح بعد"); return; }
-      const payload = { deviceId: deviceId.trim(), expiryDate };
+      const finalExpiry = isPermanent ? 'permanent' : expiryDate;
+      const payload = { deviceId: deviceId.trim(), expiryDate: finalExpiry };
       const dataB64 = btoa(JSON.stringify(payload));
       const privKey = await crypto.subtle.importKey('jwk', privJwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
       const sigBuffer = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', privKey, new TextEncoder().encode(dataB64));
