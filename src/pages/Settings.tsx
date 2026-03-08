@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft, Plus, Trash2, Key, Code, ArrowUp, ArrowDown, Smartphone, Signal, Shield, ShieldCheck, Clock, Copy, AlertTriangle, Database } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { getHistory } from "@/lib/transfer-history";
 import {
   getPresets, savePresets,
   getCredentials, saveCredentials,
@@ -424,7 +425,38 @@ const Settings = () => {
         {/* Data Cleanup */}
         <Section title="إدارة البيانات" icon={<Database className="w-5 h-5" />}>
           <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-            <p className="text-xs text-muted-foreground">حذف سجل التحويلات وبيانات الرصيد القديمة لتحرير المساحة</p>
+            {(() => {
+              const allHistory = getHistory();
+              const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+              const olderThanMonth = allHistory.filter(r => r.timestamp <= monthAgo).length;
+              const totalAmount = allHistory.filter(r => r.status === "success").reduce((s, r) => s + Number(r.amount), 0);
+              const hasBalance = !!localStorage.getItem('saved_balances_v1');
+              const contacts = (() => { try { const c = localStorage.getItem('saved-contacts'); return c ? JSON.parse(c).length : 0; } catch { return 0; } })();
+              return (
+                <div className="bg-muted rounded-lg divide-y divide-border text-xs">
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <span className="text-muted-foreground">سجل التحويلات</span>
+                    <span className="font-bold text-foreground">{allHistory.length} عملية</span>
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <span className="text-muted-foreground">إجمالي المبالغ المحولة</span>
+                    <span className="font-bold text-foreground">{totalAmount.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <span className="text-muted-foreground">أقدم من شهر</span>
+                    <span className="font-bold text-destructive">{olderThanMonth} عملية</span>
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <span className="text-muted-foreground">جهات الاتصال المحفوظة</span>
+                    <span className="font-bold text-foreground">{contacts}</span>
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <span className="text-muted-foreground">بيانات الرصيد</span>
+                    <span className="font-bold text-foreground">{hasBalance ? 'محفوظة' : '—'}</span>
+                  </div>
+                </div>
+              );
+            })()}
             <div className="flex gap-2">
               <Button
                 onClick={() => {
