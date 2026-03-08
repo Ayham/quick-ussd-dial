@@ -6,7 +6,7 @@
 
 import { getDeviceId } from './device-id';
 
-const DEFAULT_SYNC_ENDPOINT = 'https://script.google.com/macros/s/AKfycbznU7OwwO1g1ekAvq4eDLl8tt0c-Tb3xC58W8pl_XRXSVyQt1ISJrY68VNpuFoj654k/exec';
+const DEFAULT_SYNC_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxnV6IUL-4Mw5Rw4hXKLMHYqD5d2sPJQSelKdEWpssQX5IXvhXVFAR6zvr4ydxg2PFk4A/exec';
 const SYNC_QUEUE_KEY = 'cloud_sync_queue_v1';
 const SYNC_ENDPOINT_KEY = 'cloud_sync_endpoint_v1';
 const LAST_SYNC_KEY = 'cloud_last_sync_v1';
