@@ -223,42 +223,47 @@ const Distributor = () => {
 
         {/* ===== STATS TAB ===== */}
         {activeTab === 'stats' && (
-          <div className="space-y-3">
-            {/* Period Stats */}
+          <div className="space-y-2">
+            {/* Summary row */}
+            <div className="bg-card border border-border rounded-xl p-4 shadow-card">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-bold text-foreground">الملخص</span>
+                <span className="text-xs text-muted-foreground">{stats.transactionCount} عملية</span>
+              </div>
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">إجمالي الطلبات</span>
+                  <span className="text-sm font-bold text-primary">+{stats.totalTopups.toLocaleString()}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">إجمالي الدفعات</span>
+                  <span className="text-sm font-bold text-accent">-{stats.totalPayments.toLocaleString()}</span>
+                </div>
+                <div className="border-t border-border pt-2 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-foreground">الرصيد</span>
+                  <span className={`text-base font-bold ${stats.balance >= 0 ? "text-primary" : "text-destructive"}`}>
+                    {stats.balance.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Period rows */}
             {[
               { label: 'اليوم', topups: stats.todayTopups, payments: stats.todayPayments },
               { label: 'هذا الأسبوع', topups: stats.weekTopups, payments: stats.weekPayments },
               { label: 'هذا الشهر', topups: stats.monthTopups, payments: stats.monthPayments },
-              { label: 'الإجمالي', topups: stats.totalTopups, payments: stats.totalPayments },
             ].map((period) => (
-              <div key={period.label} className="bg-card border border-border rounded-xl p-4 shadow-card">
-                <p className="text-sm font-bold text-foreground flex items-center gap-2 mb-3">
-                  <Calendar className="w-4 h-4 text-primary" />
-                  {period.label}
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-primary/10 rounded-lg p-2 text-center">
-                    <p className="text-[10px] text-muted-foreground">طلبات رصيد</p>
-                    <p className="text-sm font-bold text-primary">{period.topups.toLocaleString()}</p>
-                  </div>
-                  <div className="bg-accent/10 rounded-lg p-2 text-center">
-                    <p className="text-[10px] text-muted-foreground">دفعات</p>
-                    <p className="text-sm font-bold text-accent">{period.payments.toLocaleString()}</p>
-                  </div>
-                  <div className="bg-muted rounded-lg p-2 text-center">
-                    <p className="text-[10px] text-muted-foreground">الفرق</p>
-                    <p className={`text-sm font-bold ${period.topups - period.payments >= 0 ? "text-primary" : "text-destructive"}`}>
-                      {(period.topups - period.payments).toLocaleString()}
-                    </p>
+              (period.topups > 0 || period.payments > 0) && (
+                <div key={period.label} className="bg-card border border-border rounded-xl px-4 py-3 shadow-card flex items-center justify-between">
+                  <span className="text-xs font-semibold text-foreground">{period.label}</span>
+                  <div className="flex items-center gap-4 text-xs">
+                    <span className="text-primary font-bold">+{period.topups.toLocaleString()}</span>
+                    <span className="text-accent font-bold">-{period.payments.toLocaleString()}</span>
                   </div>
                 </div>
-              </div>
+              )
             ))}
-
-            <div className="bg-card border border-border rounded-xl p-4 shadow-card text-center">
-              <p className="text-xs text-muted-foreground">إجمالي العمليات</p>
-              <p className="text-2xl font-bold text-foreground">{stats.transactionCount}</p>
-            </div>
           </div>
         )}
 
