@@ -80,10 +80,12 @@ const Admin = () => {
   const navigate = useNavigate();
   const [authenticated, setAuthenticated] = useState(isAdminAuthenticated());
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
+  const [isFirstSetup, setIsFirstSetup] = useState(!isAdminInitialized());
 
   // Login
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [setupConfirmPassword, setSetupConfirmPassword] = useState("");
 
   // Keys
   const [hasKeys, setHasKeys] = useState(false);
