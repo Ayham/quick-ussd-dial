@@ -872,6 +872,11 @@ const Admin = () => {
                     <Input value={mktConfig.whatsappContact} onChange={(e) => setMktConfig({...mktConfig, whatsappContact: e.target.value})}
                       className="h-10 rounded-xl text-sm" dir="ltr" placeholder="09XXXXXXXX" inputMode="tel" />
                   </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">رقم الدعم الفني (يظهر في شاشة التفعيل)</label>
+                    <Input value={mktConfig.supportPhone || ''} onChange={(e) => setMktConfig({...mktConfig, supportPhone: e.target.value})}
+                      className="h-10 rounded-xl text-sm" dir="ltr" placeholder="09XXXXXXXX" inputMode="tel" />
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs text-muted-foreground">رابط تنزيل APK</label>
