@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { trackEvent } from "@/lib/cloud-sync";
 import {
   getDistributorAccount, saveDistributorAccount, addTransaction,
-  deleteTransaction, getBalance, getDistributorStats,
+  deleteTransaction, getBalance, getDistributorStats, getActualCost,
   type TransactionType, type Operator,
 } from "@/lib/distributor";
 
@@ -36,6 +36,8 @@ const Distributor = () => {
   const [editName, setEditName] = useState(account.name);
   const [editPhone, setEditPhone] = useState(account.phone);
   const [editAlert, setEditAlert] = useState(String(account.lowBalanceAlert));
+  const [editSyriatelMarkup, setEditSyriatelMarkup] = useState(String(account.syriatelMarkup || 0));
+  const [editMtnMarkup, setEditMtnMarkup] = useState(String(account.mtnMarkup || 0));
   const [editMessage, setEditMessage] = useState(account.whatsappMessage || 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س\nسيريتل: {syriatel} | MTN: {mtn}');
   const [editWhatsappEnabled, setEditWhatsappEnabled] = useState(account.whatsappEnabled !== false);
 
@@ -106,7 +108,7 @@ const Distributor = () => {
   };
 
   const handleSaveSettings = () => {
-    const updated = { ...account, name: editName.trim(), phone: editPhone.trim(), lowBalanceAlert: Number(editAlert) || 0, whatsappEnabled: editWhatsappEnabled, whatsappMessage: editMessage.trim() };
+    const updated = { ...account, name: editName.trim(), phone: editPhone.trim(), lowBalanceAlert: Number(editAlert) || 0, whatsappEnabled: editWhatsappEnabled, whatsappMessage: editMessage.trim(), syriatelMarkup: Number(editSyriatelMarkup) || 0, mtnMarkup: Number(editMtnMarkup) || 0 };
     saveDistributorAccount(updated);
     setAccount(updated);
     toast.success("تم حفظ إعدادات الموزع");
@@ -215,6 +217,27 @@ const Distributor = () => {
                   />
                 </div>
               </div>
+
+              {/* Cost preview with markup */}
+              {(Number(syriatelAmount) > 0 || Number(mtnAmount) > 0) && (account.syriatelMarkup > 0 || account.mtnMarkup > 0) && (
+                <div className="bg-muted/50 border border-border rounded-xl p-2.5 text-center space-y-0.5">
+                  <p className="text-[10px] text-muted-foreground">التكلفة الفعلية (مع العمولة)</p>
+                  <div className="flex justify-center gap-4">
+                    {Number(syriatelAmount) > 0 && account.syriatelMarkup > 0 && (
+                      <span className="text-xs font-bold text-foreground">
+                        سيريتل: {getActualCost(Number(syriatelAmount), 'syriatel').toLocaleString()}
+                        <span className="text-[10px] text-muted-foreground mr-1">(+{account.syriatelMarkup}%)</span>
+                      </span>
+                    )}
+                    {Number(mtnAmount) > 0 && account.mtnMarkup > 0 && (
+                      <span className="text-xs font-bold text-foreground">
+                        MTN: {getActualCost(Number(mtnAmount), 'mtn').toLocaleString()}
+                        <span className="text-[10px] text-muted-foreground mr-1">(+{account.mtnMarkup}%)</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <Input
                 value={txNote}
@@ -335,8 +358,14 @@ const Distributor = () => {
                   <span className="text-xs text-muted-foreground">إجمالي الدفعات</span>
                   <span className="text-sm font-bold text-accent">-{stats.totalPayments.toLocaleString()}</span>
                 </div>
+                {stats.totalMarkup > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">إجمالي العمولات</span>
+                    <span className="text-sm font-bold text-destructive">{stats.totalMarkup.toLocaleString()}</span>
+                  </div>
+                )}
                 <div className="border-t border-border pt-2 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-foreground">الرصيد</span>
+                  <span className="text-xs font-semibold text-foreground">المبلغ المتبقي</span>
                   <span className={`text-base font-bold ${stats.balance >= 0 ? "text-primary" : "text-destructive"}`}>
                     {stats.balance.toLocaleString()}
                   </span>
@@ -364,6 +393,27 @@ const Distributor = () => {
                   <label className="text-xs text-muted-foreground">رقم الهاتف</label>
                   <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)}
                     placeholder="09XXXXXXXX" className="h-11 rounded-xl text-left" dir="ltr" inputMode="tel" />
+                </div>
+              </div>
+            </div>
+
+            {/* Markup Settings */}
+            <div className="bg-card border border-border rounded-2xl p-4 shadow-card space-y-3">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                عمولة الموزع (%)
+              </h3>
+              <p className="text-[10px] text-muted-foreground">نسبة العمولة التي يأخذها الموزع على كل طلب رصيد. مثال: 8 تعني 100,000 تكلفتها 108,000</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-red-500 text-center block">سيريتل %</label>
+                  <Input type="number" value={editSyriatelMarkup} onChange={(e) => setEditSyriatelMarkup(e.target.value)}
+                    placeholder="0" className="h-11 rounded-xl text-center" dir="ltr" inputMode="decimal" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-yellow-500 text-center block">MTN %</label>
+                  <Input type="number" value={editMtnMarkup} onChange={(e) => setEditMtnMarkup(e.target.value)}
+                    placeholder="0" className="h-11 rounded-xl text-center" dir="ltr" inputMode="decimal" />
                 </div>
               </div>
             </div>
@@ -472,6 +522,8 @@ const TransactionRow = ({ tx, onDelete }: {
   const isTopup = tx.type === 'topup';
   const operatorLabel = tx.operator === 'mtn' ? 'MTN' : tx.operator === 'syriatel' ? 'سيريتل' : '';
   const operatorColor = tx.operator === 'mtn' ? 'text-yellow-500' : 'text-red-500';
+  const actualCost = isTopup && tx.operator ? getActualCost(tx.amount, tx.operator as Operator) : tx.amount;
+  const hasMarkup = isTopup && actualCost !== tx.amount;
   return (
     <div className="flex items-center justify-between bg-card border border-border rounded-xl px-4 py-3 shadow-card">
       <div className="flex items-center gap-3">
@@ -496,9 +548,14 @@ const TransactionRow = ({ tx, onDelete }: {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <span className={`text-sm font-bold ${isTopup ? "text-primary" : "text-accent"}`}>
-          {isTopup ? '+' : '-'}{tx.amount.toLocaleString()}
-        </span>
+        <div className="text-left">
+          <span className={`text-sm font-bold ${isTopup ? "text-primary" : "text-accent"}`}>
+            {isTopup ? '+' : '-'}{(hasMarkup ? actualCost : tx.amount).toLocaleString()}
+          </span>
+          {hasMarkup && (
+            <p className="text-[9px] text-muted-foreground">رصيد: {tx.amount.toLocaleString()}</p>
+          )}
+        </div>
         {onDelete && (
           <button onClick={onDelete} className="p-1 text-muted-foreground hover:text-destructive transition-smooth">
             <Trash2 className="w-3.5 h-3.5" />
