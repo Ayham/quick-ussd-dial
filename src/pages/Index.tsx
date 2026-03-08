@@ -271,13 +271,15 @@ const Index = () => {
                   {contactName}
                 </span>
               ) : !showSaveName ? (
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs rounded-lg px-3 border-primary/30 text-primary"
                   onClick={() => { setShowSaveName(true); setNameInput(''); }}
-                  className="text-[11px] text-primary flex items-center gap-1 hover:underline"
                 >
-                  <UserPlus className="w-3 h-3" />
+                  <UserPlus className="w-3.5 h-3.5 ml-1" />
                   حفظ الاسم
-                </button>
+                </Button>
               ) : (
                 <div className="flex items-center gap-1.5">
                   <Input
