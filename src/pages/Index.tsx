@@ -283,6 +283,31 @@ const Index = () => {
           </div>
         )}
       </main>
+
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border pb-safe" style={{ maxWidth: '100%' }}>
+        <div className="flex items-stretch" style={{ maxWidth: '500px', margin: '0 auto' }}>
+          {[
+            { icon: Wallet, label: "الرصيد", path: "/balance" },
+            { icon: BarChart3, label: "التقارير", path: "/reports" },
+            { icon: Zap, label: "تحويل", path: "/", active: true },
+            { icon: Settings, label: "الإعدادات", path: "/settings" },
+          ].map((item) => (
+            <button
+              key={item.path}
+              onClick={() => item.active ? window.scrollTo(0, 0) : navigate(item.path)}
+              className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-colors ${
+                item.active
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <item.icon className={`w-5 h-5 ${item.active ? "text-primary" : ""}`} />
+              <span className={`text-[10px] font-bold ${item.active ? "text-primary" : ""}`}>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 };
