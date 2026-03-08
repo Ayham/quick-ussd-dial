@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { UserPlus, Search, Trash2, Pencil, Phone, BookUser, Contact } from "lucide-react";
+import { UserPlus, Search, Trash2, Pencil, Phone, BookUser, Contact, Upload, Download } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { detectOperator } from "@/lib/ussd-profiles";
 import {
   getSavedContacts,
+  saveSavedContacts,
   saveContact,
   updateContactName,
   deleteContact,
@@ -77,6 +78,82 @@ const Contacts = () => {
     }
   };
 
+  const handleExport = () => {
+    const data = getSavedContacts();
+    if (data.length === 0) {
+      toast.error("لا توجد جهات اتصال للتصدير");
+      return;
+    }
+    // Export as VCF (vCard) format for universal phone compatibility
+    const vcards = data.map(c => {
+      const name = c.name || c.phone;
+      return `BEGIN:VCARD\nVERSION:3.0\nFN:${name}\nTEL;TYPE=CELL:${c.phone}\nEND:VCARD`;
+    }).join('\n');
+    const blob = new Blob([vcards], { type: 'text/vcard;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `contacts-${new Date().toISOString().slice(0, 10)}.vcf`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`تم تصدير ${data.length} جهة اتصال بصيغة VCF`);
+  };
+
+  const handleImportFile = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.vcf,.json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const text = await file.text();
+
+      try {
+        if (file.name.endsWith('.vcf')) {
+          // Parse VCF
+          const entries = text.split('BEGIN:VCARD').filter(v => v.trim());
+          const imported: SavedContact[] = [];
+          for (const entry of entries) {
+            const fnMatch = entry.match(/FN:(.*)/);
+            const telMatch = entry.match(/TEL[^:]*:([\d+\s\-()]+)/);
+            if (telMatch) {
+              const phone = telMatch[1].replace(/[\s\-()]/g, '').replace(/^\+963/, '0').replace(/^963/, '0');
+              const name = fnMatch?.[1]?.trim() || '';
+              if (phone.length >= 10) imported.push({ phone, name });
+            }
+          }
+          if (imported.length === 0) {
+            toast.error("لم يتم العثور على جهات اتصال في الملف");
+            return;
+          }
+          const existing = getSavedContacts();
+          const existingPhones = new Set(existing.map(c => c.phone));
+          const newContacts = imported.filter(c => !existingPhones.has(c.phone));
+          if (newContacts.length > 0) {
+            saveSavedContacts([...existing, ...newContacts]);
+          }
+          // Update names for existing contacts
+          imported.filter(c => existingPhones.has(c.phone) && c.name).forEach(c => updateContactName(c.phone, c.name));
+          reload();
+          toast.success(`تم استيراد ${newContacts.length} جهة اتصال جديدة`);
+        } else {
+          // Parse JSON
+          const data: SavedContact[] = JSON.parse(text);
+          if (!Array.isArray(data)) throw new Error('invalid');
+          const existing = getSavedContacts();
+          const existingPhones = new Set(existing.map(c => c.phone));
+          const newContacts = data.filter(c => c.phone && !existingPhones.has(c.phone));
+          saveSavedContacts([...existing, ...newContacts]);
+          reload();
+          toast.success(`تم استيراد ${newContacts.length} جهة اتصال جديدة`);
+        }
+      } catch {
+        toast.error("فشل قراءة الملف");
+      }
+    };
+    input.click();
+  };
+
   return (
     <AppLayout title="جهات الاتصال">
       <main className="flex-1 p-3 w-full overflow-y-auto pb-safe space-y-3" dir="rtl">
@@ -144,10 +221,29 @@ const Contacts = () => {
           </div>
         )}
 
-        {/* Stats */}
-        <p className="text-[11px] text-muted-foreground px-1">
-          {filtered.length} جهة اتصال {search && `من أصل ${contacts.length}`}
-        </p>
+        {/* Stats + Export/Import */}
+        <div className="flex items-center justify-between px-1">
+          <p className="text-[11px] text-muted-foreground">
+            {filtered.length} جهة اتصال {search && `من أصل ${contacts.length}`}
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleImportFile}
+              className="text-[11px] text-primary flex items-center gap-1 hover:underline"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              استيراد
+            </button>
+            <span className="text-muted-foreground text-[10px]">|</span>
+            <button
+              onClick={handleExport}
+              className="text-[11px] text-primary flex items-center gap-1 hover:underline"
+            >
+              <Download className="w-3.5 h-3.5" />
+              تصدير VCF
+            </button>
+          </div>
+        </div>
 
         {/* Contacts List */}
         <div className="space-y-1.5">
