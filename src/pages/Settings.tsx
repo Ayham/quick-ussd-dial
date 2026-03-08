@@ -41,7 +41,7 @@ const Settings = () => {
   const [licenseStatus, setLicenseStatus] = useState<AppLicenseStatus | null>(null);
   const [newLicenseKey, setNewLicenseKey] = useState("");
   const [licenseLoading, setLicenseLoading] = useState(false);
-  const [trialDays, setTrialDaysState] = useState(() => getTrialDays());
+  const deviceId = getDeviceId();
   const deviceId = getDeviceId();
 
   useEffect(() => {
