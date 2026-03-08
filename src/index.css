@@ -94,6 +94,12 @@
   body {
     @apply bg-background text-foreground font-tajawal;
   }
+
+  #root {
+    max-width: 500px;
+    margin: 0 auto;
+    min-height: 100vh;
+  }
 }
 
 /* Safe area insets for Android status bar and navigation bar */
