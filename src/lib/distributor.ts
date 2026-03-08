@@ -80,12 +80,26 @@ export function deleteTransaction(id: string) {
   saveDistributorAccount(account);
 }
 
+export function getMarkupRate(operator: Operator): number {
+  const account = getDistributorAccount();
+  return operator === 'syriatel' ? (account.syriatelMarkup || 0) : (account.mtnMarkup || 0);
+}
+
+export function getActualCost(amount: number, operator: Operator): number {
+  const rate = getMarkupRate(operator);
+  return Math.round(amount * (1 + rate / 100));
+}
+
 export function getBalance(operator?: Operator): number {
   const account = getDistributorAccount();
   return account.transactions
     .filter(tx => !operator || tx.operator === operator)
     .reduce((bal, tx) => {
-      return tx.type === 'topup' ? bal + tx.amount : bal - tx.amount;
+      if (tx.type === 'topup') {
+        const cost = getActualCost(tx.amount, tx.operator);
+        return bal + cost;
+      }
+      return bal - tx.amount;
     }, 0);
 }
 
