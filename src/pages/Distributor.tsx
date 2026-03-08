@@ -47,7 +47,8 @@ const Distributor = () => {
     if (!account.phone) return;
     const phone = account.phone.replace(/^0/, '963');
     const totalAmount = syrAmount + mtnAmt;
-    let message = (account.whatsappMessage || 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س\nسيريتل: {syriatel} | MTN: {mtn}')
+    let message = (account.whatsappMessage || 'مرحبا {name} اذا ممكن تحويل رصيد\nسيريتل: {syriatel}\nMTN: {mtn}')
+      .replace('{name}', account.name || '')
       .replace('{amount}', totalAmount.toLocaleString())
       .replace('{syriatel}', syrAmount > 0 ? syrAmount.toLocaleString() : '0')
       .replace('{mtn}', mtnAmt > 0 ? mtnAmt.toLocaleString() : '0')
@@ -394,7 +395,7 @@ const Distributor = () => {
                     dir="rtl"
                   />
                   <p className="text-[10px] text-muted-foreground">
-                    المتغيرات: <span className="font-mono bg-muted px-1 rounded">{'{amount}'}</span> الإجمالي · <span className="font-mono bg-muted px-1 rounded">{'{syriatel}'}</span> سيريتل · <span className="font-mono bg-muted px-1 rounded">{'{mtn}'}</span> MTN · <span className="font-mono bg-muted px-1 rounded">{'{note}'}</span> ملاحظة
+                    المتغيرات: <span className="font-mono bg-muted px-1 rounded">{'{name}'}</span> الاسم · <span className="font-mono bg-muted px-1 rounded">{'{syriatel}'}</span> سيريتل · <span className="font-mono bg-muted px-1 rounded">{'{mtn}'}</span> MTN · <span className="font-mono bg-muted px-1 rounded">{'{note}'}</span> ملاحظة
                   </p>
                 </div>
               )}

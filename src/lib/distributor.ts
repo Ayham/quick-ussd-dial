@@ -32,7 +32,7 @@ const DEFAULT_ACCOUNT: DistributorAccount = {
   transactions: [],
   lowBalanceAlert: 50000,
   whatsappEnabled: true,
-  whatsappMessage: 'مرحبا، بدي تحويل رصيد\nسيريتل: {syriatel} | MTN: {mtn}',
+  whatsappMessage: 'مرحبا {name} اذا ممكن تحويل رصيد\nسيريتل: {syriatel}\nMTN: {mtn}',
 };
 
 export function getDistributorAccount(): DistributorAccount {
