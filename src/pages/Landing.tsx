@@ -130,14 +130,20 @@ const Landing = () => {
       </section>
 
       {/* ── Operator Logos ── */}
-      <section className="w-full max-w-3xl mx-auto px-5 sm:px-8 py-8 sm:py-10">
-        <p className="text-xs sm:text-sm text-muted-foreground text-center mb-4">يدعم شبكات الاتصال السورية</p>
-        <div className="flex items-center justify-center gap-6 sm:gap-10">
-          <div className="bg-card border border-border rounded-2xl p-4 sm:p-5 shadow-sm flex items-center justify-center w-32 sm:w-40 h-20 sm:h-24">
-            <img src={syriatelLogo} alt="Syriatel سيريتل" className="max-h-14 sm:max-h-16 object-contain" />
+      <section className="w-full max-w-3xl mx-auto px-5 sm:px-8 py-10 sm:py-14">
+        <div className="text-center mb-6 sm:mb-8">
+          <span className="inline-block text-[11px] font-bold text-primary bg-primary/10 rounded-full px-3 py-1 mb-2.5">الشبكات المدعومة</span>
+          <h2 className="text-base sm:text-lg font-bold text-foreground">يدعم جميع شبكات الاتصال السورية</h2>
+        </div>
+        <div className="flex items-center justify-center gap-5 sm:gap-8">
+          <div className="group relative bg-card border border-border rounded-2xl p-5 sm:p-7 shadow-card hover:shadow-elevated transition-all duration-300 flex flex-col items-center justify-center w-36 sm:w-48 h-28 sm:h-36 hover:border-primary/30 hover:-translate-y-1">
+            <img src={mtnLogo} alt="MTN" className="max-h-12 sm:max-h-16 object-contain mb-2.5 group-hover:scale-105 transition-transform duration-300" />
+            <span className="text-[10px] sm:text-xs font-bold text-muted-foreground group-hover:text-foreground transition-colors">MTN سوريا</span>
           </div>
-          <div className="bg-card border border-border rounded-2xl p-4 sm:p-5 shadow-sm flex items-center justify-center w-32 sm:w-40 h-20 sm:h-24">
-            <img src={mtnLogo} alt="MTN" className="max-h-14 sm:max-h-16 object-contain" />
+          <div className="text-muted-foreground/30 text-2xl font-light select-none">✕</div>
+          <div className="group relative bg-card border border-border rounded-2xl p-5 sm:p-7 shadow-card hover:shadow-elevated transition-all duration-300 flex flex-col items-center justify-center w-36 sm:w-48 h-28 sm:h-36 hover:border-primary/30 hover:-translate-y-1">
+            <img src={syriatelLogo} alt="Syriatel سيريتل" className="max-h-12 sm:max-h-16 object-contain mb-2.5 group-hover:scale-105 transition-transform duration-300" />
+            <span className="text-[10px] sm:text-xs font-bold text-muted-foreground group-hover:text-foreground transition-colors">سيريتل</span>
           </div>
         </div>
       </section>
