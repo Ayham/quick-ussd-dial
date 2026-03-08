@@ -118,15 +118,34 @@ const Admin = () => {
 
   useEffect(() => {
     if (authenticated) {
-      checkKeys();
+      initKeys();
       setLicenseHistory(getLicenseHistory());
     }
   }, [authenticated]);
 
-  const checkKeys = async () => {
+  const initKeys = async () => {
     const priv = await loadKeyFromDB('privateKey');
     const pub = await loadKeyFromDB('publicKey');
-    setHasKeys(!!(priv && pub));
+    if (priv && pub) {
+      setHasKeys(true);
+    } else {
+      // Auto-generate keys on first login
+      try {
+        const keyPair = await crypto.subtle.generateKey(
+          { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+          true, ['sign', 'verify']
+        );
+        const privJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
+        const pubJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
+        await saveKeyToDB('privateKey', privJwk);
+        await saveKeyToDB('publicKey', pubJwk);
+        addKeyGenerationRecord(pubJwk.n as string);
+        setHasKeys(true);
+        toast.success("تم توليد مفاتيح التشفير تلقائياً ✅");
+      } catch (e) {
+        console.error('Auto key generation failed:', e);
+      }
+    }
   };
 
   const handleLogin = () => {
