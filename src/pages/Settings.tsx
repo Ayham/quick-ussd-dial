@@ -186,14 +186,14 @@ const Settings = () => {
     <AppLayout title="الإعدادات">
 
       {/* Settings Tabs */}
-      <div className="bg-card border-b border-border px-1 py-1.5 flex gap-0.5 overflow-x-auto">
+      <div className="bg-card border-b border-border px-2 py-2 flex gap-1 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setSettingsTab(tab.id)}
-            className={`flex items-center gap-1 px-2.5 py-2 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-smooth ${
               settingsTab === tab.id
-                ? "bg-primary text-primary-foreground"
+                ? "bg-primary text-primary-foreground shadow-card"
                 : "text-muted-foreground hover:bg-muted"
             }`}
           >
@@ -567,7 +567,7 @@ const Settings = () => {
 const SectionCard = ({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) => (
   <div className="space-y-3">
     <h2 className="text-foreground font-bold flex items-center gap-2 text-sm">{icon}{title}</h2>
-    <div className="bg-card border border-border rounded-xl p-4">{children}</div>
+    <div className="bg-card border border-border rounded-2xl p-4 shadow-card">{children}</div>
   </div>
 );
 
@@ -578,7 +578,7 @@ const FieldInput = ({ label, value, onChange, placeholder }: {
     <label className="text-sm font-medium text-muted-foreground">{label}</label>
     <Input type="number" placeholder={placeholder} value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="text-left h-10" dir="ltr" inputMode="numeric" />
+      className="text-left h-11 rounded-xl border-2" dir="ltr" inputMode="numeric" />
   </div>
 );
 

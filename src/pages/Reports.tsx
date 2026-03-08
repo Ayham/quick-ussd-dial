@@ -19,7 +19,6 @@ const Reports = () => {
     return successful.filter((r) => r.operator === selectedOperator);
   }, [history, selectedOperator]);
 
-  // Helper: get week label
   const getWeekLabel = (ts: number) => {
     const d = new Date(ts);
     const startOfYear = new Date(d.getFullYear(), 0, 1);
@@ -27,7 +26,6 @@ const Reports = () => {
     return `الأسبوع ${weekNum} - ${d.getFullYear()}`;
   };
 
-  // Group by day
   const dailyTotals = useMemo(() => {
     const map = new Map<string, { count: number; sum: number; mtn: number; syriatel: number; mtnCount: number; syrCount: number }>();
     filteredHistory.forEach((r) => {
@@ -45,7 +43,6 @@ const Reports = () => {
     return Array.from(map.entries());
   }, [filteredHistory]);
 
-  // Group by week
   const weeklyTotals = useMemo(() => {
     const map = new Map<string, { count: number; sum: number; mtn: number; syriatel: number; mtnCount: number; syrCount: number }>();
     filteredHistory.forEach((r) => {
@@ -63,7 +60,6 @@ const Reports = () => {
     return Array.from(map.entries());
   }, [filteredHistory]);
 
-  // Group by month
   const monthlyTotals = useMemo(() => {
     const map = new Map<string, { count: number; sum: number; mtn: number; syriatel: number; mtnCount: number; syrCount: number }>();
     filteredHistory.forEach((r) => {
@@ -81,7 +77,6 @@ const Reports = () => {
     return Array.from(map.entries());
   }, [filteredHistory]);
 
-  // Per-card stats (grouped by operator then by amount)
   const cardStats = useMemo(() => {
     const buildStats = (records: TransferRecord[]) => {
       const amountMap = new Map<number, { count: number; today: number; week: number; month: number }>();
@@ -125,32 +120,32 @@ const Reports = () => {
   ];
 
   const StatusIcon = ({ status }: { status: string }) => {
-    if (status === "success") return <CheckCircle className="w-3.5 h-3.5 text-green-500" />;
-    if (status === "failed") return <XCircle className="w-3.5 h-3.5 text-destructive" />;
-    return <Loader2 className="w-3.5 h-3.5 text-muted-foreground animate-spin" />;
+    if (status === "success") return <CheckCircle className="w-4 h-4 text-success" />;
+    if (status === "failed") return <XCircle className="w-4 h-4 text-destructive" />;
+    return <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />;
   };
 
   const PeriodRow = ({ label, data }: { label: string; data: { count: number; sum: number; mtn: number; syriatel: number; mtnCount: number; syrCount: number } }) => (
-    <div className="bg-card border border-border rounded-lg px-3 py-2.5 space-y-1.5">
+    <div className="bg-card border border-border rounded-xl px-4 py-3 space-y-2 shadow-card">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-          <span className="text-xs text-foreground font-medium">{label}</span>
+          <Calendar className="w-4 h-4 text-primary" />
+          <span className="text-sm text-foreground font-medium">{label}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground">{data.count} عملية</span>
-          <span className="text-xs font-bold text-foreground">{data.sum.toLocaleString()}</span>
+          <span className="text-[11px] text-muted-foreground">{data.count} عملية</span>
+          <span className="text-sm font-bold text-foreground">{data.sum.toLocaleString()}</span>
         </div>
       </div>
       {selectedOperator === "all" && (data.mtn > 0 || data.syriatel > 0) && (
-        <div className="flex gap-2 text-[10px]">
+        <div className="flex gap-2 text-[11px]">
           {data.mtn > 0 && (
-            <span className="bg-operator-mtn/15 text-operator-mtn-foreground px-1.5 py-0.5 rounded">
+            <span className="bg-operator-mtn/15 text-operator-mtn-foreground px-2 py-0.5 rounded-lg font-medium">
               MTN: {data.mtnCount}× — {data.mtn.toLocaleString()}
             </span>
           )}
           {data.syriatel > 0 && (
-            <span className="bg-operator-syriatel/15 text-operator-syriatel-foreground px-1.5 py-0.5 rounded">
+            <span className="bg-operator-syriatel/15 text-operator-syriatel-foreground px-2 py-0.5 rounded-lg font-medium">
               SYR: {data.syrCount}× — {data.syriatel.toLocaleString()}
             </span>
           )}
@@ -164,37 +159,39 @@ const Reports = () => {
     const isMtn = operator === "mtn";
     return (
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
-            <Smartphone className={`w-4 h-4 ${isMtn ? "text-operator-mtn" : "text-operator-syriatel"}`} />
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+              isMtn ? "bg-operator-mtn/15" : "bg-operator-syriatel/15"
+            }`}>
+              <Smartphone className={`w-4 h-4 ${isMtn ? "text-operator-mtn" : "text-operator-syriatel"}`} />
+            </div>
             <span className="font-bold text-sm text-foreground">{isMtn ? "MTN" : "Syriatel"}</span>
           </div>
-          <div className="text-[10px] text-muted-foreground">
+          <div className="text-[11px] text-muted-foreground">
             {count} عملية — {total.toLocaleString()}
           </div>
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           {cards.map(([amount, stats]) => (
-            <div key={amount} className="bg-card border border-border rounded-lg px-3 py-2.5">
-              <div className="flex items-center justify-between mb-1.5">
+            <div key={amount} className="bg-card border border-border rounded-xl px-4 py-3 shadow-card">
+              <div className="flex items-center justify-between mb-2">
                 <span className={`text-sm font-bold ${isMtn ? "text-operator-mtn" : "text-operator-syriatel"}`}>
                   بطاقة {amount}
                 </span>
-                <span className="text-xs font-bold text-foreground">{stats.count} عملية</span>
+                <span className="text-xs font-bold text-foreground bg-muted px-2 py-0.5 rounded-lg">{stats.count} عملية</span>
               </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                <div className="bg-muted rounded px-2 py-1 text-center">
-                  <p className="text-[9px] text-muted-foreground">اليوم</p>
-                  <p className="text-xs font-bold text-foreground">{stats.today}</p>
-                </div>
-                <div className="bg-muted rounded px-2 py-1 text-center">
-                  <p className="text-[9px] text-muted-foreground">الأسبوع</p>
-                  <p className="text-xs font-bold text-foreground">{stats.week}</p>
-                </div>
-                <div className="bg-muted rounded px-2 py-1 text-center">
-                  <p className="text-[9px] text-muted-foreground">الشهر</p>
-                  <p className="text-xs font-bold text-foreground">{stats.month}</p>
-                </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: "اليوم", value: stats.today },
+                  { label: "الأسبوع", value: stats.week },
+                  { label: "الشهر", value: stats.month },
+                ].map((item) => (
+                  <div key={item.label} className="bg-muted rounded-lg px-2 py-1.5 text-center">
+                    <p className="text-[10px] text-muted-foreground">{item.label}</p>
+                    <p className="text-sm font-bold text-foreground">{item.value}</p>
+                  </div>
+                ))}
               </div>
             </div>
           ))}
@@ -207,15 +204,15 @@ const Reports = () => {
     <AppLayout title="التقارير">
 
       {/* Tabs */}
-      <div className="flex gap-1 p-2 bg-muted/50">
+      <div className="flex gap-1 p-2 bg-card border-b border-border">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-colors ${
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-smooth ${
               activeTab === tab.id
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground"
+                ? "bg-primary text-primary-foreground shadow-card"
+                : "text-muted-foreground hover:bg-muted"
             }`}
           >
             {tab.label}
@@ -224,17 +221,17 @@ const Reports = () => {
       </div>
 
       {/* Operator Filter */}
-      <div className="flex gap-1 px-3 pt-2">
+      <div className="flex gap-1.5 px-3 pt-3">
         {(["all", "mtn", "syriatel"] as const).map((op) => (
           <button
             key={op}
             onClick={() => setSelectedOperator(op)}
-            className={`px-3 py-1 rounded-full text-[10px] font-bold transition-colors ${
+            className={`px-4 py-1.5 rounded-full text-[11px] font-bold transition-smooth ${
               selectedOperator === op
                 ? op === "mtn" ? "bg-operator-mtn text-operator-mtn-foreground"
                 : op === "syriatel" ? "bg-operator-syriatel text-operator-syriatel-foreground"
                 : "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground"
+                : "bg-muted text-muted-foreground hover:bg-secondary"
             }`}
           >
             {op === "all" ? "الكل" : op === "mtn" ? "MTN" : "Syriatel"}
@@ -245,25 +242,25 @@ const Reports = () => {
       <main className="flex-1 p-3 w-full overflow-y-auto pb-safe" dir="rtl">
         {/* Summary */}
         <div className="flex gap-2 mb-3">
-          <div className="flex-1 bg-card border border-border rounded-lg p-2 text-center">
-            <p className="text-[10px] text-muted-foreground">العمليات</p>
-            <p className="text-sm font-bold text-foreground">{filteredHistory.length}</p>
+          <div className="flex-1 bg-card border border-border rounded-xl p-3 text-center shadow-card">
+            <p className="text-[11px] text-muted-foreground">العمليات</p>
+            <p className="text-lg font-bold text-foreground">{filteredHistory.length}</p>
           </div>
-          <div className="flex-1 bg-card border border-border rounded-lg p-2 text-center">
-            <p className="text-[10px] text-muted-foreground">الإجمالي</p>
-            <p className="text-sm font-bold text-foreground">
+          <div className="flex-1 bg-card border border-border rounded-xl p-3 text-center shadow-card">
+            <p className="text-[11px] text-muted-foreground">الإجمالي</p>
+            <p className="text-lg font-bold text-foreground">
               {filteredHistory.reduce((s, r) => s + Number(r.amount), 0).toLocaleString()}
             </p>
           </div>
           {selectedOperator === "all" && (
             <>
-              <div className="flex-1 bg-card border border-border rounded-lg p-2 text-center">
-                <p className="text-[10px] text-operator-mtn font-bold">MTN</p>
-                <p className="text-sm font-bold text-foreground">{cardStats.mtnCount}</p>
+              <div className="flex-1 bg-card border border-border rounded-xl p-3 text-center shadow-card">
+                <p className="text-[11px] text-operator-mtn font-bold">MTN</p>
+                <p className="text-lg font-bold text-foreground">{cardStats.mtnCount}</p>
               </div>
-              <div className="flex-1 bg-card border border-border rounded-lg p-2 text-center">
-                <p className="text-[10px] text-operator-syriatel font-bold">SYR</p>
-                <p className="text-sm font-bold text-foreground">{cardStats.syrCount}</p>
+              <div className="flex-1 bg-card border border-border rounded-xl p-3 text-center shadow-card">
+                <p className="text-[11px] text-operator-syriatel font-bold">SYR</p>
+                <p className="text-lg font-bold text-foreground">{cardStats.syrCount}</p>
               </div>
             </>
           )}
@@ -271,27 +268,27 @@ const Reports = () => {
 
         {/* ALL tab */}
         {activeTab === "all" && (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {history.length === 0 && (
               <p className="text-center text-sm text-muted-foreground py-8">لا توجد عمليات</p>
             )}
             {history
               .filter((r) => selectedOperator === "all" || r.operator === selectedOperator)
               .map((r, i) => (
-              <div key={i} className="flex items-center justify-between bg-card border border-border rounded-lg px-3 py-2">
+              <div key={i} className="flex items-center justify-between bg-card border border-border rounded-xl px-4 py-3 shadow-card">
                 <div className="flex flex-col gap-0.5">
-                  <span className="font-mono text-xs text-foreground" dir="ltr">{r.phone}</span>
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="font-mono text-sm text-foreground" dir="ltr">{r.phone}</span>
+                  <span className="text-[11px] text-muted-foreground">
                     {new Date(r.timestamp).toLocaleDateString("ar-SY", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                <div className="flex items-center gap-2.5">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
                     r.operator === "mtn" ? "bg-operator-mtn text-operator-mtn-foreground" : "bg-operator-syriatel text-operator-syriatel-foreground"
                   }`}>
                     {r.operator === "mtn" ? "MTN" : "SYR"}
                   </span>
-                  <span className="font-bold text-xs text-foreground">{Number(r.amount).toLocaleString()}</span>
+                  <span className="font-bold text-sm text-foreground">{Number(r.amount).toLocaleString()}</span>
                   <StatusIcon status={r.status} />
                 </div>
               </div>
@@ -301,7 +298,7 @@ const Reports = () => {
 
         {/* DAILY tab */}
         {activeTab === "daily" && (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {dailyTotals.length === 0 && <p className="text-center text-sm text-muted-foreground py-8">لا توجد بيانات</p>}
             {dailyTotals.map(([day, data]) => (
               <PeriodRow key={day} label={day} data={data} />
@@ -311,7 +308,7 @@ const Reports = () => {
 
         {/* WEEKLY tab */}
         {activeTab === "weekly" && (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {weeklyTotals.length === 0 && <p className="text-center text-sm text-muted-foreground py-8">لا توجد بيانات</p>}
             {weeklyTotals.map(([week, data]) => (
               <PeriodRow key={week} label={week} data={data} />
@@ -321,7 +318,7 @@ const Reports = () => {
 
         {/* MONTHLY tab */}
         {activeTab === "monthly" && (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {monthlyTotals.length === 0 && <p className="text-center text-sm text-muted-foreground py-8">لا توجد بيانات</p>}
             {monthlyTotals.map(([month, data]) => (
               <PeriodRow key={month} label={month} data={data} />
