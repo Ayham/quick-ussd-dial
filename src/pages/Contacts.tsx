@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { detectOperator } from "@/lib/ussd-profiles";
 import {
   getSavedContacts,
+  saveSavedContacts,
   saveContact,
   updateContactName,
   deleteContact,
