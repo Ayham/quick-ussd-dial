@@ -78,8 +78,14 @@ const Distributor = () => {
         return;
       }
     }
-    if (syrAmt > 0) addTransaction(type, syrAmt, txNote.trim(), 'syriatel');
-    if (mtnAmt > 0) addTransaction(type, mtnAmt, txNote.trim(), 'mtn');
+    if (syrAmt > 0) {
+      addTransaction(type, syrAmt, txNote.trim(), 'syriatel');
+      trackEvent(type === 'topup' ? 'distributor_topup' : 'distributor_payment', { operator: 'syriatel', amount: syrAmt, note: txNote.trim() });
+    }
+    if (mtnAmt > 0) {
+      addTransaction(type, mtnAmt, txNote.trim(), 'mtn');
+      trackEvent(type === 'topup' ? 'distributor_topup' : 'distributor_payment', { operator: 'mtn', amount: mtnAmt, note: txNote.trim() });
+    }
     setAccount(getDistributorAccount());
     if (type === 'topup') {
       sendWhatsApp(syrAmt > 0 ? syrAmt : 0, mtnAmt > 0 ? mtnAmt : 0, txNote.trim());

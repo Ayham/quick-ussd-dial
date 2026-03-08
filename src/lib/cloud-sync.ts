@@ -21,7 +21,9 @@ export type SyncEventType =
   | 'license_expired'
   | 'transfer'
   | 'settings_changed'
-  | 'heartbeat';
+  | 'heartbeat'
+  | 'distributor_topup'
+  | 'distributor_payment';
 
 export interface SyncEvent {
   id: string;
