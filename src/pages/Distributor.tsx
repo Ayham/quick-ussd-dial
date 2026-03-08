@@ -179,35 +179,33 @@ const Distributor = () => {
 
             {/* Add Transaction */}
             <div className="space-y-2">
-              {/* Operator selector */}
-              <div className="flex gap-2">
-                {OPERATORS.map((op) => (
-                  <button
-                    key={op.id}
-                    onClick={() => setTxOperator(op.id)}
-                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-smooth ${
-                      txOperator === op.id
-                        ? op.id === 'syriatel'
-                          ? "bg-red-500/15 text-red-500 border-2 border-red-500/30"
-                          : "bg-yellow-500/15 text-yellow-500 border-2 border-yellow-500/30"
-                        : "bg-muted text-muted-foreground border-2 border-transparent"
-                    }`}
-                  >
-                    {op.label}
-                  </button>
-                ))}
+              {/* Per-operator amount inputs */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-red-500 text-center block">سيريتل</label>
+                  <Input
+                    type="number"
+                    value={syriatelAmount}
+                    onChange={(e) => setSyriatelAmount(e.target.value)}
+                    placeholder="0"
+                    className="h-12 text-center text-lg font-bold rounded-xl border-2 border-red-500/20"
+                    dir="ltr"
+                    inputMode="numeric"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-yellow-500 text-center block">MTN</label>
+                  <Input
+                    type="number"
+                    value={mtnAmount}
+                    onChange={(e) => setMtnAmount(e.target.value)}
+                    placeholder="0"
+                    className="h-12 text-center text-lg font-bold rounded-xl border-2 border-yellow-500/20"
+                    dir="ltr"
+                    inputMode="numeric"
+                  />
+                </div>
               </div>
-
-              <Input
-                type="number"
-                value={txAmount}
-                onChange={(e) => setTxAmount(e.target.value)}
-                placeholder="المبلغ"
-                className="h-12 text-center text-lg font-bold rounded-xl border-2 border-border"
-                dir="ltr"
-                inputMode="numeric"
-                onKeyDown={(e) => e.key === 'Enter' && handleAddTransaction()}
-              />
 
               <Input
                 value={txNote}
@@ -221,7 +219,7 @@ const Distributor = () => {
                   onClick={() => handleAddTransaction('topup')}
                   variant="outline"
                   className="h-12 font-bold rounded-xl border-2 border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground"
-                  disabled={!txAmount || Number(txAmount) <= 0}
+                  disabled={(!syriatelAmount || Number(syriatelAmount) <= 0) && (!mtnAmount || Number(mtnAmount) <= 0)}
                 >
                   <ArrowDownCircle className="w-5 h-5 ml-2" />
                   طلب رصيد
@@ -230,7 +228,7 @@ const Distributor = () => {
                   onClick={() => handleAddTransaction('payment')}
                   variant="outline"
                   className="h-12 font-bold rounded-xl border-2 border-accent/30 text-accent hover:bg-accent hover:text-accent-foreground"
-                  disabled={!txAmount || Number(txAmount) <= 0}
+                  disabled={(!syriatelAmount || Number(syriatelAmount) <= 0) && (!mtnAmount || Number(mtnAmount) <= 0)}
                 >
                   <ArrowUpCircle className="w-5 h-5 ml-2" />
                   دفعة
