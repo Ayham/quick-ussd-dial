@@ -76,31 +76,31 @@ export function searchContacts(query: string): SavedContact[] {
  * Open native contact picker and return selected contact
  */
 export async function pickPhoneContact(): Promise<SavedContact | null> {
-  try {
-    const { Contacts } = await import('@capacitor-community/contacts');
-    const result = await Contacts.pickContact({
-      projection: {
-        name: true,
-        phones: true,
-      },
-    });
-
-    if (!result.contact) return null;
-
-    const name = result.contact.name?.display || '';
-    const phones = result.contact.phones || [];
-    if (phones.length === 0) return null;
-
-    const phone = normalizePhone(phones[0].number || '');
-    if (!phone || phone.length < 10) return null;
-
-    // Auto-save to contacts
-    saveContact(phone, name);
-    return { phone, name };
-  } catch (error) {
-    console.error('Failed to pick contact:', error);
-    throw error;
+  // Check if running on native platform
+  const { Capacitor } = await import('@capacitor/core');
+  if (!Capacitor.isNativePlatform()) {
+    throw new Error('WEB_ONLY');
   }
+
+  const { Contacts } = await import('@capacitor-community/contacts');
+  const result = await Contacts.pickContact({
+    projection: {
+      name: true,
+      phones: true,
+    },
+  });
+
+  if (!result.contact) return null;
+
+  const name = result.contact.name?.display || '';
+  const phones = result.contact.phones || [];
+  if (phones.length === 0) return null;
+
+  const phone = normalizePhone(phones[0].number || '');
+  if (!phone || phone.length < 10) return null;
+
+  saveContact(phone, name);
+  return { phone, name };
 }
 
 function normalizePhone(phone: string): string {
