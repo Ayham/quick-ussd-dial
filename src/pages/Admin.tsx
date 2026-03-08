@@ -209,7 +209,7 @@ const Admin = () => {
       // Save to archive
       addLicenseRecord({
         deviceId: deviceId.trim(),
-        expiryDate,
+        expiryDate: finalExpiry,
         createdAt: new Date().toISOString(),
         licenseKey: license,
         customerNote: customerNote.trim() || undefined,
