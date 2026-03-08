@@ -96,11 +96,10 @@ const Contacts = () => {
             size="icon"
             variant="outline"
             className="h-10 w-10 rounded-xl"
-            onClick={handleImport}
-            disabled={importing}
-            title="استيراد من الهاتف"
+            onClick={handlePickContact}
+            title="اختيار من سجل الهاتف"
           >
-            <Download className="w-4 h-4" />
+            <Contact className="w-4 h-4" />
           </Button>
           <Button
             size="icon"
