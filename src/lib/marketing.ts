@@ -34,7 +34,7 @@ const DEFAULT_PACKAGES: AppPackage[] = [
     price: 0,
     currency: 'ل.س',
     duration: 'trial',
-    durationLabel: '7 أيام',
+    durationLabel: '30 يوم',
     features: ['تحويل رصيد سريع', 'كشف المشغل تلقائياً', 'سجل التحويلات'],
     enabled: true,
   },
