@@ -14,16 +14,29 @@ import Contacts from "./pages/Contacts";
 import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
 import Activation from "./pages/Activation";
+import ForceUpdate from "./components/ForceUpdate";
 import { getAppStatus, type AppLicenseStatus } from "./lib/license";
 import { startBackgroundSync, trackAppOpen, trackDeviceInfo, trackLicenseEvent } from "./lib/cloud-sync";
 import { isWebBrowser } from "./lib/platform";
 import { verifyLicenseOnline, getLicenseApiEndpoint } from "./lib/license-api";
+import { checkForUpdate, type UpdateInfo } from "./lib/update-checker";
 
 const queryClient = new QueryClient();
 
 const AppContent = () => {
   const [status, setStatus] = useState<AppLicenseStatus | null>(null);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
   const isWeb = isWebBrowser();
+
+  const doUpdateCheck = async () => {
+    setCheckingUpdate(true);
+    try {
+      const info = await checkForUpdate();
+      setUpdateInfo(info);
+    } catch {}
+    setCheckingUpdate(false);
+  };
 
   const checkStatus = async () => {
     const s = await getAppStatus();
@@ -33,7 +46,6 @@ const AppContent = () => {
     if (getLicenseApiEndpoint() && (s.status === 'licensed' || s.status === 'trial')) {
       verifyLicenseOnline().then(onlineResult => {
         if (onlineResult.status === 'revoked') {
-          // License was revoked remotely — force re-check
           setStatus({ status: 'license_expired' } as AppLicenseStatus);
         }
       });
@@ -47,8 +59,9 @@ const AppContent = () => {
   };
 
   useEffect(() => {
-    // On web: only show Landing and Admin (no app functionality)
     if (!isWeb) {
+      // Check for updates first, then check license
+      doUpdateCheck();
       checkStatus();
       startBackgroundSync();
       trackDeviceInfo();
@@ -56,13 +69,31 @@ const AppContent = () => {
     }
   }, []);
 
-  // Web browser: only Landing page + Admin (for you to manage)
+  // Web browser: only Landing page + Admin
   if (isWeb) {
     return (
       <BrowserRouter>
         <Routes>
           <Route path="/sys-panel" element={<Admin />} />
           <Route path="*" element={<Landing />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
+
+  // Force update screen (blocks the app)
+  if (updateInfo?.hasUpdate && updateInfo.forceUpdate) {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="/sys-panel" element={<Admin />} />
+          <Route path="*" element={
+            <ForceUpdate
+              updateInfo={updateInfo}
+              onRetry={doUpdateCheck}
+              checking={checkingUpdate}
+            />
+          } />
         </Routes>
       </BrowserRouter>
     );
