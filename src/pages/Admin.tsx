@@ -118,15 +118,34 @@ const Admin = () => {
 
   useEffect(() => {
     if (authenticated) {
-      checkKeys();
+      initKeys();
       setLicenseHistory(getLicenseHistory());
     }
   }, [authenticated]);
 
-  const checkKeys = async () => {
+  const initKeys = async () => {
     const priv = await loadKeyFromDB('privateKey');
     const pub = await loadKeyFromDB('publicKey');
-    setHasKeys(!!(priv && pub));
+    if (priv && pub) {
+      setHasKeys(true);
+    } else {
+      // Auto-generate keys on first login
+      try {
+        const keyPair = await crypto.subtle.generateKey(
+          { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+          true, ['sign', 'verify']
+        );
+        const privJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
+        const pubJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
+        await saveKeyToDB('privateKey', privJwk);
+        await saveKeyToDB('publicKey', pubJwk);
+        addKeyGenerationRecord(pubJwk.n as string);
+        setHasKeys(true);
+        toast.success("تم توليد مفاتيح التشفير تلقائياً ✅");
+      } catch (e) {
+        console.error('Auto key generation failed:', e);
+      }
+    }
   };
 
   const handleLogin = () => {
@@ -402,15 +421,26 @@ const Admin = () => {
         {/* ===== GENERATE TAB ===== */}
         {activeTab === 'generate' && (
           <div className="space-y-4">
+            {/* Guide Steps */}
+            <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-2">
+              <h3 className="text-sm font-bold text-foreground">📋 خطوات توليد ترخيص لزبون</h3>
+              <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+                <li>الزبون يفتح التطبيق → ينسخ <strong className="text-foreground">معرف الجهاز</strong> ويرسله لك</li>
+                <li>الصق معرف الجهاز أدناه واختر نوع الترخيص</li>
+                <li>اضغط <strong className="text-foreground">توليد الترخيص</strong> ثم انسخه وأرسله للزبون</li>
+                <li>الزبون يلصق الترخيص في صفحة التفعيل ← <strong className="text-foreground">تم! ✅</strong></li>
+              </ol>
+            </div>
+
             <SectionCard title="توليد ترخيص جديد" icon={<Shield className="w-4 h-4" />}>
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">معرف الجهاز (Device ID)</label>
+                  <label className="text-xs font-medium text-muted-foreground">① معرف الجهاز (Device ID)</label>
                   <Input value={deviceId} onChange={(e) => setDeviceId(e.target.value)}
                     placeholder="الصق معرف الجهاز من الزبون..." className="text-left text-xs h-10 font-mono" dir="ltr" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">نوع الترخيص</label>
+                  <label className="text-xs font-medium text-muted-foreground">② نوع الترخيص</label>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setIsPermanent(false)}
@@ -440,26 +470,23 @@ const Admin = () => {
                   </div>
                 )}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">ملاحظة (اسم الزبون / رقم الهاتف)</label>
+                  <label className="text-xs font-medium text-muted-foreground">③ ملاحظة (اسم الزبون / رقم الهاتف)</label>
                   <Input value={customerNote} onChange={(e) => setCustomerNote(e.target.value)}
                     placeholder="اختياري — للتعريف بالزبون" className="h-10 text-sm" />
                 </div>
-                <Button onClick={handleGenerateLicense} disabled={!hasKeys} className="w-full h-11 font-bold rounded-xl">
-                  توليد الترخيص
+                <Button onClick={handleGenerateLicense} disabled={!hasKeys || !deviceId.trim()} className="w-full h-11 font-bold rounded-xl">
+                  ④ توليد الترخيص
                 </Button>
-                {!hasKeys && (
-                  <p className="text-[11px] text-destructive text-center">يجب توليد مفاتيح RSA أولاً من تبويب "المفاتيح"</p>
-                )}
               </div>
 
               {generatedLicense && (
                 <div className="space-y-2 mt-4 pt-4 border-t border-border">
-                  <label className="text-xs font-medium text-muted-foreground">✅ مفتاح الترخيص</label>
+                  <label className="text-xs font-medium text-foreground flex items-center gap-1">✅ تم توليد الترخيص بنجاح!</label>
                   <div className="bg-muted border border-border rounded-lg p-3 font-mono text-[10px] break-all text-foreground leading-relaxed" dir="ltr">
                     {generatedLicense}
                   </div>
                   <Button onClick={() => handleCopyLicense(generatedLicense)} variant="outline" size="sm" className="w-full text-xs">
-                    <Copy className="w-3.5 h-3.5 ml-1" />نسخ الترخيص وإرساله للزبون
+                    <Copy className="w-3.5 h-3.5 ml-1" />⑤ نسخ الترخيص وإرساله للزبون
                   </Button>
                 </div>
               )}
@@ -533,74 +560,39 @@ const Admin = () => {
         {activeTab === 'keys' && (
           <div className="space-y-4">
             <SectionCard title="مفاتيح التشفير RSA" icon={<Key className="w-4 h-4" />}>
+              {/* Status */}
               <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${
                 hasKeys ? "bg-green-500/10 border border-green-500/30 text-green-600" : "bg-destructive/10 border border-destructive/30 text-destructive"
               }`}>
-                {hasKeys ? "✅ المفاتيح جاهزة" : "⚠️ لم يتم توليد المفاتيح بعد"}
+                {hasKeys ? "✅ المفاتيح جاهزة — يتم توليدها تلقائياً عند أول دخول" : "⚠️ جاري توليد المفاتيح..."}
               </div>
 
-              {/* Generate / Regenerate with confirmation */}
-              {!confirmGenerateKeys ? (
+              <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                المفاتيح تُستخدم لتوقيع التراخيص رقمياً. يتم توليدها تلقائياً ولا تحتاج أي تدخل منك.
+                كل ترخيص موقّع بمفتاحك الخاص ولا يمكن تزويره.
+              </p>
+
+              {hasKeys && (
                 <div className="flex flex-wrap gap-2 mt-3">
-                  <Button onClick={() => {
-                    if (hasKeys) setConfirmGenerateKeys(true);
-                    else handleGenerateKeys();
-                  }} size="sm" variant={hasKeys ? "outline" : "default"} className="text-xs">
-                    {hasKeys ? "توليد مفاتيح جديدة" : "توليد المفاتيح"}
+                  <Button onClick={handleExportPrivateKey} size="sm" variant="outline" className="text-xs">
+                    تصدير المفتاح الخاص (نسخة احتياطية)
                   </Button>
-                  {hasKeys && (
-                    <>
-                      <Button onClick={handleExportPublicKey} size="sm" variant="outline" className="text-xs">نسخ المفتاح العام</Button>
-                      <Button onClick={handleExportPrivateKey} size="sm" variant="outline" className="text-xs">تصدير المفتاح الخاص</Button>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <div className="mt-3 p-4 rounded-xl bg-destructive/10 border-2 border-destructive/30 space-y-3">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-bold text-destructive">تحذير مهم!</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        توليد مفاتيح جديدة سيجعل <strong className="text-foreground">جميع التراخيص السابقة غير صالحة</strong>.
-                        كل الزبائن سيحتاجون تراخيص جديدة.
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        هل أنت متأكد؟ هذا الإجراء لا يمكن التراجع عنه.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={handleGenerateKeys} size="sm" variant="destructive" className="text-xs flex-1">
-                      نعم، توليد مفاتيح جديدة
-                    </Button>
-                    <Button onClick={() => setConfirmGenerateKeys(false)} size="sm" variant="outline" className="text-xs">
-                      إلغاء
-                    </Button>
-                  </div>
                 </div>
               )}
 
-              {publicKeyJson && (
-                <div className="mt-3">
-                  <label className="text-xs text-muted-foreground">المفتاح العام (انسخه إلى ملف license.ts)</label>
-                  <textarea readOnly value={publicKeyJson}
-                    className="w-full mt-1 p-2 rounded-lg bg-muted border border-border text-[11px] font-mono h-20 resize-none text-foreground" dir="ltr" />
-                </div>
-              )}
-
+              {/* Import - for restoring backup */}
               <div className="mt-3 border-t border-border pt-3">
-                <label className="text-xs text-muted-foreground">استيراد مفتاح خاص</label>
+                <label className="text-xs text-muted-foreground">استعادة مفتاح خاص من نسخة احتياطية</label>
                 <textarea value={importKeyText} onChange={(e) => setImportKeyText(e.target.value)}
-                  placeholder="الصق JWK المفتاح الخاص هنا..."
+                  placeholder="الصق المفتاح الخاص هنا..."
                   className="w-full mt-1 p-2 rounded-lg bg-muted border border-border text-[11px] font-mono h-16 resize-none text-foreground" dir="ltr" />
-                <Button onClick={handleImportPrivateKey} size="sm" variant="outline" className="text-xs mt-2">استيراد</Button>
+                <Button onClick={handleImportPrivateKey} size="sm" variant="outline" className="text-xs mt-2">استعادة</Button>
               </div>
             </SectionCard>
 
             {/* Key generation history */}
             {keyGenLog.length > 0 && (
-              <SectionCard title="سجل توليد المفاتيح" icon={<History className="w-4 h-4" />}>
+              <SectionCard title="سجل المفاتيح" icon={<History className="w-4 h-4" />}>
                 <div className="divide-y divide-border">
                   {keyGenLog.map((log, i) => (
                     <div key={log.id} className="py-2 flex items-center justify-between text-xs">
