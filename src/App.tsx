@@ -11,6 +11,7 @@ import Balance from "./pages/Balance";
 import Admin from "./pages/Admin";
 import Distributor from "./pages/Distributor";
 import Contacts from "./pages/Contacts";
+import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
 import Activation from "./pages/Activation";
 import { getAppStatus, type AppLicenseStatus } from "./lib/license";
