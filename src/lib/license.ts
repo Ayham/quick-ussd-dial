@@ -20,13 +20,13 @@ const PUBLIC_KEY_JWK: JsonWebKey = {
 
 export interface LicensePayload {
   deviceId: string;
-  expiryDate: string; // "YYYY-MM-DD"
+  expiryDate: string; // "YYYY-MM-DD" or "permanent"
   version?: string;
 }
 
 export type AppLicenseStatus =
   | { status: 'trial'; daysLeft: number }
-  | { status: 'licensed'; expiryDate: string; daysLeft: number }
+  | { status: 'licensed'; expiryDate: string; daysLeft: number; permanent?: boolean }
   | { status: 'trial_expired' }
   | { status: 'license_expired' }
   | { status: 'clock_tampered' };
@@ -128,10 +128,12 @@ export async function validateLicense(licenseKey: string): Promise<{ valid: bool
     return { valid: false, error: 'توقيع الترخيص غير صالح' };
   }
 
-  // Verify expiry
-  const today = getToday();
-  if (today > payload.expiryDate) {
-    return { valid: false, error: 'انتهت صلاحية الترخيص' };
+  // Verify expiry (skip for permanent licenses)
+  if (payload.expiryDate !== 'permanent') {
+    const today = getToday();
+    if (today > payload.expiryDate) {
+      return { valid: false, error: 'انتهت صلاحية الترخيص' };
+    }
   }
 
   return { valid: true, payload };
@@ -161,6 +163,9 @@ export async function getAppStatus(): Promise<AppLicenseStatus> {
   if (savedLicense) {
     const result = await validateLicense(savedLicense);
     if (result.valid && result.payload) {
+      if (result.payload.expiryDate === 'permanent') {
+        return { status: 'licensed', expiryDate: 'permanent', daysLeft: Infinity, permanent: true };
+      }
       const daysLeft = daysBetween(today, result.payload.expiryDate);
       if (daysLeft >= 0) {
         return { status: 'licensed', expiryDate: result.payload.expiryDate, daysLeft };
