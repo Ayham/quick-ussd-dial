@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Send, Wallet, BarChart3, Settings, Zap, Menu, ChevronLeft, Users } from "lucide-react";
+import { Send, Wallet, BarChart3, Settings, Zap, Menu, ChevronLeft, Users, BookUser } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Sheet,
