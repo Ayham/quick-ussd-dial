@@ -3,7 +3,7 @@ import {
   Shield, Key, Copy, Lock, LogOut, Settings2, Clock,
   AlertTriangle, BarChart3, History, Trash2, Search, Edit, Check, X,
   Cloud, Wifi, WifiOff, RefreshCw, Database, ShieldCheck, Power, Users,
-  Megaphone, Plus, Minus
+  Megaphone, Plus, Minus, Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
