@@ -111,9 +111,9 @@ const Landing = () => {
       <section className="relative -mt-6 z-20 w-full max-w-3xl mx-auto px-5 sm:px-8">
         <div className="bg-card rounded-2xl border border-border shadow-lg p-4 sm:p-6 grid grid-cols-3 gap-3 sm:gap-6 text-center">
           {[
-            { value: "+500", label: "مستخدم نشط" },
+            { value: "30 يوم", label: "تجربة مجانية" },
             { value: "24/7", label: "دعم فني" },
-            { value: "99%", label: "نسبة الرضا" },
+            { value: "100%", label: "أوفلاين" },
           ].map((s, i) => (
             <div key={i}>
               <p className="text-lg sm:text-2xl md:text-3xl font-black text-primary">{s.value}</p>
