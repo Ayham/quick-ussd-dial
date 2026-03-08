@@ -16,10 +16,16 @@ interface ActivationProps {
 const Activation = ({ status, onActivated }: ActivationProps) => {
   const [licenseKey, setLicenseKey] = useState("");
   const [loading, setLoading] = useState(false);
+  const [supportPhone, setSupportPhone] = useState("0991214570");
   const deviceId = getDeviceId();
   const navigate = useNavigate();
   const tapCountRef = useRef(0);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    const config = getAppConfig();
+    if (config.supportPhone) setSupportPhone(config.supportPhone);
+  }, []);
   const handleTitleTap = () => {
     tapCountRef.current++;
     if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
