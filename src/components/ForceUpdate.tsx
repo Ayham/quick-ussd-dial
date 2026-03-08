@@ -79,7 +79,7 @@ export const UpdateDialog = ({ updateInfo, onRetry, onSkip, checking }: UpdateDi
         <div className="space-y-2">
           {updateInfo.downloadUrl && (
             <Button
-              onClick={() => window.open(updateInfo.downloadUrl, "_blank")}
+              onClick={() => { window.location.href = updateInfo.downloadUrl!; }}
               className="w-full h-12 font-bold rounded-xl text-sm"
               size="lg"
             >

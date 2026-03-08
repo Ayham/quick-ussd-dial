@@ -376,7 +376,7 @@ const Landing = () => {
                         variant="outline"
                         size="sm"
                         className="shrink-0 h-8 text-[11px] rounded-lg mr-3"
-                        onClick={() => window.open(release.downloadUrl, "_blank")}
+                        onClick={() => { window.location.href = release.downloadUrl; }}
                       >
                         <Download className="w-3.5 h-3.5 ml-1" />
                         تنزيل
