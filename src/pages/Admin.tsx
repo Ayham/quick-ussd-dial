@@ -108,6 +108,8 @@ const Admin = () => {
   const [trialDays, setTrialDaysLocal] = useState(() => getTrialDays());
 
   // Cloud Sync
+  const SYNC_ENABLED_KEY = 'cloud_sync_enabled_v1';
+  const [syncEnabled, setSyncEnabledState] = useState(() => localStorage.getItem(SYNC_ENABLED_KEY) !== 'false');
   const [syncEndpoint, setSyncEndpoint] = useState(() => getSyncEndpoint());
   const [syncQueue, setSyncQueue] = useState(() => getQueueSize());
   const [syncing, setSyncing] = useState(false);
