@@ -67,7 +67,7 @@ async function loadKeyFromDB(name: string): Promise<JsonWebKey | undefined> {
 }
 
 // ======= Admin Tabs =======
-type AdminTab = 'dashboard' | 'generate' | 'archive' | 'keys' | 'settings';
+type AdminTab = 'dashboard' | 'generate' | 'archive' | 'keys' | 'settings' | 'marketing';
 
 const Admin = () => {
   const navigate = useNavigate();
