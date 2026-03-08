@@ -80,8 +80,8 @@ export function saveTrialDays(days: number) {
 async function verifySignature(data: string, signatureB64: string): Promise<boolean> {
   try {
     if (PUBLIC_KEY_JWK.n === "PLACEHOLDER_REPLACE_WITH_REAL_KEY") {
-      console.warn("⚠️ Using placeholder public key. Replace with real key for production.");
-      return true;
+      console.warn("⚠️ Using placeholder public key. License verification disabled.");
+      return false;
     }
     const key = await crypto.subtle.importKey(
       'jwk',
