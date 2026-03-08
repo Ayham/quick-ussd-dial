@@ -2,10 +2,11 @@ import { useState, useEffect, useMemo } from "react";
 import {
   Shield, Key, Copy, Lock, LogOut, Settings2, Clock,
   AlertTriangle, BarChart3, History, Trash2, Search, Edit, Check, X,
-  Cloud, Wifi, WifiOff, RefreshCw, Database, ShieldCheck
+  Cloud, Wifi, WifiOff, RefreshCw, Database, ShieldCheck, Power
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import {
@@ -107,6 +108,8 @@ const Admin = () => {
   const [trialDays, setTrialDaysLocal] = useState(() => getTrialDays());
 
   // Cloud Sync
+  const SYNC_ENABLED_KEY = 'cloud_sync_enabled_v1';
+  const [syncEnabled, setSyncEnabledState] = useState(() => localStorage.getItem(SYNC_ENABLED_KEY) !== 'false');
   const [syncEndpoint, setSyncEndpoint] = useState(() => getSyncEndpoint());
   const [syncQueue, setSyncQueue] = useState(() => getQueueSize());
   const [syncing, setSyncing] = useState(false);
@@ -661,6 +664,23 @@ const Admin = () => {
             {/* Cloud Sync */}
             <SectionCard title="المزامنة السحابية (Google Sheets)" icon={<Cloud className="w-4 h-4" />}>
               <div className="space-y-3">
+                {/* Enable/Disable Toggle */}
+                <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Power className={`w-4 h-4 ${syncEnabled ? 'text-green-500' : 'text-muted-foreground'}`} />
+                    <span className="text-sm font-medium text-foreground">
+                      {syncEnabled ? 'المزامنة مفعّلة' : 'المزامنة معطّلة'}
+                    </span>
+                  </div>
+                  <Switch
+                    checked={syncEnabled}
+                    onCheckedChange={(checked) => {
+                      setSyncEnabledState(checked);
+                      localStorage.setItem(SYNC_ENABLED_KEY, String(checked));
+                      toast.success(checked ? 'تم تفعيل المزامنة السحابية' : 'تم إيقاف المزامنة السحابية');
+                    }}
+                  />
+                </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">رابط Google Apps Script</label>
                   <Input

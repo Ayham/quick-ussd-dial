@@ -42,6 +42,8 @@ export function saveSyncEndpoint(url: string) {
 }
 
 export function isSyncEnabled(): boolean {
+  const enabledFlag = localStorage.getItem('cloud_sync_enabled_v1');
+  if (enabledFlag === 'false') return false;
   return getSyncEndpoint().length > 0;
 }
 
