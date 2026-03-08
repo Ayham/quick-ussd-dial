@@ -427,6 +427,7 @@ const Admin = () => {
       <div className="bg-card border-b border-border px-2 py-1.5 flex gap-1 overflow-x-auto">
         {([
           { id: 'dashboard' as AdminTab, label: 'الرئيسية', icon: BarChart3 },
+          { id: 'central' as AdminTab, label: 'التراخيص', icon: Cloud },
           { id: 'generate' as AdminTab, label: 'توليد ترخيص', icon: Shield },
           { id: 'archive' as AdminTab, label: 'الأرشيف', icon: History },
           { id: 'keys' as AdminTab, label: 'المفاتيح', icon: Key },
