@@ -38,7 +38,7 @@ const Updates = () => {
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
                 {updateInfo?.hasUpdate
                   ? <ArrowUpCircle className="w-6 h-6 text-primary" />
-                  : <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+                  : <CheckCircle2 className="w-6 h-6 text-primary" />
                 }
               </div>
               <div>
