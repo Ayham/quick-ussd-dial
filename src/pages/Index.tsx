@@ -33,6 +33,20 @@ const Index = () => {
   const [dialing, setDialing] = useState(false);
   const contactsRef = useRef<HTMLDivElement>(null);
 
+  // Hidden admin access: tap title 7 times
+  const tapCountRef = useRef(0);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const handleTitleTap = () => {
+    tapCountRef.current++;
+    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    if (tapCountRef.current >= 7) {
+      tapCountRef.current = 0;
+      navigate("/sys-panel");
+    } else {
+      tapTimerRef.current = setTimeout(() => { tapCountRef.current = 0; }, 2000);
+    }
+  };
+
   const operator = useMemo(() => detectOperator(phone), [phone]);
   const currentPresets: AmountPreset[] = operator ? presets[operator] : [];
   const matchingContacts = useMemo(() => getMatchingContacts(phone), [phone]);
