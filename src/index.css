@@ -148,3 +148,8 @@
 .transition-smooth {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* Hide Lovable badge */
+#lovable-badge, [data-lovable-badge] {
+  display: none !important;
+}
