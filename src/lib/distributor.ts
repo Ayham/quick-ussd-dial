@@ -38,7 +38,15 @@ const DEFAULT_ACCOUNT: DistributorAccount = {
 export function getDistributorAccount(): DistributorAccount {
   try {
     const stored = localStorage.getItem(DISTRIBUTOR_KEY);
-    if (stored) return JSON.parse(stored);
+    if (stored) {
+      const account = JSON.parse(stored);
+      // Migrate old whatsapp message templates
+      if (account.whatsappMessage && account.whatsappMessage.includes('{amount}')) {
+        account.whatsappMessage = DEFAULT_ACCOUNT.whatsappMessage;
+        saveDistributorAccount(account);
+      }
+      return { ...DEFAULT_ACCOUNT, ...account };
+    }
   } catch {}
   return { ...DEFAULT_ACCOUNT, transactions: [] };
 }
