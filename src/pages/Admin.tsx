@@ -81,6 +81,7 @@ const Admin = () => {
   // License generation
   const [deviceId, setDeviceId] = useState("");
   const [customerNote, setCustomerNote] = useState("");
+  const [isPermanent, setIsPermanent] = useState(false);
   const [expiryDate, setExpiryDate] = useState(() => {
     const d = new Date(); d.setFullYear(d.getFullYear() + 1);
     return d.toISOString().split('T')[0];
