@@ -273,7 +273,7 @@ const Admin = () => {
   // ======= Login =======
   if (!authenticated) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6" dir="rtl">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 safe-area-insets" dir="rtl">
         <div className="w-full max-w-sm space-y-6">
           <div className="text-center">
             <Shield className="w-16 h-16 mx-auto mb-4 text-primary" />
@@ -302,8 +302,8 @@ const Admin = () => {
 
   // ======= Dashboard =======
   return (
-    <div className="min-h-screen bg-background flex flex-col" dir="rtl">
-      <header className="bg-primary px-4 py-3 flex items-center justify-between shadow-md">
+    <div className="min-h-screen bg-background flex flex-col safe-area-insets" dir="rtl">
+      <header className="bg-primary px-4 py-3 flex items-center justify-between shadow-md pt-safe">
         <div className="flex items-center gap-3">
           <Shield className="w-5 h-5 text-primary-foreground" />
           <h1 className="text-primary-foreground text-lg font-bold">لوحة الإدارة</h1>

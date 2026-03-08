@@ -59,8 +59,8 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
   const isLicensed = status.status === 'licensed';
 
   return (
-    <div className="min-h-screen bg-background flex flex-col" dir="rtl">
-      <header className="bg-primary px-4 py-4 flex items-center gap-3 shadow-md">
+    <div className="min-h-screen bg-background flex flex-col safe-area-insets" dir="rtl">
+      <header className="bg-primary px-4 py-4 flex items-center gap-3 shadow-md pt-safe">
         <Shield className="w-6 h-6 text-primary-foreground" />
         <h1 className="text-primary-foreground text-xl font-bold">تفعيل التطبيق</h1>
       </header>
