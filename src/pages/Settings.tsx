@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 
 import {
   Plus, Trash2, Key, Code, ArrowUp, ArrowDown, Smartphone, Signal,
-  Shield, ShieldCheck, Clock, Copy, AlertTriangle, Database, Settings as SettingsIcon
+  Shield, ShieldCheck, Clock, Copy, AlertTriangle, Database, Settings as SettingsIcon,
+  Download, Upload
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
