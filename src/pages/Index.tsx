@@ -208,8 +208,8 @@ const Index = () => {
                     setPhone(picked.phone);
                     setContactName(picked.name || '');
                   }
-                } catch {
-                  toast.error("تعذر فتح سجل الاتصال");
+                } catch (err: any) {
+                  toast.error(err?.message === 'WEB_ONLY' ? "هذه الميزة تعمل فقط على الجهاز" : "تعذر فتح سجل الاتصال");
                 }
               }}
               className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg hover:bg-muted transition-smooth text-muted-foreground hover:text-primary"
