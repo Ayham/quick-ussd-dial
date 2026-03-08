@@ -87,7 +87,7 @@ const DEFAULT_PACKAGES: AppPackage[] = [
 
 const DEFAULT_CONFIG: AppConfig = {
   appVersion: '1.0.0',
-  downloadUrl: 'https://github.com/Ayham/quick-ussd-dial/releases/download/1.0.0/USSD.Dial.0.1.apk',
+  downloadUrl: 'https://github.com/mobi1298-del/ussd/releases/download/1.0.0/1.0.0.apk',
   whatsappContact: '',
   supportPhone: '0991214570',
   changelog: 'الإصدار الأول من التطبيق',
