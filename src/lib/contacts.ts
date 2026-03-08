@@ -73,43 +73,32 @@ export function searchContacts(query: string): SavedContact[] {
 }
 
 /**
- * Import contacts from phone using Capacitor Contacts plugin
+ * Open native contact picker and return selected contact
  */
-export async function importPhoneContacts(): Promise<SavedContact[]> {
+export async function pickPhoneContact(): Promise<SavedContact | null> {
   try {
     const { Contacts } = await import('@capacitor-community/contacts');
-    const result = await Contacts.getContacts({
+    const result = await Contacts.pickContact({
       projection: {
         name: true,
         phones: true,
       },
     });
 
-    const imported: SavedContact[] = [];
-    const existing = getSavedContacts();
-    const existingPhones = new Set(existing.map(c => normalizePhone(c.phone)));
+    if (!result.contact) return null;
 
-    for (const contact of result.contacts) {
-      const name = contact.name?.display || '';
-      const phones = contact.phones || [];
-      for (const p of phones) {
-        const phone = normalizePhone(p.number || '');
-        if (phone && phone.length >= 10 && !existingPhones.has(phone)) {
-          imported.push({ phone, name });
-          existingPhones.add(phone);
-        }
-      }
-    }
+    const name = result.contact.name?.display || '';
+    const phones = result.contact.phones || [];
+    if (phones.length === 0) return null;
 
-    // Add imported to saved
-    if (imported.length > 0) {
-      const all = [...existing, ...imported];
-      saveSavedContacts(all);
-    }
+    const phone = normalizePhone(phones[0].number || '');
+    if (!phone || phone.length < 10) return null;
 
-    return imported;
+    // Auto-save to contacts
+    saveContact(phone, name);
+    return { phone, name };
   } catch (error) {
-    console.error('Failed to import contacts:', error);
+    console.error('Failed to pick contact:', error);
     throw error;
   }
 }
