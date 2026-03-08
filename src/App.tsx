@@ -15,7 +15,7 @@ import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
 import Activation from "./pages/Activation";
 import Updates from "./pages/Updates";
-import ForceUpdate from "./components/ForceUpdate";
+
 import { getAppStatus, type AppLicenseStatus } from "./lib/license";
 import { startBackgroundSync, trackAppOpen, trackDeviceInfo, trackLicenseEvent } from "./lib/cloud-sync";
 import { isWebBrowser } from "./lib/platform";
@@ -86,21 +86,13 @@ const AppContent = () => {
     );
   }
 
-  // Show update as overlay (non-blocking)
-  const updateOverlay = updateInfo?.hasUpdate ? (
-    <ForceUpdate
-      updateInfo={updateInfo}
-      onRetry={doUpdateCheck}
-      checking={checkingUpdate}
-    />
-  ) : null;
+  // Update info is available but no overlay is shown — user checks via Updates page
 
   if (!status) return null;
 
   if (status.status === 'trial_expired' || status.status === 'license_expired' || status.status === 'clock_tampered') {
     return (
       <BrowserRouter>
-        {updateOverlay}
         <Routes>
           <Route path="/sys-panel" element={<Admin />} />
           <Route path="*" element={<Activation status={status} onActivated={checkStatus} />} />
@@ -111,7 +103,6 @@ const AppContent = () => {
 
   return (
     <BrowserRouter>
-      {updateOverlay}
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/distributor" element={<Distributor />} />

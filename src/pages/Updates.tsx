@@ -56,7 +56,7 @@ const Updates = () => {
               </div>
               <div>
                 <h2 className="text-base font-bold text-foreground">
-                  {checking ? "جاري الفحص..." : updateInfo?.hasUpdate ? "تحديث جديد متوفر!" : "التطبيق محدّث"}
+                  {checking ? "جاري الفحص..." : "حالة التطبيق"}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   النسخة الحالية: <span className="font-mono font-bold">{currentVersion}</span>
