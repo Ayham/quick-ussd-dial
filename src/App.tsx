@@ -16,15 +16,28 @@ import NotFound from "./pages/NotFound";
 import Activation from "./pages/Activation";
 import { getAppStatus, type AppLicenseStatus } from "./lib/license";
 import { startBackgroundSync, trackAppOpen, trackDeviceInfo, trackLicenseEvent } from "./lib/cloud-sync";
+import { isWebBrowser } from "./lib/platform";
+import { verifyLicenseOnline, getLicenseApiEndpoint } from "./lib/license-api";
 
 const queryClient = new QueryClient();
 
 const AppContent = () => {
   const [status, setStatus] = useState<AppLicenseStatus | null>(null);
+  const isWeb = isWebBrowser();
 
   const checkStatus = async () => {
     const s = await getAppStatus();
     setStatus(s);
+
+    // Online verification in background (if API is configured)
+    if (getLicenseApiEndpoint() && (s.status === 'licensed' || s.status === 'trial')) {
+      verifyLicenseOnline().then(onlineResult => {
+        if (onlineResult.status === 'revoked') {
+          // License was revoked remotely — force re-check
+          setStatus({ status: 'license_expired' } as AppLicenseStatus);
+        }
+      });
+    }
 
     // Track license status changes
     if (s.status === 'trial') trackLicenseEvent('trial_started', { daysLeft: s.daysLeft });
@@ -34,11 +47,26 @@ const AppContent = () => {
   };
 
   useEffect(() => {
-    checkStatus();
-    startBackgroundSync();
-    trackDeviceInfo();
-    trackAppOpen();
+    // On web: only show Landing and Admin (no app functionality)
+    if (!isWeb) {
+      checkStatus();
+      startBackgroundSync();
+      trackDeviceInfo();
+      trackAppOpen();
+    }
   }, []);
+
+  // Web browser: only Landing page + Admin (for you to manage)
+  if (isWeb) {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="/sys-panel" element={<Admin />} />
+          <Route path="*" element={<Landing />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
 
   if (!status) return null;
 
