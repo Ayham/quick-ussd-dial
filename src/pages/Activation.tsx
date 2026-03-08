@@ -91,6 +91,23 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
               <p className="text-sm text-muted-foreground mt-2">
                 يرجى إدخال مفتاح الترخيص لمتابعة استخدام التطبيق
               </p>
+              <div className="flex items-center justify-center gap-3 mt-3">
+                <span className="text-sm font-mono text-foreground font-bold" dir="ltr">0991214570</span>
+                <a
+                  href="https://wa.me/963991214570"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-green-500/15 text-green-600 hover:bg-green-500/25 transition-colors"
+                >
+                  <MessageCircle className="w-4.5 h-4.5" />
+                </a>
+                <a
+                  href="tel:0991214570"
+                  className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
+                >
+                  <PhoneCall className="w-4.5 h-4.5" />
+                </a>
+              </div>
             </>
           ) : status.status === 'license_expired' ? (
             <>
