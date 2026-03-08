@@ -421,15 +421,26 @@ const Admin = () => {
         {/* ===== GENERATE TAB ===== */}
         {activeTab === 'generate' && (
           <div className="space-y-4">
+            {/* Guide Steps */}
+            <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-2">
+              <h3 className="text-sm font-bold text-foreground">📋 خطوات توليد ترخيص لزبون</h3>
+              <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+                <li>الزبون يفتح التطبيق → ينسخ <strong className="text-foreground">معرف الجهاز</strong> ويرسله لك</li>
+                <li>الصق معرف الجهاز أدناه واختر نوع الترخيص</li>
+                <li>اضغط <strong className="text-foreground">توليد الترخيص</strong> ثم انسخه وأرسله للزبون</li>
+                <li>الزبون يلصق الترخيص في صفحة التفعيل ← <strong className="text-foreground">تم! ✅</strong></li>
+              </ol>
+            </div>
+
             <SectionCard title="توليد ترخيص جديد" icon={<Shield className="w-4 h-4" />}>
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">معرف الجهاز (Device ID)</label>
+                  <label className="text-xs font-medium text-muted-foreground">① معرف الجهاز (Device ID)</label>
                   <Input value={deviceId} onChange={(e) => setDeviceId(e.target.value)}
                     placeholder="الصق معرف الجهاز من الزبون..." className="text-left text-xs h-10 font-mono" dir="ltr" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">نوع الترخيص</label>
+                  <label className="text-xs font-medium text-muted-foreground">② نوع الترخيص</label>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setIsPermanent(false)}
@@ -459,26 +470,23 @@ const Admin = () => {
                   </div>
                 )}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">ملاحظة (اسم الزبون / رقم الهاتف)</label>
+                  <label className="text-xs font-medium text-muted-foreground">③ ملاحظة (اسم الزبون / رقم الهاتف)</label>
                   <Input value={customerNote} onChange={(e) => setCustomerNote(e.target.value)}
                     placeholder="اختياري — للتعريف بالزبون" className="h-10 text-sm" />
                 </div>
-                <Button onClick={handleGenerateLicense} disabled={!hasKeys} className="w-full h-11 font-bold rounded-xl">
-                  توليد الترخيص
+                <Button onClick={handleGenerateLicense} disabled={!hasKeys || !deviceId.trim()} className="w-full h-11 font-bold rounded-xl">
+                  ④ توليد الترخيص
                 </Button>
-                {!hasKeys && (
-                  <p className="text-[11px] text-destructive text-center">يجب توليد مفاتيح RSA أولاً من تبويب "المفاتيح"</p>
-                )}
               </div>
 
               {generatedLicense && (
                 <div className="space-y-2 mt-4 pt-4 border-t border-border">
-                  <label className="text-xs font-medium text-muted-foreground">✅ مفتاح الترخيص</label>
+                  <label className="text-xs font-medium text-foreground flex items-center gap-1">✅ تم توليد الترخيص بنجاح!</label>
                   <div className="bg-muted border border-border rounded-lg p-3 font-mono text-[10px] break-all text-foreground leading-relaxed" dir="ltr">
                     {generatedLicense}
                   </div>
                   <Button onClick={() => handleCopyLicense(generatedLicense)} variant="outline" size="sm" className="w-full text-xs">
-                    <Copy className="w-3.5 h-3.5 ml-1" />نسخ الترخيص وإرساله للزبون
+                    <Copy className="w-3.5 h-3.5 ml-1" />⑤ نسخ الترخيص وإرساله للزبون
                   </Button>
                 </div>
               )}
