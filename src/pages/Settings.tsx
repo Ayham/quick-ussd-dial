@@ -542,7 +542,22 @@ const Settings = () => {
                     حذف الكل
                   </Button>
                 </div>
-              </div>
+                </div>
+                {/* Demo data for testing */}
+                <div className="flex gap-2 mt-2 pt-2 border-t border-border">
+                  <Button
+                    onClick={() => {
+                      const result = seedDemoData(500);
+                      toast.success(`تم توليد ${result.records} عملية تجريبية مع ${result.contacts} جهة اتصال`);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-xs"
+                  >
+                    <Database className="w-3.5 h-3.5 ml-1" />
+                    توليد 500 عملية تجريبية
+                  </Button>
+                </div>
             </SectionCard>
 
             {/* Reset all settings */}
