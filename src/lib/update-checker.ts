@@ -20,11 +20,13 @@ export interface UpdateInfo {
   forceUpdate: boolean;
 }
 
+export const APP_VERSION = '1.0.5';
+
 // Get current app version
 export function getCurrentVersion(): string {
   const stored = localStorage.getItem(CURRENT_VERSION_KEY);
-  if (stored) return stored;
-  return getAppConfig().appVersion || '1.0.0';
+  if (stored && isNewerVersion(stored, APP_VERSION)) return stored;
+  return APP_VERSION;
 }
 
 export function setCurrentVersion(version: string) {
