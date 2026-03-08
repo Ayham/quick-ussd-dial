@@ -159,7 +159,30 @@ const Index = () => {
           <Zap className="w-5 h-5 text-primary-foreground" />
           <h1 className="text-primary-foreground text-lg font-bold select-none">تحويل رصيد</h1>
         </div>
+        <button onClick={() => setMenuOpen(!menuOpen)} className="text-primary-foreground p-1 rounded-md hover:bg-primary-foreground/10 transition-colors">
+          {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
       </header>
+
+      {/* Slide-down Menu */}
+      {menuOpen && (
+        <div className="bg-card border-b border-border shadow-lg animate-in slide-in-from-top-2 duration-200">
+          {[
+            { icon: Wallet, label: "الرصيد", path: "/balance" },
+            { icon: BarChart3, label: "التقارير", path: "/reports" },
+            { icon: Settings, label: "الإعدادات", path: "/settings" },
+          ].map((item) => (
+            <button
+              key={item.path}
+              onClick={() => { setMenuOpen(false); navigate(item.path); }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-foreground hover:bg-muted transition-colors border-b border-border last:border-b-0"
+            >
+              <item.icon className="w-5 h-5 text-muted-foreground" />
+              <span className="text-sm font-medium">{item.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <main className="flex-1 p-2 w-full space-y-2 overflow-y-auto pb-20">
         {/* Phone Input */}
