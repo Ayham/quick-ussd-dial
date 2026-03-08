@@ -306,15 +306,45 @@ const Index = () => {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Phone-specific history */}
-        {phoneHistory.length > 0 && (
-          <div className="space-y-1">
+        {/* Phone-specific stats + history */}
+        {phoneStats && (
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
+              <TrendingUp className="w-3 h-3" />
+              ملخص التحويلات لهذا الرقم
+            </p>
+
+            {/* Stats row */}
+            <div className="grid grid-cols-4 gap-1">
+              <div className="bg-card border border-border rounded-md p-1.5 text-center">
+                <p className="text-[8px] text-muted-foreground">اليوم</p>
+                <p className="text-xs font-bold text-foreground">{phoneStats.todaySum.toLocaleString()}</p>
+                <p className="text-[8px] text-muted-foreground">{phoneStats.todayCount}×</p>
+              </div>
+              <div className="bg-card border border-border rounded-md p-1.5 text-center">
+                <p className="text-[8px] text-muted-foreground">الأسبوع</p>
+                <p className="text-xs font-bold text-foreground">{phoneStats.weekSum.toLocaleString()}</p>
+                <p className="text-[8px] text-muted-foreground">{phoneStats.weekCount}×</p>
+              </div>
+              <div className="bg-card border border-border rounded-md p-1.5 text-center">
+                <p className="text-[8px] text-muted-foreground">الشهر</p>
+                <p className="text-xs font-bold text-foreground">{phoneStats.monthSum.toLocaleString()}</p>
+                <p className="text-[8px] text-muted-foreground">{phoneStats.monthCount}×</p>
+              </div>
+              <div className="bg-card border border-border rounded-md p-1.5 text-center">
+                <p className="text-[8px] text-muted-foreground">الإجمالي</p>
+                <p className="text-xs font-bold text-foreground">{phoneStats.totalSum.toLocaleString()}</p>
+                <p className="text-[8px] text-muted-foreground">{phoneStats.totalCount}×</p>
+              </div>
+            </div>
+
+            {/* Recent records */}
             <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              سجل التحويلات لهذا الرقم
+              آخر العمليات
             </p>
-            <div className="space-y-0.5 max-h-[140px] overflow-y-auto">
-              {phoneHistory.map((record, i) => (
+            <div className="space-y-0.5 max-h-[120px] overflow-y-auto">
+              {phoneHistory.slice(0, 10).map((record, i) => (
                 <div
                   key={i}
                   className="flex items-center justify-between bg-card border border-border rounded-md px-2 py-1.5 text-xs"
