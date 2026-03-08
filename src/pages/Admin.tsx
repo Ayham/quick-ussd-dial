@@ -608,11 +608,6 @@ const Admin = () => {
                 </div>
               </SectionCard>
             )}
-                    </div>
-                  ))}
-                </div>
-              </SectionCard>
-            )}
           </div>
         )}
 
