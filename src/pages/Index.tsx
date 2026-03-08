@@ -350,7 +350,7 @@ const Index = () => {
                     {preset.amount.toLocaleString()}
                   </span>
                   <span className="font-bold text-card-foreground text-sm mt-0.5">
-                    {preset.price.toLocaleString()} ل.س
+                    {preset.price.toLocaleString()}
                   </span>
                 </button>
               ))}
