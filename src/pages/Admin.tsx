@@ -102,6 +102,11 @@ const Admin = () => {
   // Trial
   const [trialDays, setTrialDaysLocal] = useState(() => getTrialDays());
 
+  // Cloud Sync
+  const [syncEndpoint, setSyncEndpoint] = useState(() => getSyncEndpoint());
+  const [syncQueue, setSyncQueue] = useState(() => getQueueSize());
+  const [syncing, setSyncing] = useState(false);
+
   // Stats
   const stats = useMemo(() => getLicenseStats(), [licenseHistory]);
   const keyGenLog = useMemo(() => getKeyGenerationLog(), [hasKeys]);
