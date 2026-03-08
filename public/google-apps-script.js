@@ -117,6 +117,11 @@ function doGet(e) {
       return handleGetLatestRelease(ss);
     }
     
+    // ── List all releases ──
+    if (action === 'listReleases') {
+      return handleListReleases(ss);
+    }
+    
     // ── License: verify ──
     if (action === 'verify') {
       return handleLicenseVerify(e.parameter.deviceId);
