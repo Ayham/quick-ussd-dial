@@ -516,6 +516,8 @@ const TransactionRow = ({ tx, onDelete }: {
   const isTopup = tx.type === 'topup';
   const operatorLabel = tx.operator === 'mtn' ? 'MTN' : tx.operator === 'syriatel' ? 'سيريتل' : '';
   const operatorColor = tx.operator === 'mtn' ? 'text-yellow-500' : 'text-red-500';
+  const actualCost = isTopup && tx.operator ? getActualCost(tx.amount, tx.operator as Operator) : tx.amount;
+  const hasMarkup = isTopup && actualCost !== tx.amount;
   return (
     <div className="flex items-center justify-between bg-card border border-border rounded-xl px-4 py-3 shadow-card">
       <div className="flex items-center gap-3">
@@ -540,9 +542,14 @@ const TransactionRow = ({ tx, onDelete }: {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <span className={`text-sm font-bold ${isTopup ? "text-primary" : "text-accent"}`}>
-          {isTopup ? '+' : '-'}{tx.amount.toLocaleString()}
-        </span>
+        <div className="text-left">
+          <span className={`text-sm font-bold ${isTopup ? "text-primary" : "text-accent"}`}>
+            {isTopup ? '+' : '-'}{(hasMarkup ? actualCost : tx.amount).toLocaleString()}
+          </span>
+          {hasMarkup && (
+            <p className="text-[9px] text-muted-foreground">رصيد: {tx.amount.toLocaleString()}</p>
+          )}
+        </div>
         {onDelete && (
           <button onClick={onDelete} className="p-1 text-muted-foreground hover:text-destructive transition-smooth">
             <Trash2 className="w-3.5 h-3.5" />
