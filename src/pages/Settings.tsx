@@ -124,7 +124,7 @@ const Settings = () => {
     setPrefixes({ mtn: [...DEFAULT_PREFIXES.mtn], syriatel: [...DEFAULT_PREFIXES.syriatel] });
     setSimAssignment({ ...DEFAULT_SIM_ASSIGNMENT });
     setBalanceTemplates({ ...DEFAULT_BALANCE_TEMPLATES });
-    setTrialDaysState(30);
+    toast.info("تم إعادة تعيين جميع الإعدادات");
     toast.info("تم إعادة تعيين جميع الإعدادات");
   };
 
