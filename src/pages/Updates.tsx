@@ -159,12 +159,13 @@ const Updates = () => {
                       <p className="text-[11px] text-muted-foreground mt-1 whitespace-pre-wrap line-clamp-3">{release.changelog}</p>
                     )}
                     {release.downloadUrl && (
-                      <a
-                        href={release.downloadUrl}
-                        className="inline-flex items-center gap-1 text-[11px] text-primary font-medium mt-2 hover:underline"
+                      <button
+                        onClick={() => handleDownload(release.downloadUrl)}
+                        className="inline-flex items-center gap-1 text-[11px] text-primary font-medium mt-2 hover:underline disabled:opacity-50"
+                        disabled={isDownloading}
                       >
-                        <ExternalLink className="w-3 h-3" /> تحميل
-                      </a>
+                        <Download className="w-3 h-3" /> تحميل وتثبيت
+                      </button>
                     )}
                   </div>
                 ))}
