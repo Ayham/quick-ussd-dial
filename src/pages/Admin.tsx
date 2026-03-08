@@ -802,24 +802,25 @@ const Admin = () => {
                     variant="destructive"
                     size="sm"
                     className="w-full text-xs"
-                    disabled={getHistory().length === 0}
+                    disabled={getHistory().length === 0 && !localStorage.getItem('saved_balances_v1')}
                   >
                     <Trash2 className="w-3.5 h-3.5 ml-1" />
-                    حذف سجل التحويلات
+                    حذف البيانات المؤقتة
                   </Button>
                 ) : (
                   <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 space-y-2">
                     <p className="text-xs text-destructive font-bold flex items-center gap-1">
                       <AlertTriangle className="w-3.5 h-3.5" />
-                      هل أنت متأكد؟ سيتم حذف سجل التحويلات نهائياً
+                      هل أنت متأكد؟ سيتم حذف سجل التحويلات وبيانات الرصيد نهائياً
                     </p>
                     <div className="flex gap-2">
                       <Button
                         onClick={() => {
                           localStorage.removeItem('transfer-history');
                           localStorage.removeItem('saved-contacts');
+                          localStorage.removeItem('saved_balances_v1');
                           setConfirmReset(false);
-                          toast.success("تم حذف سجل التحويلات بنجاح");
+                          toast.success("تم حذف البيانات المؤقتة بنجاح");
                         }}
                         variant="destructive"
                         size="sm"
