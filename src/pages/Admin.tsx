@@ -315,6 +315,9 @@ const Admin = () => {
             <Button onClick={handleLogin} className="w-full h-11 font-bold rounded-xl">
               <Lock className="w-4 h-4 ml-2" />دخول
             </Button>
+            <Button variant="ghost" onClick={() => navigate("/")} className="w-full h-10 text-muted-foreground">
+              العودة للرئيسية
+            </Button>
           </div>
         </div>
       </div>
