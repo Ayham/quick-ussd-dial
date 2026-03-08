@@ -292,6 +292,42 @@ function updateSummary(sheet, evt, dateStr) {
 }
 
 // ============================================================
+// مثال على ورقة Releases — شغّل هذه الدالة مرة واحدة لإضافة بيانات تجريبية
+// ============================================================
+// 1. افتح Apps Script
+// 2. اختر الدالة seedReleasesExample من القائمة المنسدلة
+// 3. اضغط ▶ Run
+// ============================================================
+
+function seedReleasesExample() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Releases');
+  
+  if (!sheet) {
+    sheet = ss.insertSheet('Releases');
+    sheet.appendRow(['Version', 'Download URL', 'Changelog', 'Release Date', 'Force Update']);
+    sheet.getRange(1, 1, 1, 5).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  
+  // أمثلة على إصدارات
+  var examples = [
+    ['1.0.0', 'https://example.com/app-v1.0.0.apk', 'الإصدار الأول', '2025-01-01', false],
+    ['1.1.0', 'https://example.com/app-v1.1.0.apk', 'إصلاح أخطاء وتحسين الأداء', '2025-02-15', false],
+    ['2.0.0', 'https://example.com/app-v2.0.0.apk', 'واجهة جديدة بالكامل + ميزات متقدمة', '2025-03-08', true],
+  ];
+  
+  for (var i = 0; i < examples.length; i++) {
+    sheet.appendRow(examples[i]);
+  }
+  
+  // تنسيق الورقة
+  sheet.autoResizeColumns(1, 5);
+  
+  Logger.log('تم إضافة ' + examples.length + ' إصدارات تجريبية في ورقة Releases');
+}
+
+// ============================================================
 // التنظيف التلقائي — حذف البيانات الأقدم من 3 أشهر
 // ============================================================
 // لتفعيل التنظيف التلقائي:
