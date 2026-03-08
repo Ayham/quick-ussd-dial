@@ -274,7 +274,7 @@ const Index = () => {
                 </span>
               ) : !showSaveName ? (
                 <button
-                  onClick={() => setShowSaveName(true)}
+                  onClick={() => { setShowSaveName(true); setNameInput(''); }}
                   className="text-[11px] text-primary flex items-center gap-1 hover:underline"
                 >
                   <UserPlus className="w-3 h-3" />
