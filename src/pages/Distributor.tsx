@@ -29,6 +29,8 @@ const Distributor = () => {
   const [mtnAmount, setMtnAmount] = useState('');
   const [txNote, setTxNote] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showClearAll, setShowClearAll] = useState(false);
+  const [clearConfirmText, setClearConfirmText] = useState('');
 
   // Settings edit
   const [editName, setEditName] = useState(account.name);
