@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
-import { ArrowLeft, BarChart3, Calendar, Smartphone, TrendingUp, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { BarChart3, Calendar, Smartphone, TrendingUp, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import AppLayout from "@/components/AppLayout";
 import { getHistory, type TransferRecord } from "@/lib/transfer-history";
 
 type TabType = "all" | "daily" | "weekly" | "monthly" | "cards";
