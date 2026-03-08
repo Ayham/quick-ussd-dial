@@ -60,14 +60,17 @@ const AppContent = () => {
   };
 
   useEffect(() => {
-    if (!isWeb) {
-      // Check for updates first, then check license
-      doUpdateCheck();
-      checkStatus();
-      startBackgroundSync();
-      trackDeviceInfo();
-      trackAppOpen();
-    }
+    const init = async () => {
+      await initDeviceId(); // Must run first — generates stable device ID
+      if (!isWeb) {
+        doUpdateCheck();
+        checkStatus();
+        startBackgroundSync();
+        trackDeviceInfo();
+        trackAppOpen();
+      }
+    };
+    init();
   }, []);
 
   // Web browser: only Landing page + Admin
