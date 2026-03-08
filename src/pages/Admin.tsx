@@ -937,6 +937,39 @@ const Admin = () => {
                 </div>
               </div>
             </SectionCard>
+
+            {/* Distributor Demo Data */}
+            <SectionCard title="بيانات الموزع التجريبية" icon={<Users className="w-4 h-4 text-primary" />}>
+              <div className="space-y-2">
+                <p className="text-[10px] text-muted-foreground">توليد أو مسح عمليات الموزع (طلبات رصيد ودفعات) للاختبار.</p>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => {
+                      const result = seedDistributorData(50);
+                      toast.success(`تم توليد ${result.count} عملية موزع تجريبية`);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-xs"
+                  >
+                    <Database className="w-3.5 h-3.5 ml-1" />
+                    توليد 50 عملية
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      clearDistributorData();
+                      toast.success("تم مسح سجلات الموزع");
+                    }}
+                    variant="destructive"
+                    size="sm"
+                    className="flex-1 text-xs"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 ml-1" />
+                    مسح سجلات الموزع
+                  </Button>
+                </div>
+              </div>
+            </SectionCard>
           </div>
         )}
 
