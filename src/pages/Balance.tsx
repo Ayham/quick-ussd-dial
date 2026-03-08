@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
-import { ArrowLeft, Wallet, RefreshCw, Edit, Check, TrendingDown, Clock } from "lucide-react";
+import { Wallet, RefreshCw, Edit, Check, TrendingDown, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import AppLayout from "@/components/AppLayout";
 import {
   buildBalanceCode,
   getCredentials,
