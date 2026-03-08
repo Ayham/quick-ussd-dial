@@ -75,7 +75,7 @@ const Distributor = () => {
   };
 
   const handleSaveSettings = () => {
-    const updated = { ...account, name: editName.trim(), phone: editPhone.trim(), lowBalanceAlert: Number(editAlert) || 0 };
+    const updated = { ...account, name: editName.trim(), phone: editPhone.trim(), lowBalanceAlert: Number(editAlert) || 0, whatsappMessage: editMessage.trim() };
     saveDistributorAccount(updated);
     setAccount(updated);
     toast.success("تم حفظ إعدادات الموزع");
