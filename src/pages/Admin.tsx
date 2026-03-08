@@ -122,6 +122,8 @@ const Admin = () => {
   const [mktPackages, setMktPackages] = useState<AppPackage[]>(() => getPackages());
   const [mktConfig, setMktConfig] = useState<AppConfig>(() => getAppConfig());
   const [editPkgId, setEditPkgId] = useState<string | null>(null);
+  const [mktReleases, setMktReleases] = useState<AppRelease[]>(() => getReleases());
+  const [newRelease, setNewRelease] = useState({ version: '', downloadUrl: '', changelog: '' });
 
   // Stats
   const stats = useMemo(() => getLicenseStats(), [licenseHistory]);
