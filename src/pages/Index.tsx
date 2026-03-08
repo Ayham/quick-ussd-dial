@@ -218,10 +218,10 @@ const Index = () => {
                       : "border-border bg-card hover:border-muted-foreground/30"
                   }`}
                 >
-                  <span className="font-bold text-card-foreground text-xs">
+                  <span className="text-[10px] text-muted-foreground">
                     {preset.amount.toLocaleString()}
                   </span>
-                  <span className="text-[9px] text-muted-foreground">
+                  <span className="font-bold text-card-foreground text-sm">
                     {preset.price.toLocaleString()} ل.س
                   </span>
                 </button>
