@@ -354,6 +354,7 @@ const Admin = () => {
           { id: 'generate' as AdminTab, label: 'توليد ترخيص', icon: Shield },
           { id: 'archive' as AdminTab, label: 'الأرشيف', icon: History },
           { id: 'keys' as AdminTab, label: 'المفاتيح', icon: Key },
+          { id: 'marketing' as AdminTab, label: 'التسويق', icon: Megaphone },
           { id: 'settings' as AdminTab, label: 'إعدادات', icon: Settings2 },
         ]).map(tab => (
           <button
