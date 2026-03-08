@@ -6,6 +6,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getPackages, getAppConfig, getReleases, getLatestRelease, type AppPackage, type AppConfig, type AppRelease } from "@/lib/marketing";
+import syriatelLogo from "@/assets/syriatel-logo.png";
+import mtnLogo from "@/assets/mtn-logo.png";
 
 const Landing = () => {
   const [packages, setPackages] = useState<AppPackage[]>([]);
