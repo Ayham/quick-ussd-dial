@@ -93,7 +93,6 @@ const AppContent = () => {
   if (status.status === 'trial_expired' || status.status === 'license_expired' || status.status === 'clock_tampered') {
     return (
       <BrowserRouter>
-        {updateOverlay}
         <Routes>
           <Route path="/sys-panel" element={<Admin />} />
           <Route path="*" element={<Activation status={status} onActivated={checkStatus} />} />
