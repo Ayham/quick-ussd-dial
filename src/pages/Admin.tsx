@@ -510,7 +510,149 @@ const Admin = () => {
           </div>
         )}
 
-        {/* ===== GENERATE TAB ===== */}
+        {/* ===== CENTRAL LICENSES TAB ===== */}
+        {activeTab === 'central' && (
+          <div className="space-y-4">
+            {/* API Endpoint */}
+            <SectionCard title="رابط API التراخيص" icon={<Cloud className="w-4 h-4" />}>
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">رابط Google Apps Script</label>
+                  <Input
+                    value={licenseApiUrl}
+                    onChange={(e) => setLicenseApiUrl(e.target.value)}
+                    placeholder="https://script.google.com/macros/s/.../exec"
+                    className="text-left h-9 text-xs font-mono" dir="ltr"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={() => {
+                    saveLicenseApiEndpoint(licenseApiUrl);
+                    toast.success("تم حفظ رابط API");
+                  }} size="sm" className="text-xs flex-1">حفظ الرابط</Button>
+                  <Button onClick={fetchCentralLicenses} size="sm" variant="outline" className="text-xs" disabled={centralLoading || !licenseApiUrl}>
+                    <RefreshCw className={`w-3.5 h-3.5 ml-1 ${centralLoading ? 'animate-spin' : ''}`} />
+                    جلب التراخيص
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  راجع ملف <span className="font-mono">license-api-script.js</span> لإعداد Google Apps Script
+                </p>
+              </div>
+            </SectionCard>
+
+            {/* License List */}
+            <SectionCard title={`التراخيص المركزية (${centralLicenses.length})`} icon={<Users className="w-4 h-4" />}>
+              <div className="space-y-2">
+                {centralLicenses.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-6">
+                    {licenseApiUrl ? "اضغط 'جلب التراخيص' لعرض البيانات" : "عيّن رابط API أولاً"}
+                  </p>
+                ) : (
+                  centralLicenses.map((lic) => (
+                    <div key={lic.deviceId} className={`border rounded-xl p-3 space-y-2 ${
+                      lic.status === 'active' ? 'border-green-500/30 bg-green-500/5'
+                        : lic.status === 'revoked' ? 'border-destructive/30 bg-destructive/5'
+                        : 'border-border'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2.5 h-2.5 rounded-full ${
+                            lic.status === 'active' ? 'bg-green-500' : lic.status === 'revoked' ? 'bg-destructive' : 'bg-muted-foreground'
+                          }`} />
+                          <span className="text-sm font-bold text-foreground">{lic.customerName || 'بدون اسم'}</span>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          lic.status === 'active' ? 'bg-green-500/15 text-green-600'
+                            : lic.status === 'revoked' ? 'bg-destructive/15 text-destructive'
+                            : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {lic.status === 'active' ? 'فعّال' : lic.status === 'revoked' ? 'ملغي' : 'منتهي'}
+                        </span>
+                      </div>
+
+                      <div className="text-[10px] text-muted-foreground space-y-0.5">
+                        <div className="flex items-center justify-between">
+                          <span>معرف الجهاز</span>
+                          <span className="font-mono text-foreground">{lic.deviceId.substring(0, 20)}...</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>الانتهاء</span>
+                          <span className="text-foreground">{lic.expiryDate === 'permanent' ? 'دائم ✨' : lic.expiryDate}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>آخر فحص</span>
+                          <span className="text-foreground">{lic.lastCheck || '—'}</span>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-1.5 pt-1">
+                        {lic.status === 'active' ? (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="text-[10px] h-7 flex-1"
+                            onClick={async () => {
+                              const res = await revokeLicenseOnline(lic.deviceId);
+                              if (res.success) { toast.success("تم إلغاء الترخيص"); fetchCentralLicenses(); }
+                              else toast.error(res.message);
+                            }}
+                          >
+                            <X className="w-3 h-3 ml-1" />إلغاء
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-[10px] h-7 flex-1"
+                            onClick={async () => {
+                              const res = await reactivateLicenseOnline(lic.deviceId);
+                              if (res.success) { toast.success("تم إعادة التفعيل"); fetchCentralLicenses(); }
+                              else toast.error(res.message);
+                            }}
+                          >
+                            <Check className="w-3 h-3 ml-1" />تفعيل
+                          </Button>
+                        )}
+
+                        {extendDeviceId === lic.deviceId ? (
+                          <div className="flex gap-1 flex-1">
+                            <Input
+                              type="date"
+                              value={extendDate}
+                              onChange={(e) => setExtendDate(e.target.value)}
+                              className="h-7 text-[10px] flex-1"
+                              dir="ltr"
+                            />
+                            <Button size="sm" className="h-7 text-[10px] px-2" onClick={async () => {
+                              if (!extendDate) return;
+                              const res = await extendLicenseOnline(lic.deviceId, extendDate);
+                              if (res.success) { toast.success("تم التمديد"); setExtendDeviceId(null); fetchCentralLicenses(); }
+                              else toast.error(res.message);
+                            }}>
+                              <Check className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-[10px] h-7 flex-1"
+                            onClick={() => { setExtendDeviceId(lic.deviceId); setExtendDate(lic.expiryDate === 'permanent' ? '' : lic.expiryDate); }}
+                          >
+                            <Clock className="w-3 h-3 ml-1" />تمديد
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </SectionCard>
+          </div>
+        )}
+
         {activeTab === 'generate' && (
           <div className="space-y-4">
             {/* Guide Steps */}
