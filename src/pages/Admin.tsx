@@ -26,6 +26,8 @@ import {
   getSyncEndpoint, saveSyncEndpoint, isSyncEnabled,
   getQueueSize, getLastSyncTime, syncNow,
 } from "@/lib/cloud-sync";
+import { getHistory } from "@/lib/transfer-history";
+import { getCredentials, getPrefixes, getSimAssignment, getUssdTemplates, getBalanceTemplates, getPresets } from "@/lib/ussd-profiles";
 
 // ======= IndexedDB for RSA Keys =======
 const DB_NAME = 'LicenseAdminDB';
