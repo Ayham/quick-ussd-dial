@@ -567,7 +567,7 @@ const Settings = () => {
 const SectionCard = ({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) => (
   <div className="space-y-3">
     <h2 className="text-foreground font-bold flex items-center gap-2 text-sm">{icon}{title}</h2>
-    <div className="bg-card border border-border rounded-xl p-4">{children}</div>
+    <div className="bg-card border border-border rounded-2xl p-4 shadow-card">{children}</div>
   </div>
 );
 
@@ -578,7 +578,7 @@ const FieldInput = ({ label, value, onChange, placeholder }: {
     <label className="text-sm font-medium text-muted-foreground">{label}</label>
     <Input type="number" placeholder={placeholder} value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="text-left h-10" dir="ltr" inputMode="numeric" />
+      className="text-left h-11 rounded-xl border-2" dir="ltr" inputMode="numeric" />
   </div>
 );
 

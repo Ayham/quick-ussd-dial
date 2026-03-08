@@ -74,9 +74,11 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col safe-area-insets" dir="rtl">
-      <header className="bg-primary px-4 py-4 flex items-center gap-3 shadow-md pt-safe">
-        <Shield className="w-6 h-6 text-primary-foreground" />
-        <h1 className="text-primary-foreground text-xl font-bold cursor-default select-none" onClick={handleTitleTap}>تفعيل التطبيق</h1>
+      <header className="header-gradient px-4 py-4 flex items-center gap-3 shadow-elevated pt-safe">
+        <div className="w-9 h-9 rounded-xl bg-primary-foreground/15 flex items-center justify-center">
+          <Shield className="w-5 h-5 text-primary-foreground" />
+        </div>
+        <h1 className="text-primary-foreground text-xl font-bold cursor-default select-none tracking-tight" onClick={handleTitleTap}>تفعيل التطبيق</h1>
       </header>
 
       <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col justify-center gap-5">
