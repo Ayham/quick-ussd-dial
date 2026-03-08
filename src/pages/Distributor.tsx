@@ -47,7 +47,8 @@ const Distributor = () => {
     if (!account.phone) return;
     const phone = account.phone.replace(/^0/, '963');
     const totalAmount = syrAmount + mtnAmt;
-    let message = (account.whatsappMessage || 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س\nسيريتل: {syriatel} | MTN: {mtn}')
+    let message = (account.whatsappMessage || 'مرحبا {name} اذا ممكن تحويل رصيد\nسيريتل: {syriatel}\nMTN: {mtn}')
+      .replace('{name}', account.name || '')
       .replace('{amount}', totalAmount.toLocaleString())
       .replace('{syriatel}', syrAmount > 0 ? syrAmount.toLocaleString() : '0')
       .replace('{mtn}', mtnAmt > 0 ? mtnAmt.toLocaleString() : '0')
