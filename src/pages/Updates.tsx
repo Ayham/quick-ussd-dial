@@ -12,7 +12,18 @@ const Updates = () => {
   const [checking, setChecking] = useState(true);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [releases, setReleases] = useState<AppRelease[]>([]);
+  const [dlProgress, setDlProgress] = useState<DownloadProgress>({ progress: 0, status: 'idle' });
   const currentVersion = getCurrentVersion();
+
+  const isDownloading = dlProgress.status === 'downloading' || dlProgress.status === 'opening';
+
+  const handleDownload = async (url: string) => {
+    try {
+      await downloadAndInstallApk(url, setDlProgress);
+    } catch (e: any) {
+      toast({ title: "خطأ في التنزيل", description: e.message, variant: "destructive" });
+    }
+  };
 
   const doCheck = async () => {
     setChecking(true);
