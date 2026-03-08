@@ -46,6 +46,9 @@ const Index = () => {
   const [history, setHistory] = useState<TransferRecord[]>(() => getHistory());
   const [dialing, setDialing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [contactName, setContactName] = useState('');
+  const [showSaveName, setShowSaveName] = useState(false);
+  const [importing, setImporting] = useState(false);
   
   const contactsRef = useRef<HTMLDivElement>(null);
 
