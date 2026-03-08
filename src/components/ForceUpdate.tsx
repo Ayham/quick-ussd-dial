@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
-import { Download, RefreshCw, Sparkles, X } from "lucide-react";
+import { Download, RefreshCw, Sparkles, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { UpdateInfo } from "@/lib/update-checker";
+import { downloadAndInstallApk, type DownloadProgress } from "@/lib/apk-downloader";
+import { toast } from "@/hooks/use-toast";
 
 interface UpdateBannerProps {
   updateInfo: UpdateInfo;
