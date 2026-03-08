@@ -110,6 +110,7 @@ const Admin = () => {
   const [syncQueue, setSyncQueue] = useState(() => getQueueSize());
   const [syncing, setSyncing] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmLicenseClear, setConfirmLicenseClear] = useState(false);
 
   // Stats
   const stats = useMemo(() => getLicenseStats(), [licenseHistory]);
@@ -838,6 +839,53 @@ const Admin = () => {
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
                   يتم حذف سجل التحويلات فقط. جميع البيانات الأساسية (الترخيص، المفاتيح، الإعدادات، البادئات، الأكواد) محمية ولا تتأثر.
                 </p>
+
+                {/* License Clear */}
+                <div className="border-t border-border pt-3 mt-3">
+                  <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5 mb-2">
+                    <Key className="w-3.5 h-3.5 text-destructive" />
+                    حذف الترخيص
+                  </h3>
+                  {!confirmLicenseClear ? (
+                    <Button
+                      onClick={() => setConfirmLicenseClear(true)}
+                      variant="destructive"
+                      size="sm"
+                      className="w-full text-xs"
+                      disabled={!localStorage.getItem('app_license_v1')}
+                    >
+                      <Trash2 className="w-3.5 h-3.5 ml-1" />
+                      حذف الترخيص الحالي
+                    </Button>
+                  ) : (
+                    <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 space-y-2">
+                      <p className="text-xs text-destructive font-bold flex items-center gap-1">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        سيتم حذف الترخيص وإعادة التطبيق للفترة التجريبية
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => {
+                            localStorage.removeItem('app_license_v1');
+                            setConfirmLicenseClear(false);
+                            toast.success("تم حذف الترخيص بنجاح - التطبيق الآن بالفترة التجريبية");
+                          }}
+                          variant="destructive"
+                          size="sm"
+                          className="text-xs flex-1"
+                        >
+                          تأكيد الحذف
+                        </Button>
+                        <Button onClick={() => setConfirmLicenseClear(false)} variant="outline" size="sm" className="text-xs">
+                          إلغاء
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    يحذف الترخيص المحفوظ فقط. لن يتأثر معرف الجهاز أو المفاتيح.
+                  </p>
+                </div>
               </div>
             </SectionCard>
           </div>
