@@ -9,6 +9,7 @@ import Settings from "./pages/Settings";
 import Reports from "./pages/Reports";
 import Balance from "./pages/Balance";
 import Admin from "./pages/Admin";
+import Distributor from "./pages/Distributor";
 import NotFound from "./pages/NotFound";
 import Activation from "./pages/Activation";
 import { getAppStatus, type AppLicenseStatus } from "./lib/license";
