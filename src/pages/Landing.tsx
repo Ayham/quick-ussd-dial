@@ -52,9 +52,13 @@ const Landing = () => {
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
 
         <div className="relative w-full max-w-3xl mx-auto px-5 sm:px-8 text-center z-10 py-16 md:py-20">
-          {/* App icon */}
-          <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-5 sm:mb-6 rounded-[18px] sm:rounded-[22px] bg-primary-foreground/15 backdrop-blur-md border border-primary-foreground/20 flex items-center justify-center shadow-2xl">
-            <Smartphone className="w-8 h-8 sm:w-10 sm:h-10 text-primary-foreground" />
+          {/* Operator logos + App icon */}
+          <div className="flex items-center justify-center gap-3 sm:gap-4 mb-5 sm:mb-6">
+            <img src={mtnLogo} alt="MTN" className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-contain bg-primary-foreground/15 backdrop-blur-md border border-primary-foreground/20 p-1.5" />
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-[18px] sm:rounded-[22px] bg-primary-foreground/15 backdrop-blur-md border border-primary-foreground/20 flex items-center justify-center shadow-2xl">
+              <Smartphone className="w-8 h-8 sm:w-10 sm:h-10 text-primary-foreground" />
+            </div>
+            <img src={syriatelLogo} alt="Syriatel" className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-contain bg-primary-foreground/15 backdrop-blur-md border border-primary-foreground/20 p-1.5" />
           </div>
 
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl leading-tight font-black text-primary-foreground mb-3 sm:mb-4 tracking-tight">
