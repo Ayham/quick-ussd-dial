@@ -32,6 +32,7 @@ export interface AppConfig {
   appVersion: string;
   downloadUrl: string;
   whatsappContact: string;
+  supportPhone: string;
   changelog: string;
   heroTitle: string;
   heroSubtitle: string;
