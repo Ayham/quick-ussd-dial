@@ -17,10 +17,26 @@ export async function dialUssdDirect(ussdCode: string, simSlot: SimSlot = 0): Pr
         action: ActivityAction.CALL,
         data: `tel:${encodedUssd}`,
         extra: {
+          // Stock Android / AOSP
           "com.android.phone.extra.slot": simSlot,
           "simSlot": simSlot,
           "com.android.phone.extra.simSlot": simSlot,
+          // Samsung
+          "com.android.phone.extra.SLOT": simSlot,
+          "extra_asus_dial_use_dualsim": simSlot,
+          "com.android.phone.extra.phone": simSlot,
+          // Xiaomi / MIUI
+          "com.xiaomi.phone.extra.slot": simSlot,
+          "miui.intent.extra.SIM_SLOT": simSlot,
+          // Huawei
+          "huawei.intent.extra.SUBSCRIPTION_INDEX": simSlot,
+          // OnePlus / Oppo / Realme (ColorOS)
+          "slot": simSlot,
+          "phone_type_key": simSlot,
+          // Generic Android Telecom
           "android.telecom.extra.PHONE_ACCOUNT_HANDLE": simSlot,
+          "subscription": simSlot,
+          "Subscription": simSlot,
         },
       });
       return true;
