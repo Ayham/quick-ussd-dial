@@ -391,6 +391,27 @@ const Distributor = () => {
               </div>
             </div>
 
+            {/* Markup Settings */}
+            <div className="bg-card border border-border rounded-2xl p-4 shadow-card space-y-3">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                عمولة الموزع (%)
+              </h3>
+              <p className="text-[10px] text-muted-foreground">نسبة العمولة التي يأخذها الموزع على كل طلب رصيد. مثال: 8 تعني 100,000 تكلفتها 108,000</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-red-500 text-center block">سيريتل %</label>
+                  <Input type="number" value={editSyriatelMarkup} onChange={(e) => setEditSyriatelMarkup(e.target.value)}
+                    placeholder="0" className="h-11 rounded-xl text-center" dir="ltr" inputMode="decimal" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-yellow-500 text-center block">MTN %</label>
+                  <Input type="number" value={editMtnMarkup} onChange={(e) => setEditMtnMarkup(e.target.value)}
+                    placeholder="0" className="h-11 rounded-xl text-center" dir="ltr" inputMode="decimal" />
+                </div>
+              </div>
+            </div>
+
             <div className="bg-card border border-border rounded-2xl p-4 shadow-card space-y-3">
               <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-accent" />
