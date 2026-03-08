@@ -61,17 +61,49 @@ interface UpdateDialogProps {
 
 /** Full-screen update prompt (shown periodically) */
 export const UpdateDialog = ({ updateInfo, onRetry, onSkip, checking }: UpdateDialogProps) => {
+  const [dlProgress, setDlProgress] = useState<DownloadProgress>({ progress: 0, status: 'idle' });
+
+  const handleDownload = async () => {
+    if (!updateInfo.downloadUrl) return;
+    try {
+      await downloadAndInstallApk(updateInfo.downloadUrl, setDlProgress);
+    } catch (e: any) {
+      toast({ title: "خطأ في التنزيل", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const isDownloading = dlProgress.status === 'downloading' || dlProgress.status === 'opening';
+
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col items-center justify-center p-6" dir="rtl">
       <div className="w-full max-w-sm space-y-6 text-center">
         <div className="w-20 h-20 mx-auto rounded-[22px] bg-primary/10 flex items-center justify-center">
-          <Download className="w-10 h-10 text-primary" />
+          {isDownloading
+            ? <Loader2 className="w-10 h-10 text-primary animate-spin" />
+            : <Download className="w-10 h-10 text-primary" />
+          }
         </div>
 
         <div>
-          <h1 className="text-xl font-bold text-foreground mb-2">يتوفر تحديث جديد!</h1>
-          <p className="text-sm text-muted-foreground">ننصح بالتحديث للحصول على أحدث الميزات والإصلاحات</p>
+          <h1 className="text-xl font-bold text-foreground mb-2">
+            {isDownloading ? "جاري تنزيل التحديث..." : "يتوفر تحديث جديد!"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {isDownloading
+              ? `${dlProgress.progress}% — يرجى الانتظار`
+              : "ننصح بالتحديث للحصول على أحدث الميزات والإصلاحات"
+            }
+          </p>
         </div>
+
+        {isDownloading && (
+          <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+            <div
+              className="bg-primary h-full rounded-full transition-all duration-300"
+              style={{ width: `${dlProgress.progress}%` }}
+            />
+          </div>
+        )}
 
         <div className="bg-card border border-border rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between text-sm">
@@ -95,18 +127,22 @@ export const UpdateDialog = ({ updateInfo, onRetry, onSkip, checking }: UpdateDi
         <div className="space-y-2">
           {updateInfo.downloadUrl && (
             <Button
-              onClick={() => { window.location.href = updateInfo.downloadUrl!; }}
+              onClick={handleDownload}
               className="w-full h-12 font-bold rounded-xl text-sm"
               size="lg"
+              disabled={isDownloading}
             >
-              <Sparkles className="w-5 h-5 ml-2" />تحميل التحديث
+              {isDownloading
+                ? <><Loader2 className="w-5 h-5 ml-2 animate-spin" />جاري التنزيل...</>
+                : <><Sparkles className="w-5 h-5 ml-2" />تحميل وتثبيت التحديث</>
+              }
             </Button>
           )}
-          <Button onClick={onRetry} variant="outline" className="w-full h-10 text-xs" disabled={checking}>
+          <Button onClick={onRetry} variant="outline" className="w-full h-10 text-xs" disabled={checking || isDownloading}>
             <RefreshCw className={`w-4 h-4 ml-1.5 ${checking ? 'animate-spin' : ''}`} />
             {checking ? 'جاري الفحص...' : 'أعد الفحص بعد التحديث'}
           </Button>
-          <Button onClick={onSkip} variant="ghost" className="w-full h-10 text-muted-foreground text-xs">
+          <Button onClick={onSkip} variant="ghost" className="w-full h-10 text-muted-foreground text-xs" disabled={isDownloading}>
             لاحقاً — تابع بدون تحديث
           </Button>
         </div>
