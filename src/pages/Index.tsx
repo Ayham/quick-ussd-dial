@@ -104,7 +104,7 @@ const Index = () => {
     setShowConfirm(true);
   }, [phone, operator, selectedAmount]);
 
-  const handleConfirmTransfer = useCallback(async () => {
+  const handleConfirmTransfer = useCallback(async () => { // confirm transfer
     if (!operator || !selectedAmount) return;
     setShowConfirm(false);
     const ussd = buildUssdCode(operator, phone.trim(), String(selectedAmount.amount), credentials);
