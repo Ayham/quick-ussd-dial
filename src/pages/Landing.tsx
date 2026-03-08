@@ -10,10 +10,14 @@ import { getPackages, getAppConfig, getReleases, getLatestRelease, type AppPacka
 const Landing = () => {
   const [packages, setPackages] = useState<AppPackage[]>([]);
   const [config, setConfig] = useState<AppConfig | null>(null);
+  const [releases, setReleases] = useState<AppRelease[]>([]);
+  const [latestRelease, setLatestRelease] = useState<AppRelease | undefined>(undefined);
 
   useEffect(() => {
     setPackages(getPackages().filter(p => p.enabled));
     setConfig(getAppConfig());
+    setReleases(getReleases());
+    setLatestRelease(getLatestRelease());
   }, []);
 
   if (!config) return null;
