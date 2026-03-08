@@ -77,6 +77,8 @@ const Contacts = () => {
       console.error('pickPhoneContact error:', err);
       if (err?.message === 'WEB_ONLY') {
         toast.error("هذه الميزة تعمل فقط على الجهاز");
+      } else if (err?.message === 'CONTACTS_PERMISSION_DENIED') {
+        toast.error("تم رفض صلاحية جهات الاتصال. فعّلها من إعدادات التطبيق ثم جرّب مرة أخرى");
       } else {
         toast.error(`تعذر فتح سجل الاتصال: ${err?.message || err}`);
       }
