@@ -85,29 +85,21 @@ const AppContent = () => {
     );
   }
 
-  // Force update screen (blocks the app)
-  if (updateInfo?.hasUpdate && updateInfo.forceUpdate) {
-    return (
-      <BrowserRouter>
-        <Routes>
-          <Route path="/sys-panel" element={<Admin />} />
-          <Route path="*" element={
-            <ForceUpdate
-              updateInfo={updateInfo}
-              onRetry={doUpdateCheck}
-              checking={checkingUpdate}
-            />
-          } />
-        </Routes>
-      </BrowserRouter>
-    );
-  }
+  // Show update as overlay (non-blocking)
+  const updateOverlay = updateInfo?.hasUpdate ? (
+    <ForceUpdate
+      updateInfo={updateInfo}
+      onRetry={doUpdateCheck}
+      checking={checkingUpdate}
+    />
+  ) : null;
 
   if (!status) return null;
 
   if (status.status === 'trial_expired' || status.status === 'license_expired' || status.status === 'clock_tampered') {
     return (
       <BrowserRouter>
+        {updateOverlay}
         <Routes>
           <Route path="/sys-panel" element={<Admin />} />
           <Route path="*" element={<Activation status={status} onActivated={checkStatus} />} />
@@ -118,6 +110,7 @@ const AppContent = () => {
 
   return (
     <BrowserRouter>
+      {updateOverlay}
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/distributor" element={<Distributor />} />
