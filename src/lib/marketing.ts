@@ -84,7 +84,7 @@ const DEFAULT_PACKAGES: AppPackage[] = [
 
 const DEFAULT_CONFIG: AppConfig = {
   appVersion: '1.0.0',
-  downloadUrl: '',
+  downloadUrl: 'https://ussd-dialer.lovable.app',
   whatsappContact: '',
   supportPhone: '0991214570',
   changelog: 'الإصدار الأول من التطبيق',
