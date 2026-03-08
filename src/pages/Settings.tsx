@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import {
   Plus, Trash2, Key, Code, ArrowUp, ArrowDown, Smartphone, Signal,
