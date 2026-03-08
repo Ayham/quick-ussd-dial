@@ -182,13 +182,7 @@ const Settings = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col safe-area-insets">
-      <header className="bg-primary px-4 py-3 flex items-center gap-3 shadow-md pt-safe">
-        <button onClick={() => navigate("/")} className="text-primary-foreground">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <h1 className="text-primary-foreground text-xl font-bold">الإعدادات</h1>
-      </header>
+    <AppLayout title="الإعدادات">
 
       {/* Settings Tabs */}
       <div className="bg-card border-b border-border px-1 py-1.5 flex gap-0.5 overflow-x-auto">
