@@ -329,8 +329,56 @@ const Admin = () => {
     );
   }, [licenseHistory, searchQuery]);
 
-  // ======= Login =======
+  // Central licenses fetch
+  const fetchCentralLicenses = async () => {
+    setCentralLoading(true);
+    const result = await getAllLicensesOnline();
+    if (result.success && result.licenses) {
+      setCentralLicenses(result.licenses);
+    } else {
+      toast.error(result.message || 'فشل جلب التراخيص');
+    }
+    setCentralLoading(false);
+  };
+
+  // ======= Login / First Setup =======
   if (!authenticated) {
+    // First time setup — no password exists
+    if (isFirstSetup) {
+      return (
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 safe-area-insets" dir="rtl">
+          <div className="w-full max-w-sm space-y-6">
+            <div className="text-center">
+              <ShieldCheck className="w-16 h-16 mx-auto mb-4 text-primary" />
+              <h1 className="text-2xl font-bold text-foreground">إعداد لوحة الإدارة</h1>
+              <p className="text-sm text-muted-foreground mt-1">أنشئ بيانات الدخول الخاصة بك (أول مرة)</p>
+            </div>
+            <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-muted-foreground">اسم المستخدم</label>
+                <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin" className="h-11" dir="ltr" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-muted-foreground">كلمة السر</label>
+                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="6 أحرف على الأقل" className="h-11" dir="ltr" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-muted-foreground">تأكيد كلمة السر</label>
+                <Input type="password" value={setupConfirmPassword} onChange={(e) => setSetupConfirmPassword(e.target.value)} placeholder="أعد كتابة كلمة السر" className="h-11" dir="ltr" />
+              </div>
+              <Button onClick={handleFirstSetup} className="w-full h-11 font-bold rounded-xl">
+                <ShieldCheck className="w-4 h-4 ml-2" />إنشاء الحساب
+              </Button>
+            </div>
+            <p className="text-[10px] text-muted-foreground text-center">
+              ⚠️ احفظ بيانات الدخول في مكان آمن — لا يمكن استعادتها
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // Normal login
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 safe-area-insets" dir="rtl">
         <div className="w-full max-w-sm space-y-6">
