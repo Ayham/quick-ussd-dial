@@ -252,9 +252,9 @@ const Index = () => {
           </div>
         )}
 
-        {/* Dial Button */}
+        {/* Transfer Button */}
         <Button
-          onClick={handleDial}
+          onClick={handleTransferClick}
           disabled={!operator || !selectedAmount || dialing}
           className="w-full h-11 text-base font-bold rounded-xl shadow-lg"
           size="lg"
@@ -262,10 +262,31 @@ const Index = () => {
           {dialing ? (
             <Loader2 className="w-5 h-5 ml-2 animate-spin" />
           ) : (
-            <Phone className="w-5 h-5 ml-2" />
+            <Send className="w-5 h-5 ml-2" />
           )}
-          اتصال
+          تحويل
         </Button>
+
+        {/* Confirmation Dialog */}
+        <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>تأكيد التحويل</AlertDialogTitle>
+              <AlertDialogDescription className="text-right space-y-2">
+                <span className="block">
+                  سيتم تحويل مبلغ <strong className="text-foreground">{selectedAmount?.amount.toLocaleString()} ل.س</strong> إلى الرقم <strong className="text-foreground" dir="ltr">{phone.trim()}</strong>
+                </span>
+                <span className="block text-xs">
+                  السعر: <strong className="text-foreground">{selectedAmount?.price.toLocaleString()} ل.س</strong> • المشغّل: <strong className="text-foreground">{operator === "mtn" ? "MTN" : "Syriatel"}</strong>
+                </span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row-reverse gap-2">
+              <AlertDialogAction onClick={handleConfirmTransfer}>تأكيد التحويل</AlertDialogAction>
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Phone-specific history */}
         {phoneHistory.length > 0 && (
