@@ -381,6 +381,12 @@ const Index = () => {
                     <span className="text-muted-foreground text-sm">السعر</span>
                     <span className="font-bold text-foreground">{selectedAmount?.price.toLocaleString()} ل.س</span>
                   </div>
+                  {contactName && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground text-sm">الاسم</span>
+                      <span className="font-bold text-foreground">{contactName}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground text-sm">الرقم</span>
                     <span className="font-bold text-foreground font-mono" dir="ltr">{phone.trim()}</span>
