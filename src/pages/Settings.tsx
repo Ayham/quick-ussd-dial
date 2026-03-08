@@ -111,7 +111,7 @@ const Settings = () => {
     savePrefixes(prefixes);
     saveSimAssignment(simAssignment);
     saveBalanceTemplates(balanceTemplates);
-    saveTrialDays(trialDays);
+    toast.success("تم الحفظ بنجاح");
     toast.success("تم الحفظ بنجاح");
     navigate("/");
   };
