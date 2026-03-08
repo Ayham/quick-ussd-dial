@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
-import { Download, RefreshCw, CheckCircle2, ArrowUpCircle, Clock, FileText, ExternalLink } from "lucide-react";
+import { Download, RefreshCw, CheckCircle2, ArrowUpCircle, Clock, FileText, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AppLayout from "@/components/AppLayout";
 import { checkForUpdate, getCurrentVersion, type UpdateInfo } from "@/lib/update-checker";
 import { fetchReleasesFromGitHub } from "@/lib/github-releases";
+import { downloadAndInstallApk, type DownloadProgress } from "@/lib/apk-downloader";
+import { toast } from "@/hooks/use-toast";
 import type { AppRelease } from "@/lib/marketing";
 
 const Updates = () => {
