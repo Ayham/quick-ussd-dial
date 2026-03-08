@@ -1,16 +1,29 @@
 import { useState, useEffect } from "react";
-import { Download, RefreshCw, CheckCircle2, ArrowUpCircle, Clock, FileText, ExternalLink } from "lucide-react";
+import { Download, RefreshCw, CheckCircle2, ArrowUpCircle, Clock, FileText, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AppLayout from "@/components/AppLayout";
 import { checkForUpdate, getCurrentVersion, type UpdateInfo } from "@/lib/update-checker";
 import { fetchReleasesFromGitHub } from "@/lib/github-releases";
+import { downloadAndInstallApk, type DownloadProgress } from "@/lib/apk-downloader";
+import { toast } from "@/hooks/use-toast";
 import type { AppRelease } from "@/lib/marketing";
 
 const Updates = () => {
   const [checking, setChecking] = useState(true);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [releases, setReleases] = useState<AppRelease[]>([]);
+  const [dlProgress, setDlProgress] = useState<DownloadProgress>({ progress: 0, status: 'idle' });
   const currentVersion = getCurrentVersion();
+
+  const isDownloading = dlProgress.status === 'downloading' || dlProgress.status === 'opening';
+
+  const handleDownload = async (url: string) => {
+    try {
+      await downloadAndInstallApk(url, setDlProgress);
+    } catch (e: any) {
+      toast({ title: "خطأ في التنزيل", description: e.message, variant: "destructive" });
+    }
+  };
 
   const doCheck = async () => {
     setChecking(true);
@@ -78,13 +91,25 @@ const Updates = () => {
 
                 {updateInfo.downloadUrl && (
                   <Button
-                    onClick={() => { window.location.href = updateInfo.downloadUrl; }}
+                    onClick={() => handleDownload(updateInfo.downloadUrl)}
                     className="w-full h-12 font-bold rounded-xl text-sm"
                     size="lg"
+                    disabled={isDownloading}
                   >
-                    <Download className="w-5 h-5 ml-2" />
-                    تحميل التحديث
+                    {isDownloading
+                      ? <><Loader2 className="w-5 h-5 ml-2 animate-spin" />جاري التنزيل... {dlProgress.progress}%</>
+                      : <><Download className="w-5 h-5 ml-2" />تحميل وتثبيت التحديث</>
+                    }
                   </Button>
+                )}
+
+                {isDownloading && (
+                  <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-primary h-full rounded-full transition-all duration-300"
+                      style={{ width: `${dlProgress.progress}%` }}
+                    />
+                  </div>
                 )}
               </div>
             )}
@@ -134,12 +159,13 @@ const Updates = () => {
                       <p className="text-[11px] text-muted-foreground mt-1 whitespace-pre-wrap line-clamp-3">{release.changelog}</p>
                     )}
                     {release.downloadUrl && (
-                      <a
-                        href={release.downloadUrl}
-                        className="inline-flex items-center gap-1 text-[11px] text-primary font-medium mt-2 hover:underline"
+                      <button
+                        onClick={() => handleDownload(release.downloadUrl)}
+                        className="inline-flex items-center gap-1 text-[11px] text-primary font-medium mt-2 hover:underline disabled:opacity-50"
+                        disabled={isDownloading}
                       >
-                        <ExternalLink className="w-3 h-3" /> تحميل
-                      </a>
+                        <Download className="w-3 h-3" /> تحميل وتثبيت
+                      </button>
                     )}
                   </div>
                 ))}
