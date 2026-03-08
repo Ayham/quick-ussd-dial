@@ -69,19 +69,21 @@ export function getLastSyncTime(): string | null {
 
 // ============ Event Tracking ============
 
-export function trackEvent(event: SyncEventType, data: Record<string, unknown> = {}) {
-  if (!isSyncEnabled()) return;
-
-  const syncEvent: SyncEvent = {
+function createSyncEvent(event: SyncEventType, data: Record<string, unknown> = {}): SyncEvent {
+  return {
     id: crypto.randomUUID(),
     deviceId: getDeviceId(),
     event,
     timestamp: new Date().toISOString(),
     data,
   };
+}
+
+export function trackEvent(event: SyncEventType, data: Record<string, unknown> = {}) {
+  if (!isSyncEnabled()) return;
 
   const queue = getQueue();
-  queue.push(syncEvent);
+  queue.push(createSyncEvent(event, data));
   saveQueue(queue);
 
   // Try to sync immediately if online
@@ -100,7 +102,6 @@ async function flushQueue(): Promise<{ sent: number; failed: number }> {
   if (queue.length === 0) return { sent: 0, failed: 0 };
 
   try {
-    // Use no-cors mode to avoid CORS preflight issues with Google Apps Script
     const response = await fetch(endpoint, {
       method: 'POST',
       mode: 'no-cors',
@@ -122,6 +123,22 @@ async function flushQueue(): Promise<{ sent: number; failed: number }> {
 }
 
 export async function syncNow(): Promise<{ sent: number; failed: number }> {
+  if (!isSyncEnabled()) return { sent: 0, failed: 0 };
+
+  // Ensure manual sync always has at least one event to send
+  if (getQueue().length === 0) {
+    saveQueue([
+      createSyncEvent('heartbeat', {
+        appVersion: '1.0',
+        screenWidth: window.screen.width,
+        screenHeight: window.screen.height,
+        language: navigator.language,
+        online: navigator.onLine,
+        manualSync: true,
+      }),
+    ]);
+  }
+
   return flushQueue();
 }
 
