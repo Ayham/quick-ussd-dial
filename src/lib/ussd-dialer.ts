@@ -10,35 +10,38 @@ export async function dialUssdDirect(ussdCode: string, simSlot: SimSlot = 0): Pr
   const encodedUssd = ussdCode.replace(/#/g, "%23");
 
   if (Capacitor.isNativePlatform()) {
+    // Primary: Android Intent with explicit SIM slot — bypasses "Select SIM" popup
     try {
-      const { CallNumber } = await import("capacitor-call-number");
-      await CallNumber.call({
-        number: encodedUssd,
-        bypassAppChooser: false,
+      const { IntentLauncher, ActivityAction } = await import("@capgo/capacitor-intent-launcher");
+      await IntentLauncher.startActivityAsync({
+        action: ActivityAction.CALL,
+        data: `tel:${encodedUssd}`,
+        extra: {
+          "com.android.phone.extra.slot": simSlot,
+          "simSlot": simSlot,
+          "com.android.phone.extra.simSlot": simSlot,
+          "android.telecom.extra.PHONE_ACCOUNT_HANDLE": simSlot,
+        },
       });
       return true;
-    } catch (err) {
-      console.error("Direct USSD dial failed:", err);
-      // Try Android Intent with SIM slot
+    } catch (intentErr) {
+      console.error("Intent dial failed, trying CallNumber:", intentErr);
+      // Fallback: CallNumber plugin (no SIM selection support)
       try {
-        const { IntentLauncher, ActivityAction } = await import("@capgo/capacitor-intent-launcher");
-        await IntentLauncher.startActivityAsync({
-          action: ActivityAction.CALL,
-          data: `tel:${encodedUssd}`,
-          extra: {
-            "com.android.phone.extra.slot": simSlot,
-            "simSlot": simSlot,
-          },
+        const { CallNumber } = await import("capacitor-call-number");
+        await CallNumber.call({
+          number: encodedUssd,
+          bypassAppChooser: true,
         });
         return true;
-      } catch (intentErr) {
-        console.error("Intent dial failed:", intentErr);
+      } catch (callErr) {
+        console.error("CallNumber failed:", callErr);
         window.location.href = `tel:${encodedUssd}`;
         return true;
       }
     }
   } else {
-    // Web fallback - log intended SIM
+    // Web fallback — log intended SIM
     console.log(`[Web] Dialing ${ussdCode} on SIM ${simSlot + 1}`);
     window.location.href = `tel:${encodedUssd}`;
     return true;
