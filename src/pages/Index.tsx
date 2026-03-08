@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
-import { Phone, Settings, Zap, Clock, CheckCircle, Loader2, BarChart3, Wallet, Send, Menu, X } from "lucide-react";
+import { Phone, Settings, Zap, Clock, CheckCircle, Loader2, BarChart3, Wallet, Send, Menu } from "lucide-react";
 import {
   detectOperator,
   buildUssdCode,
