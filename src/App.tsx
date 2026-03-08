@@ -86,14 +86,7 @@ const AppContent = () => {
     );
   }
 
-  // Show update as overlay (non-blocking)
-  const updateOverlay = updateInfo?.hasUpdate ? (
-    <ForceUpdate
-      updateInfo={updateInfo}
-      onRetry={doUpdateCheck}
-      checking={checkingUpdate}
-    />
-  ) : null;
+  // Update info is available but no overlay is shown — user checks via Updates page
 
   if (!status) return null;
 
