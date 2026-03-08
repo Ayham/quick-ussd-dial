@@ -123,16 +123,16 @@ const Distributor = () => {
               <div className="bg-card border border-border rounded-xl p-3 text-center shadow-card">
                 <div className="flex items-center justify-center gap-1.5 mb-1">
                   <ArrowDownCircle className="w-4 h-4 text-primary" />
-                  <span className="text-[11px] text-muted-foreground">طلبات اليوم</span>
+                  <span className="text-[11px] text-muted-foreground">إجمالي الطلبات</span>
                 </div>
-                <p className="text-lg font-bold text-foreground">{stats.todayTopups.toLocaleString()}</p>
+                <p className="text-lg font-bold text-foreground">{stats.totalTopups.toLocaleString()}</p>
               </div>
               <div className="bg-card border border-border rounded-xl p-3 text-center shadow-card">
                 <div className="flex items-center justify-center gap-1.5 mb-1">
                   <ArrowUpCircle className="w-4 h-4 text-accent" />
-                  <span className="text-[11px] text-muted-foreground">دفعات اليوم</span>
+                  <span className="text-[11px] text-muted-foreground">إجمالي الدفعات</span>
                 </div>
-                <p className="text-lg font-bold text-foreground">{stats.todayPayments.toLocaleString()}</p>
+                <p className="text-lg font-bold text-foreground">{stats.totalPayments.toLocaleString()}</p>
               </div>
             </div>
 
