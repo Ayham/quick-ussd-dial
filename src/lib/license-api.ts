@@ -30,7 +30,10 @@ export interface CentralLicense {
 // ============ Endpoint ============
 
 export function getLicenseApiEndpoint(): string {
-  return localStorage.getItem(LICENSE_API_KEY) || '';
+  // أولاً: رابط مخصص إن وجد، وإلا رابط المزامنة الافتراضي
+  const custom = localStorage.getItem(LICENSE_API_KEY);
+  if (custom && custom.trim()) return custom.trim();
+  return getSyncEndpoint();
 }
 
 export function saveLicenseApiEndpoint(url: string) {
