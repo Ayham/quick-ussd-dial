@@ -95,7 +95,7 @@ const Landing = () => {
                 size="lg"
                 variant="ghost"
                 className="text-primary-foreground/80 hover:text-primary-foreground hover:bg-primary-foreground/10 font-semibold rounded-2xl h-11 sm:h-12 px-5 sm:px-6 text-sm"
-                onClick={() => window.open(config.downloadUrl, "_blank")}
+                onClick={() => { window.location.href = config.downloadUrl; }}
               >
                 <Download className="w-4 h-4 ml-2" />
                 تحميل التطبيق مباشرة
