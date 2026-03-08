@@ -100,13 +100,14 @@ async function flushQueue(): Promise<{ sent: number; failed: number }> {
   if (queue.length === 0) return { sent: 0, failed: 0 };
 
   try {
+    // Use text/plain to avoid CORS preflight (Google Apps Script doesn't support OPTIONS)
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ events: queue }),
+      redirect: 'follow',
     });
 
-    if (response.ok) {
+    if (response.ok || response.type === 'opaque') {
       const sent = queue.length;
       saveQueue([]);
       localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());

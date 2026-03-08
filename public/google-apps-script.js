@@ -12,9 +12,9 @@
  * 6. انسخ الرابط وضعه في إعدادات التطبيق
  * 
  * سيتم إنشاء 3 أوراق تلقائياً:
- * - Devices: معلومات الأجهزة المسجلة
- * - Events: كل الأحداث والعمليات
- * - Summary: ملخص يومي
+ * - الأجهزة: معلومات الأجهزة المسجلة
+ * - السجل: كل الأحداث والعمليات (مفصّل وواضح)
+ * - ملخص يومي: ملخص يومي
  */
 
 function doPost(e) {
@@ -25,35 +25,43 @@ function doPost(e) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     
     // إنشاء الأوراق إذا لم تكن موجودة
-    var devicesSheet = getOrCreateSheet(ss, 'Devices', [
-      'Device ID', 'أول ظهور', 'آخر ظهور', 'المنصة', 'الشاشة', 'اللغة', 'المنطقة الزمنية', 'عدد الفتحات', 'عدد التحويلات', 'حالة الترخيص'
+    var devicesSheet = getOrCreateSheet(ss, 'الأجهزة', [
+      'معرف الجهاز', 'أول ظهور', 'آخر ظهور', 'المنصة', 'الشاشة', 'اللغة', 'المنطقة الزمنية', 'عدد الفتحات', 'عدد التحويلات', 'حالة الترخيص'
     ]);
     
-    var eventsSheet = getOrCreateSheet(ss, 'Events', [
-      'ID', 'Device ID', 'الحدث', 'التاريخ والوقت', 'البيانات'
+    var eventsSheet = getOrCreateSheet(ss, 'السجل', [
+      'التاريخ', 'الوقت', 'معرف الجهاز', 'نوع الحدث', 'الوصف', 'تفاصيل إضافية'
     ]);
     
-    var summarySheet = getOrCreateSheet(ss, 'Summary', [
+    var summarySheet = getOrCreateSheet(ss, 'ملخص يومي', [
       'التاريخ', 'أجهزة جديدة', 'أجهزة نشطة', 'تحويلات', 'تفعيلات', 'انتهاء تجريبي'
     ]);
     
     for (var i = 0; i < events.length; i++) {
       var evt = events[i];
       
-      // تسجيل الحدث
+      // تسجيل الحدث بشكل مقروء
+      var dateTime = new Date(evt.timestamp);
+      var dateStr = Utilities.formatDate(dateTime, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+      var timeStr = Utilities.formatDate(dateTime, Session.getScriptTimeZone(), 'HH:mm:ss');
+      
+      var eventDesc = getEventDescription(evt.event, evt.data);
+      var extraDetails = getExtraDetails(evt.event, evt.data);
+      
       eventsSheet.appendRow([
-        evt.id,
+        dateStr,
+        timeStr,
         evt.deviceId,
-        evt.event,
-        evt.timestamp,
-        JSON.stringify(evt.data)
+        getEventArabicName(evt.event),
+        eventDesc,
+        extraDetails
       ]);
       
       // تحديث بيانات الجهاز
       updateDevice(devicesSheet, evt);
       
       // تحديث الملخص اليومي
-      updateSummary(summarySheet, evt);
+      updateSummary(summarySheet, evt, dateStr);
     }
     
     return ContentService.createTextOutput(JSON.stringify({
@@ -69,13 +77,70 @@ function doPost(e) {
   }
 }
 
+// ترجمة اسم الحدث للعربية
+function getEventArabicName(event) {
+  var names = {
+    'device_register': 'تسجيل جهاز',
+    'app_open': 'فتح التطبيق',
+    'heartbeat': 'نبض',
+    'trial_started': 'بدء تجريبي',
+    'trial_expired': 'انتهاء تجريبي',
+    'license_activated': 'تفعيل ترخيص',
+    'license_expired': 'انتهاء ترخيص',
+    'transfer': 'تحويل رصيد',
+    'settings_changed': 'تغيير إعدادات'
+  };
+  return names[event] || event;
+}
+
+// وصف مقروء للحدث
+function getEventDescription(event, data) {
+  switch (event) {
+    case 'device_register':
+      return 'جهاز جديد — ' + (data.platform || 'غير معروف') + ' — ' + (data.language || '');
+    case 'app_open':
+      return 'تم فتح التطبيق';
+    case 'heartbeat':
+      return 'الجهاز متصل ونشط';
+    case 'trial_started':
+      return 'بدأت الفترة التجريبية';
+    case 'trial_expired':
+      return 'انتهت الفترة التجريبية';
+    case 'license_activated':
+      var expiry = data.expiryDate || '';
+      return expiry === 'permanent' ? 'تم التفعيل — ترخيص دائم ✨' : 'تم التفعيل حتى ' + expiry;
+    case 'license_expired':
+      return 'انتهت صلاحية الترخيص';
+    case 'transfer':
+      return 'تحويل ' + (data.amount || '') + ' إلى ' + (data.phone || '') + ' (' + (data.operator || '') + ') — ' + (data.status || '');
+    case 'settings_changed':
+      return 'تم تغيير الإعدادات';
+    default:
+      return event;
+  }
+}
+
+// تفاصيل إضافية
+function getExtraDetails(event, data) {
+  switch (event) {
+    case 'device_register':
+      return 'شاشة: ' + (data.screenWidth || '?') + 'x' + (data.screenHeight || '?') + ' | منطقة: ' + (data.timezone || '');
+    case 'transfer':
+      return 'مشغل: ' + (data.operator || '') + ' | حالة: ' + (data.status || '');
+    case 'heartbeat':
+      return 'إصدار: ' + (data.appVersion || '') + ' | متصل: ' + (data.online ? 'نعم' : 'لا');
+    default:
+      return '';
+  }
+}
+
 function doGet(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var action = (e.parameter && e.parameter.action) || 'status';
   
   if (action === 'status') {
-    var devicesSheet = ss.getSheetByName('Devices');
-    var eventsSheet = ss.getSheetByName('Events');
+    var devicesSheet = ss.getSheetByName('الأجهزة');
+    var eventsSheet = ss.getSheetByName('السجل');
     
     var totalDevices = devicesSheet ? Math.max(0, devicesSheet.getLastRow() - 1) : 0;
     var totalEvents = eventsSheet ? Math.max(0, eventsSheet.getLastRow() - 1) : 0;
@@ -89,7 +154,7 @@ function doGet(e) {
   }
   
   if (action === 'devices') {
-    var devicesSheet = ss.getSheetByName('Devices');
+    var devicesSheet = ss.getSheetByName('الأجهزة');
     if (!devicesSheet) {
       return ContentService.createTextOutput(JSON.stringify({ success: true, devices: [] }))
         .setMimeType(ContentService.MimeType.JSON);
@@ -125,7 +190,13 @@ function getOrCreateSheet(ss, name, headers) {
     sheet = ss.insertSheet(name);
     sheet.appendRow(headers);
     sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+    sheet.getRange(1, 1, 1, headers.length).setBackground('#4285f4');
+    sheet.getRange(1, 1, 1, headers.length).setFontColor('#ffffff');
     sheet.setFrozenRows(1);
+    // Auto-resize columns
+    for (var i = 1; i <= headers.length; i++) {
+      sheet.setColumnWidth(i, 150);
+    }
   }
   return sheet;
 }
@@ -155,7 +226,7 @@ function updateDevice(sheet, evt) {
       deviceId, now, now, platform, screen, lang, tz,
       evt.event === 'app_open' ? 1 : 0,
       evt.event === 'transfer' ? 1 : 0,
-      evt.event === 'license_activated' ? 'مفعّل' : 'تجريبي'
+      getLicenseStatus(evt.event, evt.data)
     ]);
   } else {
     // تحديث جهاز موجود
@@ -172,15 +243,23 @@ function updateDevice(sheet, evt) {
     }
     
     if (evt.event === 'license_activated') {
-      sheet.getRange(rowIndex, 10).setValue('مفعّل');
+      var expiry = (evt.data && evt.data.expiryDate) || '';
+      sheet.getRange(rowIndex, 10).setValue(expiry === 'permanent' ? 'مفعّل دائم ✨' : 'مفعّل حتى ' + expiry);
     } else if (evt.event === 'trial_expired' || evt.event === 'license_expired') {
-      sheet.getRange(rowIndex, 10).setValue('منتهي');
+      sheet.getRange(rowIndex, 10).setValue('منتهي ❌');
     }
   }
 }
 
-function updateSummary(sheet, evt) {
-  var dateStr = evt.timestamp.substring(0, 10);
+function getLicenseStatus(event, data) {
+  if (event === 'license_activated') {
+    var expiry = (data && data.expiryDate) || '';
+    return expiry === 'permanent' ? 'مفعّل دائم ✨' : 'مفعّل حتى ' + expiry;
+  }
+  return 'تجريبي';
+}
+
+function updateSummary(sheet, evt, dateStr) {
   var data = sheet.getDataRange().getValues();
   var rowIndex = -1;
   
