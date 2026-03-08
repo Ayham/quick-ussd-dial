@@ -137,38 +137,13 @@ const Distributor = () => {
             </div>
 
             {/* Add Transaction */}
-            <div className="bg-card border border-border rounded-2xl p-4 shadow-card space-y-3">
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setTxType('topup')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-smooth ${
-                    txType === 'topup'
-                      ? "bg-primary text-primary-foreground shadow-card"
-                      : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  <Plus className="w-4 h-4" />
-                  طلب رصيد
-                </button>
-                <button
-                  onClick={() => setTxType('payment')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-smooth ${
-                    txType === 'payment'
-                      ? "bg-accent text-accent-foreground shadow-card"
-                      : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  <Minus className="w-4 h-4" />
-                  دفعة
-                </button>
-              </div>
-
+            <div className="space-y-2">
               <Input
                 type="number"
                 value={txAmount}
                 onChange={(e) => setTxAmount(e.target.value)}
                 placeholder="المبلغ"
-                className="h-12 text-center text-lg font-bold rounded-xl border-2"
+                className="h-12 text-center text-lg font-bold rounded-xl border-2 border-border"
                 dir="ltr"
                 inputMode="numeric"
                 onKeyDown={(e) => e.key === 'Enter' && handleAddTransaction()}
@@ -181,17 +156,26 @@ const Distributor = () => {
                 className="h-10 rounded-xl text-sm"
               />
 
-              <Button
-                onClick={handleAddTransaction}
-                className="w-full h-11 font-bold rounded-xl shadow-elevated"
-                disabled={!txAmount || Number(txAmount) <= 0}
-              >
-                {txType === 'topup' ? (
-                  <><ArrowDownCircle className="w-4 h-4 ml-2" />تسجيل طلب رصيد</>
-                ) : (
-                  <><ArrowUpCircle className="w-4 h-4 ml-2" />تسجيل دفعة</>
-                )}
-              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  onClick={() => { setTxType('topup'); setTimeout(handleAddTransaction, 0); }}
+                  variant="outline"
+                  className="h-12 font-bold rounded-xl border-2 border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground"
+                  disabled={!txAmount || Number(txAmount) <= 0}
+                >
+                  <ArrowDownCircle className="w-5 h-5 ml-2" />
+                  طلب رصيد
+                </Button>
+                <Button
+                  onClick={() => { setTxType('payment'); setTimeout(handleAddTransaction, 0); }}
+                  variant="outline"
+                  className="h-12 font-bold rounded-xl border-2 border-accent/30 text-accent hover:bg-accent hover:text-accent-foreground"
+                  disabled={!txAmount || Number(txAmount) <= 0}
+                >
+                  <ArrowUpCircle className="w-5 h-5 ml-2" />
+                  دفعة
+                </Button>
+              </div>
             </div>
 
             {/* Recent Transactions */}
