@@ -7,6 +7,7 @@ import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { trackEvent } from "@/lib/cloud-sync";
 import {
   getDistributorAccount, saveDistributorAccount, addTransaction,
   deleteTransaction, getBalance, getDistributorStats,
