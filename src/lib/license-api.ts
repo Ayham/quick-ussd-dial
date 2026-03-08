@@ -1,8 +1,10 @@
 /**
  * License API — التحقق المركزي من التراخيص عبر Google Apps Script
+ * يستخدم نفس رابط المزامنة السحابية (cloud-sync) — لا حاجة لرابط منفصل
  */
 
 import { getDeviceId } from './device-id';
+import { getSyncEndpoint } from './cloud-sync';
 
 const LICENSE_API_KEY = 'license_api_endpoint_v1';
 const ONLINE_STATUS_KEY = 'license_online_status_v1';
@@ -28,7 +30,10 @@ export interface CentralLicense {
 // ============ Endpoint ============
 
 export function getLicenseApiEndpoint(): string {
-  return localStorage.getItem(LICENSE_API_KEY) || '';
+  // أولاً: رابط مخصص إن وجد، وإلا رابط المزامنة الافتراضي
+  const custom = localStorage.getItem(LICENSE_API_KEY);
+  if (custom && custom.trim()) return custom.trim();
+  return getSyncEndpoint();
 }
 
 export function saveLicenseApiEndpoint(url: string) {
