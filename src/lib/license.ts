@@ -128,10 +128,12 @@ export async function validateLicense(licenseKey: string): Promise<{ valid: bool
     return { valid: false, error: 'توقيع الترخيص غير صالح' };
   }
 
-  // Verify expiry
-  const today = getToday();
-  if (today > payload.expiryDate) {
-    return { valid: false, error: 'انتهت صلاحية الترخيص' };
+  // Verify expiry (skip for permanent licenses)
+  if (payload.expiryDate !== 'permanent') {
+    const today = getToday();
+    if (today > payload.expiryDate) {
+      return { valid: false, error: 'انتهت صلاحية الترخيص' };
+    }
   }
 
   return { valid: true, payload };
