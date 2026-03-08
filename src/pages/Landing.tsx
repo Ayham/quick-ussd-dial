@@ -280,7 +280,7 @@ const Landing = () => {
           {[
             { icon: HeadphonesIcon, title: "دعم فني سريع", desc: "فريق متاح عبر واتساب" },
             { icon: RefreshCw, title: "تحديثات مستمرة", desc: "ميزات جديدة كل شهر" },
-            { icon: Shield, title: "ضمان الجودة", desc: "استرداد خلال 7 أيام" },
+            { icon: Shield, title: "ضمان الجودة", desc: "تطبيق موثوق ومختبر" },
             { icon: Zap, title: "أداء عالي", desc: "سرعة وثبات مضمون" },
           ].map((item, i) => (
             <div key={i} className="bg-card border border-border rounded-2xl p-4 sm:p-5 text-center shadow-sm">
