@@ -33,7 +33,8 @@ const Distributor = () => {
   const [editName, setEditName] = useState(account.name);
   const [editPhone, setEditPhone] = useState(account.phone);
   const [editAlert, setEditAlert] = useState(String(account.lowBalanceAlert));
-  const [editMessage, setEditMessage] = useState(account.whatsappMessage || 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س');
+  const [editMessage, setEditMessage] = useState(account.whatsappMessage || 'مرحباً، أرجو تحويل رصيد بقيمة {amount} ل.س\nسيريتل: {syriatel} | MTN: {mtn}');
+  const [editWhatsappEnabled, setEditWhatsappEnabled] = useState(account.whatsappEnabled !== false);
 
   const syriatelBalance = useMemo(() => getBalance('syriatel'), [account]);
   const mtnBalance = useMemo(() => getBalance('mtn'), [account]);
