@@ -395,7 +395,7 @@ const Distributor = () => {
                     dir="rtl"
                   />
                   <p className="text-[10px] text-muted-foreground">
-                    المتغيرات: <span className="font-mono bg-muted px-1 rounded">{'{amount}'}</span> الإجمالي · <span className="font-mono bg-muted px-1 rounded">{'{syriatel}'}</span> سيريتل · <span className="font-mono bg-muted px-1 rounded">{'{mtn}'}</span> MTN · <span className="font-mono bg-muted px-1 rounded">{'{note}'}</span> ملاحظة
+                    المتغيرات: <span className="font-mono bg-muted px-1 rounded">{'{name}'}</span> الاسم · <span className="font-mono bg-muted px-1 rounded">{'{syriatel}'}</span> سيريتل · <span className="font-mono bg-muted px-1 rounded">{'{mtn}'}</span> MTN · <span className="font-mono bg-muted px-1 rounded">{'{note}'}</span> ملاحظة
                   </p>
                 </div>
               )}
