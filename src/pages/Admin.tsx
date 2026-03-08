@@ -626,8 +626,8 @@ const Admin = () => {
               <div className="flex items-end gap-3">
                 <div className="flex-1 space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">عدد الأيام</label>
-                  <Input type="number" value={trialDays} onChange={(e) => setTrialDaysLocal(Number(e.target.value) || 1)}
-                    className="text-left h-10 text-sm" dir="ltr" min={1} max={365} inputMode="numeric" />
+                  <Input type="number" value={trialDays} onChange={(e) => setTrialDaysLocal(Math.max(0, Number(e.target.value)))}
+                    className="text-left h-10 text-sm" dir="ltr" min={0} max={365} inputMode="numeric" />
                 </div>
                 <Button onClick={handleSaveTrialDays} size="sm" className="h-10">حفظ</Button>
               </div>
