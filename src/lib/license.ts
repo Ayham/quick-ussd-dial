@@ -55,37 +55,37 @@ function daysBetween(dateStr1: string, dateStr2: string): number {
 
 // Anti-tampering: detect if user rolled back the clock
 function checkClockTamper(): boolean {
-  const lastDate = localStorage.getItem(LAST_DATE_KEY);
+  const lastDate = localStorage.getItem(_LD_KEY);
   const today = getToday();
   if (lastDate && today < lastDate) {
     return true;
   }
-  localStorage.setItem(LAST_DATE_KEY, today);
+  localStorage.setItem(_LD_KEY, today);
   return false;
 }
 
 function getTrialStart(): string | null {
-  return localStorage.getItem(TRIAL_START_KEY);
+  return localStorage.getItem(_TS_KEY);
 }
 
 function initTrial(): string {
   const today = getToday();
-  localStorage.setItem(TRIAL_START_KEY, today);
-  localStorage.setItem(LAST_DATE_KEY, today);
+  localStorage.setItem(_TS_KEY, today);
+  localStorage.setItem(_LD_KEY, today);
   return today;
 }
 
 // Trial days management
 export function getTrialDays(): number {
   try {
-    const stored = localStorage.getItem(TRIAL_DAYS_KEY);
+    const stored = localStorage.getItem(_TD_KEY);
     if (stored) return Number(stored);
   } catch {}
   return DEFAULT_TRIAL_DAYS;
 }
 
 export function saveTrialDays(days: number) {
-  localStorage.setItem(TRIAL_DAYS_KEY, String(days));
+  localStorage.setItem(_TD_KEY, String(days));
 }
 
 // Verify RSA signature using Web Crypto — loads public key from IndexedDB
