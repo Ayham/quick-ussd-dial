@@ -182,12 +182,14 @@ const Admin = () => {
   }, [authenticated]);
 
   const initKeys = async () => {
-    const priv = await loadKeyFromDB('privateKey');
-    const pub = await loadKeyFromDB('publicKey');
+    const priv = await loadPrivateKeyDecrypted();
+    const pub = await loadKeyFromDB('_pub');
     if (priv && pub) {
       setHasKeys(true);
     } else {
       // Auto-generate keys on first login
+      const sessionKey = getSessionKey();
+      if (!sessionKey) return;
       try {
         const keyPair = await crypto.subtle.generateKey(
           { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
@@ -195,8 +197,8 @@ const Admin = () => {
         );
         const privJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
         const pubJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
-        await saveKeyToDB('privateKey', privJwk);
-        await saveKeyToDB('publicKey', pubJwk);
+        await saveKeyToDB('_pk', privJwk, sessionKey);
+        await saveKeyToDB('_pub', pubJwk);
         addKeyGenerationRecord(pubJwk.n as string);
         setHasKeys(true);
         toast.success("تم توليد مفاتيح التشفير تلقائياً ✅");
