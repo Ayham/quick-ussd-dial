@@ -297,18 +297,20 @@ const Admin = () => {
   };
 
   const handleExportPrivateKey = async () => {
-    const priv = await loadKeyFromDB('privateKey');
-    if (!priv) { toast.error("لم يتم توليد المفاتيح بعد"); return; }
+    const priv = await loadPrivateKeyDecrypted();
+    if (!priv) { toast.error("لم يتم توليد المفاتيح بعد أو فشل فك التشفير"); return; }
     try { await navigator.clipboard.writeText(JSON.stringify(priv)); toast.success("تم نسخ المفتاح الخاص — احفظه!"); }
     catch { toast.error("فشل النسخ"); }
   };
 
   const handleImportPrivateKey = async () => {
+    const sessionKey = getSessionKey();
+    if (!sessionKey) { toast.error("يجب تسجيل الدخول أولاً"); return; }
     try {
       const jwk = JSON.parse(importKeyText.trim());
       await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, true, ['sign']);
-      await saveKeyToDB('privateKey', jwk);
-      await saveKeyToDB('publicKey', { kty: jwk.kty, e: jwk.e, n: jwk.n, alg: jwk.alg, ext: true });
+      await saveKeyToDB('_pk', jwk, sessionKey);
+      await saveKeyToDB('_pub', { kty: jwk.kty, e: jwk.e, n: jwk.n, alg: jwk.alg, ext: true });
       setHasKeys(true);
       setImportKeyText("");
       toast.success("تم استيراد المفتاح بنجاح!");
