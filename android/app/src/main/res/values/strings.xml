@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">تحويل رصيد</string>
+    <string name="title_activity_main">تحويل رصيد</string>
+    <string name="package_name">app.lovable.d8f5ea8ed86449c9b0842c093fa293c0</string>
+    <string name="custom_url_scheme">app.lovable.d8f5ea8ed86449c9b0842c093fa293c0</string>
+</resources>
