@@ -282,7 +282,7 @@ const Admin = () => {
   };
 
   const handleExportPublicKeyForCode = async () => {
-    const pub = await loadKeyFromDB('publicKey');
+    const pub = await loadKeyFromDB('_pub');
     if (!pub) { toast.error("لم يتم توليد المفاتيح بعد"); return; }
     const codeSnippet = `const PUBLIC_KEY_JWK: JsonWebKey = {
   kty: "${pub.kty}",
