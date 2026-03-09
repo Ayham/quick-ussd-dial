@@ -73,6 +73,54 @@ export function searchContacts(query: string): SavedContact[] {
 }
 
 /**
+ * Load phonebook contacts (flattened as name + phone) to show inside an in-app picker.
+ */
+export async function getPhoneBookContacts(): Promise<SavedContact[]> {
+  // Check if running on native platform
+  const { Capacitor } = await import('@capacitor/core');
+  if (!Capacitor.isNativePlatform()) {
+    throw new Error('WEB_ONLY');
+  }
+
+  const { Contacts } = await import('@capacitor-community/contacts');
+
+  const currentPermissions = await Contacts.checkPermissions();
+  const hasPermission = currentPermissions.contacts === 'granted' || currentPermissions.contacts === 'limited';
+
+  if (!hasPermission) {
+    const requestedPermissions = await Contacts.requestPermissions();
+    const granted = requestedPermissions.contacts === 'granted' || requestedPermissions.contacts === 'limited';
+    if (!granted) {
+      throw new Error('CONTACTS_PERMISSION_DENIED');
+    }
+  }
+
+  const result = await Contacts.getContacts({
+    projection: {
+      name: true,
+      phones: true,
+    },
+  });
+
+  const out: SavedContact[] = [];
+  const seen = new Set<string>();
+
+  for (const c of result.contacts || []) {
+    const name = c.name?.display || '';
+    for (const ph of c.phones || []) {
+      const phone = normalizePhone(ph.number || '');
+      if (!phone || phone.length < 10) continue;
+      if (seen.has(phone)) continue;
+      seen.add(phone);
+      out.push({ phone, name });
+    }
+  }
+
+  // Guardrails: avoid huge payloads in UI
+  return out.slice(0, 5000);
+}
+
+/**
  * Open native contact picker and return selected contact
  */
 export async function pickPhoneContact(): Promise<SavedContact | null> {
