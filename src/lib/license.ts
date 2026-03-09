@@ -6,9 +6,9 @@ const LAST_DATE_KEY = 'app_last_date_v1';
 const TRIAL_DAYS_KEY = 'app_trial_days_v1';
 const DEFAULT_TRIAL_DAYS = 30;
 
-// ======= IndexedDB for loading public key =======
-const DB_NAME = 'LicenseAdminDB';
-const STORE_NAME = 'keys';
+// Obfuscated DB names — must match Admin.tsx
+const DB_NAME = '.sys_cache_ext';
+const STORE_NAME = '_d';
 
 async function loadPublicKeyFromDB(): Promise<JsonWebKey | null> {
   return new Promise((resolve) => {
