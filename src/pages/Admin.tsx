@@ -207,17 +207,28 @@ const Admin = () => {
   };
 
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     const lockout = getLockoutInfo();
     if (lockout.locked) {
       toast.error(`تم قفل الحساب مؤقتاً. حاول بعد ${Math.ceil(lockout.remainingSeconds / 60)} دقيقة`);
       return;
     }
-    const result = verifyAdmin(username, password);
+    const result = await verifyAdmin(username, password);
     if (result === 'success') {
+      // Store session key in memory for private key decryption
+      setSessionKey(password);
+      
+      // Try to decrypt private key to verify access
+      const privKey = await loadPrivateKeyDecrypted();
+      
       setAdminAuthenticated(true);
       setAuthenticated(true);
-      toast.success("تم تسجيل الدخول");
+      
+      if (privKey) {
+        toast.success("تم تسجيل الدخول — البيانات مفكوكة التشفير ✅");
+      } else {
+        toast.success("تم تسجيل الدخول");
+      }
     } else if (result === 'locked') {
       toast.error("تم قفل الحساب مؤقتاً بسبب كثرة المحاولات الخاطئة");
     } else {
