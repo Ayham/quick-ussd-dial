@@ -1,9 +1,10 @@
 import { getDeviceId } from './device-id';
 
-const TRIAL_START_KEY = 'app_trial_start_v1';
-const LICENSE_KEY = 'app_license_v1';
-const LAST_DATE_KEY = 'app_last_date_v1';
-const TRIAL_DAYS_KEY = 'app_trial_days_v1';
+// Obfuscated storage keys
+const _TS_KEY = '_sys_v1_ts';
+const _LK_KEY = '_sys_v1_lk';
+const _LD_KEY = '_sys_v1_ld';
+const _TD_KEY = '_sys_v1_td';
 const DEFAULT_TRIAL_DAYS = 30;
 
 // Obfuscated DB names — must match Admin.tsx
