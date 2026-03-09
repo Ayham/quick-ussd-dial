@@ -9,6 +9,16 @@ import { APP_VERSION as CONFIG_VERSION } from '../config/version';
 const UPDATE_CHECK_KEY = 'app_update_check_v1';
 const UPDATE_SKIP_KEY = 'app_update_skip_v1';
 
+export interface UpdateInfo {
+  hasUpdate: boolean;
+  currentVersion: string;
+  latestVersion: string;
+  downloadUrl: string;
+  changelog: string;
+  releaseDate: string;
+  forceUpdate: boolean;
+}
+
 // ✅ النسخة تُقرأ من src/config/version.ts — عدّلها هناك مباشرة
 export const APP_VERSION: string = CONFIG_VERSION;
 
