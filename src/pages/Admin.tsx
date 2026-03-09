@@ -272,7 +272,7 @@ const Admin = () => {
   };
 
   const handleExportPublicKey = async () => {
-    const pub = await loadKeyFromDB('publicKey');
+    const pub = await loadKeyFromDB('_pub');
     if (!pub) { toast.error("لم يتم توليد المفاتيح بعد"); return; }
     const filtered = { kty: pub.kty, e: pub.e, n: pub.n, alg: pub.alg, ext: pub.ext };
     const json = JSON.stringify(filtered, null, 2);
