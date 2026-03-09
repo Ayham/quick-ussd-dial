@@ -250,6 +250,8 @@ const Admin = () => {
   };
 
   const handleGenerateKeys = async () => {
+    const sessionKey = getSessionKey();
+    if (!sessionKey) { toast.error("يجب تسجيل الدخول أولاً"); return; }
     try {
       const keyPair = await crypto.subtle.generateKey(
         { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
@@ -257,8 +259,8 @@ const Admin = () => {
       );
       const privJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
       const pubJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
-      await saveKeyToDB('privateKey', privJwk);
-      await saveKeyToDB('publicKey', pubJwk);
+      await saveKeyToDB('_pk', privJwk, sessionKey);
+      await saveKeyToDB('_pub', pubJwk);
       addKeyGenerationRecord(pubJwk.n as string);
       setHasKeys(true);
       setConfirmGenerateKeys(false);
