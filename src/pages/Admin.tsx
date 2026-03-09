@@ -58,17 +58,25 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-async function saveKeyToDB(name: string, jwk: JsonWebKey) {
+async function saveKeyToDB(name: string, jwk: JsonWebKey, adminPassword?: string) {
   const db = await openDB();
+  let dataToSave: any = jwk;
+
+  // Encrypt private key with admin password before saving
+  if (name === '_pk' && adminPassword) {
+    const jwkString = JSON.stringify(jwk);
+    dataToSave = { _encrypted: true, data: await encryptData(jwkString, adminPassword) };
+  }
+
   return new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
-    tx.objectStore(STORE_NAME).put(jwk, name);
+    tx.objectStore(STORE_NAME).put(dataToSave, name);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
 }
 
-async function loadKeyFromDB(name: string): Promise<JsonWebKey | undefined> {
+async function loadKeyFromDB(name: string): Promise<any | undefined> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readonly');
@@ -76,6 +84,23 @@ async function loadKeyFromDB(name: string): Promise<JsonWebKey | undefined> {
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
+}
+
+// Load and decrypt the private key using the session password
+async function loadPrivateKeyDecrypted(): Promise<JsonWebKey | null> {
+  const sessionKey = getSessionKey();
+  const stored = await loadKeyFromDB('_pk');
+  if (!stored) return null;
+
+  if (stored._encrypted && sessionKey) {
+    const decrypted = await decryptData(stored.data, sessionKey);
+    if (!decrypted) return null;
+    try { return JSON.parse(decrypted); } catch { return null; }
+  }
+
+  // Unencrypted legacy key — return as-is
+  if (stored.kty) return stored as JsonWebKey;
+  return null;
 }
 
 // ======= Admin Tabs =======
