@@ -321,8 +321,8 @@ const Admin = () => {
     if (!deviceId.trim()) { toast.error("أدخل معرف الجهاز"); return; }
     if (!isPermanent && !expiryDate) { toast.error("اختر تاريخ الانتهاء"); return; }
     try {
-      const privJwk = await loadKeyFromDB('privateKey');
-      if (!privJwk) { toast.error("لم يتم توليد المفاتيح بعد"); return; }
+      const privJwk = await loadPrivateKeyDecrypted();
+      if (!privJwk) { toast.error("فشل فك تشفير المفتاح الخاص — تحقق من كلمة السر"); return; }
       const finalExpiry = isPermanent ? 'permanent' : expiryDate;
       const payload = { deviceId: deviceId.trim(), expiryDate: finalExpiry };
       const dataB64 = btoa(JSON.stringify(payload));
