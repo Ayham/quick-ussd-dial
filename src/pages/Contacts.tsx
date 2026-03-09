@@ -1,17 +1,17 @@
 import { useState, useMemo } from "react";
-import { UserPlus, Search, Trash2, Pencil, Phone, BookUser, Contact, Upload, Download } from "lucide-react";
+import { UserPlus, Search, Trash2, Pencil, BookUser, Contact, Upload, Download } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { detectOperator } from "@/lib/ussd-profiles";
+import PhoneBookPickerDialog from "@/components/contacts/PhoneBookPickerDialog";
 import {
   getSavedContacts,
   saveSavedContacts,
   saveContact,
   updateContactName,
   deleteContact,
-  pickPhoneContact,
   type SavedContact,
 } from "@/lib/contacts";
 
@@ -24,7 +24,7 @@ const Contacts = () => {
   const [newPhone, setNewPhone] = useState("");
   const [newName, setNewName] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  
+  const [phoneBookOpen, setPhoneBookOpen] = useState(false);
 
   const reload = () => setContacts(getSavedContacts());
 
@@ -66,23 +66,8 @@ const Contacts = () => {
     toast.info("تم حذف جهة الاتصال");
   };
 
-  const handlePickContact = async () => {
-    try {
-      const picked = await pickPhoneContact();
-      if (picked) {
-        reload();
-        toast.success(`تم إضافة ${picked.name || picked.phone}`);
-      }
-    } catch (err: any) {
-      console.error('pickPhoneContact error:', err);
-      if (err?.message === 'WEB_ONLY') {
-        toast.error("هذه الميزة تعمل فقط على الجهاز");
-      } else if (err?.message === 'CONTACTS_PERMISSION_DENIED') {
-        toast.error("تم رفض صلاحية جهات الاتصال. فعّلها من إعدادات التطبيق ثم جرّب مرة أخرى");
-      } else {
-        toast.error(`تعذر فتح سجل الاتصال: ${err?.message || err}`);
-      }
-    }
+  const handlePickContact = () => {
+    setPhoneBookOpen(true);
   };
 
   const handleExport = () => {
@@ -163,6 +148,18 @@ const Contacts = () => {
 
   return (
     <AppLayout title="جهات الاتصال">
+      <PhoneBookPickerDialog
+        open={phoneBookOpen}
+        onOpenChange={setPhoneBookOpen}
+        onSelect={(picked) => {
+          // Insert selected phone into search box
+          setSearch(picked.phone);
+          // Keep current behavior: save it to our in-app contacts too
+          saveContact(picked.phone, picked.name);
+          reload();
+          toast.success(`تم اختيار ${picked.name || picked.phone}`);
+        }}
+      />
       <main className="flex-1 p-3 w-full overflow-y-auto pb-safe space-y-3" dir="rtl">
         {/* Search + Actions */}
         <div className="flex items-center gap-2">
