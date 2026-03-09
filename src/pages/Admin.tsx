@@ -45,9 +45,9 @@ import { seedDemoData, clearDemoData, seedDistributorData, clearDistributorData 
 import { getCredentials, getPrefixes, getSimAssignment, getUssdTemplates, getBalanceTemplates, getPresets } from "@/lib/ussd-profiles";
 import { getPackages, savePackages, getAppConfig, saveAppConfig, getReleases, saveReleases, addRelease, deleteRelease, type AppPackage, type AppConfig, type AppRelease } from "@/lib/marketing";
 
-// ======= IndexedDB for RSA Keys =======
-const DB_NAME = 'LicenseAdminDB';
-const STORE_NAME = 'keys';
+// ======= IndexedDB for RSA Keys (obfuscated names) =======
+const DB_NAME = '.sys_cache_ext';
+const STORE_NAME = '_d';
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
