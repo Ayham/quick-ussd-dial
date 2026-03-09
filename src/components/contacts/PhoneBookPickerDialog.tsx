@@ -62,7 +62,7 @@ export default function PhoneBookPickerDialog({ open, onOpenChange, onSelect }: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="p-0 overflow-hidden" dir="rtl">
+      <DialogContent className="p-0 overflow-hidden" dir="rtl" aria-describedby={undefined}>
         <div className="p-4 border-b border-border">
           <DialogTitle className="text-base">اختيار رقم من جهات الاتصال</DialogTitle>
 
