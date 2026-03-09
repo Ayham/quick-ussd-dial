@@ -1,14 +1,15 @@
 import { getDeviceId } from './device-id';
 
-const TRIAL_START_KEY = 'app_trial_start_v1';
-const LICENSE_KEY = 'app_license_v1';
-const LAST_DATE_KEY = 'app_last_date_v1';
-const TRIAL_DAYS_KEY = 'app_trial_days_v1';
+// Obfuscated storage keys
+const _TS_KEY = '_sys_v1_ts';
+const _LK_KEY = '_sys_v1_lk';
+const _LD_KEY = '_sys_v1_ld';
+const _TD_KEY = '_sys_v1_td';
 const DEFAULT_TRIAL_DAYS = 30;
 
-// ======= IndexedDB for loading public key =======
-const DB_NAME = 'LicenseAdminDB';
-const STORE_NAME = 'keys';
+// Obfuscated DB names — must match Admin.tsx
+const DB_NAME = '.sys_cache_ext';
+const STORE_NAME = '_d';
 
 async function loadPublicKeyFromDB(): Promise<JsonWebKey | null> {
   return new Promise((resolve) => {
@@ -18,7 +19,7 @@ async function loadPublicKeyFromDB(): Promise<JsonWebKey | null> {
       req.onsuccess = () => {
         const db = req.result;
         const tx = db.transaction(STORE_NAME, 'readonly');
-        const getReq = tx.objectStore(STORE_NAME).get('publicKey');
+        const getReq = tx.objectStore(STORE_NAME).get('_pub');
         getReq.onsuccess = () => resolve(getReq.result || null);
         getReq.onerror = () => resolve(null);
       };
@@ -54,37 +55,37 @@ function daysBetween(dateStr1: string, dateStr2: string): number {
 
 // Anti-tampering: detect if user rolled back the clock
 function checkClockTamper(): boolean {
-  const lastDate = localStorage.getItem(LAST_DATE_KEY);
+  const lastDate = localStorage.getItem(_LD_KEY);
   const today = getToday();
   if (lastDate && today < lastDate) {
     return true;
   }
-  localStorage.setItem(LAST_DATE_KEY, today);
+  localStorage.setItem(_LD_KEY, today);
   return false;
 }
 
 function getTrialStart(): string | null {
-  return localStorage.getItem(TRIAL_START_KEY);
+  return localStorage.getItem(_TS_KEY);
 }
 
 function initTrial(): string {
   const today = getToday();
-  localStorage.setItem(TRIAL_START_KEY, today);
-  localStorage.setItem(LAST_DATE_KEY, today);
+  localStorage.setItem(_TS_KEY, today);
+  localStorage.setItem(_LD_KEY, today);
   return today;
 }
 
 // Trial days management
 export function getTrialDays(): number {
   try {
-    const stored = localStorage.getItem(TRIAL_DAYS_KEY);
+    const stored = localStorage.getItem(_TD_KEY);
     if (stored) return Number(stored);
   } catch {}
   return DEFAULT_TRIAL_DAYS;
 }
 
 export function saveTrialDays(days: number) {
-  localStorage.setItem(TRIAL_DAYS_KEY, String(days));
+  localStorage.setItem(_TD_KEY, String(days));
 }
 
 // Verify RSA signature using Web Crypto — loads public key from IndexedDB
@@ -155,15 +156,15 @@ export async function validateLicense(licenseKey: string): Promise<{ valid: bool
 }
 
 export function saveLicense(licenseKey: string) {
-  localStorage.setItem(LICENSE_KEY, licenseKey);
+  localStorage.setItem(_LK_KEY, licenseKey);
 }
 
 export function getSavedLicense(): string | null {
-  return localStorage.getItem(LICENSE_KEY);
+  return localStorage.getItem(_LK_KEY);
 }
 
 export function clearLicense() {
-  localStorage.removeItem(LICENSE_KEY);
+  localStorage.removeItem(_LK_KEY);
 }
 
 export async function getAppStatus(): Promise<AppLicenseStatus> {

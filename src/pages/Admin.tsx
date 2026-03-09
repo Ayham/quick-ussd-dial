@@ -18,6 +18,10 @@ import {
   saveAdminCredentials,
   getLockoutInfo,
   getRemainingAttempts,
+  encryptData,
+  decryptData,
+  setSessionKey,
+  getSessionKey,
 } from "@/lib/admin-auth";
 import {
   getLicenseApiEndpoint, saveLicenseApiEndpoint,
@@ -41,9 +45,9 @@ import { seedDemoData, clearDemoData, seedDistributorData, clearDistributorData 
 import { getCredentials, getPrefixes, getSimAssignment, getUssdTemplates, getBalanceTemplates, getPresets } from "@/lib/ussd-profiles";
 import { getPackages, savePackages, getAppConfig, saveAppConfig, getReleases, saveReleases, addRelease, deleteRelease, type AppPackage, type AppConfig, type AppRelease } from "@/lib/marketing";
 
-// ======= IndexedDB for RSA Keys =======
-const DB_NAME = 'LicenseAdminDB';
-const STORE_NAME = 'keys';
+// ======= IndexedDB for RSA Keys (obfuscated names) =======
+const DB_NAME = '.sys_cache_ext';
+const STORE_NAME = '_d';
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -54,17 +58,25 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-async function saveKeyToDB(name: string, jwk: JsonWebKey) {
+async function saveKeyToDB(name: string, jwk: JsonWebKey, adminPassword?: string) {
   const db = await openDB();
+  let dataToSave: any = jwk;
+
+  // Encrypt private key with admin password before saving
+  if (name === '_pk' && adminPassword) {
+    const jwkString = JSON.stringify(jwk);
+    dataToSave = { _encrypted: true, data: await encryptData(jwkString, adminPassword) };
+  }
+
   return new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
-    tx.objectStore(STORE_NAME).put(jwk, name);
+    tx.objectStore(STORE_NAME).put(dataToSave, name);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
 }
 
-async function loadKeyFromDB(name: string): Promise<JsonWebKey | undefined> {
+async function loadKeyFromDB(name: string): Promise<any | undefined> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readonly');
@@ -72,6 +84,23 @@ async function loadKeyFromDB(name: string): Promise<JsonWebKey | undefined> {
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
+}
+
+// Load and decrypt the private key using the session password
+async function loadPrivateKeyDecrypted(): Promise<JsonWebKey | null> {
+  const sessionKey = getSessionKey();
+  const stored = await loadKeyFromDB('_pk');
+  if (!stored) return null;
+
+  if (stored._encrypted && sessionKey) {
+    const decrypted = await decryptData(stored.data, sessionKey);
+    if (!decrypted) return null;
+    try { return JSON.parse(decrypted); } catch { return null; }
+  }
+
+  // Unencrypted legacy key — return as-is
+  if (stored.kty) return stored as JsonWebKey;
+  return null;
 }
 
 // ======= Admin Tabs =======
@@ -153,12 +182,14 @@ const Admin = () => {
   }, [authenticated]);
 
   const initKeys = async () => {
-    const priv = await loadKeyFromDB('privateKey');
-    const pub = await loadKeyFromDB('publicKey');
+    const priv = await loadPrivateKeyDecrypted();
+    const pub = await loadKeyFromDB('_pub');
     if (priv && pub) {
       setHasKeys(true);
     } else {
       // Auto-generate keys on first login
+      const sessionKey = getSessionKey();
+      if (!sessionKey) return;
       try {
         const keyPair = await crypto.subtle.generateKey(
           { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
@@ -166,8 +197,8 @@ const Admin = () => {
         );
         const privJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
         const pubJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
-        await saveKeyToDB('privateKey', privJwk);
-        await saveKeyToDB('publicKey', pubJwk);
+        await saveKeyToDB('_pk', privJwk, sessionKey);
+        await saveKeyToDB('_pub', pubJwk);
         addKeyGenerationRecord(pubJwk.n as string);
         setHasKeys(true);
         toast.success("تم توليد مفاتيح التشفير تلقائياً ✅");
@@ -178,17 +209,28 @@ const Admin = () => {
   };
 
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     const lockout = getLockoutInfo();
     if (lockout.locked) {
       toast.error(`تم قفل الحساب مؤقتاً. حاول بعد ${Math.ceil(lockout.remainingSeconds / 60)} دقيقة`);
       return;
     }
-    const result = verifyAdmin(username, password);
+    const result = await verifyAdmin(username, password);
     if (result === 'success') {
+      // Store session key in memory for private key decryption
+      setSessionKey(password);
+      
+      // Try to decrypt private key to verify access
+      const privKey = await loadPrivateKeyDecrypted();
+      
       setAdminAuthenticated(true);
       setAuthenticated(true);
-      toast.success("تم تسجيل الدخول");
+      
+      if (privKey) {
+        toast.success("تم تسجيل الدخول — البيانات مفكوكة التشفير ✅");
+      } else {
+        toast.success("تم تسجيل الدخول");
+      }
     } else if (result === 'locked') {
       toast.error("تم قفل الحساب مؤقتاً بسبب كثرة المحاولات الخاطئة");
     } else {
@@ -208,6 +250,8 @@ const Admin = () => {
   };
 
   const handleGenerateKeys = async () => {
+    const sessionKey = getSessionKey();
+    if (!sessionKey) { toast.error("يجب تسجيل الدخول أولاً"); return; }
     try {
       const keyPair = await crypto.subtle.generateKey(
         { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
@@ -215,8 +259,8 @@ const Admin = () => {
       );
       const privJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
       const pubJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
-      await saveKeyToDB('privateKey', privJwk);
-      await saveKeyToDB('publicKey', pubJwk);
+      await saveKeyToDB('_pk', privJwk, sessionKey);
+      await saveKeyToDB('_pub', pubJwk);
       addKeyGenerationRecord(pubJwk.n as string);
       setHasKeys(true);
       setConfirmGenerateKeys(false);
@@ -228,7 +272,7 @@ const Admin = () => {
   };
 
   const handleExportPublicKey = async () => {
-    const pub = await loadKeyFromDB('publicKey');
+    const pub = await loadKeyFromDB('_pub');
     if (!pub) { toast.error("لم يتم توليد المفاتيح بعد"); return; }
     const filtered = { kty: pub.kty, e: pub.e, n: pub.n, alg: pub.alg, ext: pub.ext };
     const json = JSON.stringify(filtered, null, 2);
@@ -238,7 +282,7 @@ const Admin = () => {
   };
 
   const handleExportPublicKeyForCode = async () => {
-    const pub = await loadKeyFromDB('publicKey');
+    const pub = await loadKeyFromDB('_pub');
     if (!pub) { toast.error("لم يتم توليد المفاتيح بعد"); return; }
     const codeSnippet = `const PUBLIC_KEY_JWK: JsonWebKey = {
   kty: "${pub.kty}",
@@ -253,18 +297,20 @@ const Admin = () => {
   };
 
   const handleExportPrivateKey = async () => {
-    const priv = await loadKeyFromDB('privateKey');
-    if (!priv) { toast.error("لم يتم توليد المفاتيح بعد"); return; }
+    const priv = await loadPrivateKeyDecrypted();
+    if (!priv) { toast.error("لم يتم توليد المفاتيح بعد أو فشل فك التشفير"); return; }
     try { await navigator.clipboard.writeText(JSON.stringify(priv)); toast.success("تم نسخ المفتاح الخاص — احفظه!"); }
     catch { toast.error("فشل النسخ"); }
   };
 
   const handleImportPrivateKey = async () => {
+    const sessionKey = getSessionKey();
+    if (!sessionKey) { toast.error("يجب تسجيل الدخول أولاً"); return; }
     try {
       const jwk = JSON.parse(importKeyText.trim());
       await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, true, ['sign']);
-      await saveKeyToDB('privateKey', jwk);
-      await saveKeyToDB('publicKey', { kty: jwk.kty, e: jwk.e, n: jwk.n, alg: jwk.alg, ext: true });
+      await saveKeyToDB('_pk', jwk, sessionKey);
+      await saveKeyToDB('_pub', { kty: jwk.kty, e: jwk.e, n: jwk.n, alg: jwk.alg, ext: true });
       setHasKeys(true);
       setImportKeyText("");
       toast.success("تم استيراد المفتاح بنجاح!");
@@ -275,8 +321,8 @@ const Admin = () => {
     if (!deviceId.trim()) { toast.error("أدخل معرف الجهاز"); return; }
     if (!isPermanent && !expiryDate) { toast.error("اختر تاريخ الانتهاء"); return; }
     try {
-      const privJwk = await loadKeyFromDB('privateKey');
-      if (!privJwk) { toast.error("لم يتم توليد المفاتيح بعد"); return; }
+      const privJwk = await loadPrivateKeyDecrypted();
+      if (!privJwk) { toast.error("فشل فك تشفير المفتاح الخاص — تحقق من كلمة السر"); return; }
       const finalExpiry = isPermanent ? 'permanent' : expiryDate;
       const payload = { deviceId: deviceId.trim(), expiryDate: finalExpiry };
       const dataB64 = btoa(JSON.stringify(payload));
@@ -1115,7 +1161,7 @@ const Admin = () => {
 
             <SectionCard title="بيانات الدخول" icon={<Lock className="w-4 h-4" />}>
               {!showPasswordChange ? (
-                <Button onClick={() => { setNewUsername(getAdminCredentials()?.username || ''); setShowPasswordChange(true); }}
+                <Button onClick={async () => { const creds = await getAdminCredentials(); setNewUsername(creds?.username || ''); setShowPasswordChange(true); }}
                   variant="outline" size="sm" className="text-xs">
                   <Lock className="w-3.5 h-3.5 ml-1" />تغيير بيانات الدخول
                 </Button>
