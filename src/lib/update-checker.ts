@@ -5,6 +5,7 @@
 
 import { getAppConfig } from './marketing';
 import { getLatestGitHubRelease } from './github-releases';
+import packageJsonRaw from '../../package.json?raw';
 
 const CURRENT_VERSION_KEY = 'app_current_version';
 const UPDATE_CHECK_KEY = 'app_update_check_v1';
@@ -20,7 +21,21 @@ export interface UpdateInfo {
   forceUpdate: boolean;
 }
 
-export const APP_VERSION: string = __APP_VERSION__;
+function readPackageVersion(): string | null {
+  try {
+    const parsed = JSON.parse(packageJsonRaw);
+    return typeof parsed?.version === 'string' ? parsed.version : null;
+  } catch {
+    return null;
+  }
+}
+
+const PACKAGE_VERSION = readPackageVersion();
+
+export const APP_VERSION: string =
+  (__APP_VERSION__ && __APP_VERSION__ !== '0.0.0')
+    ? __APP_VERSION__
+    : (PACKAGE_VERSION ?? __APP_VERSION__);
 
 // Get current app version
 export function getCurrentVersion(): string {
