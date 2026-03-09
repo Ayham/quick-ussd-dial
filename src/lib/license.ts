@@ -156,15 +156,15 @@ export async function validateLicense(licenseKey: string): Promise<{ valid: bool
 }
 
 export function saveLicense(licenseKey: string) {
-  localStorage.setItem(LICENSE_KEY, licenseKey);
+  localStorage.setItem(_LK_KEY, licenseKey);
 }
 
 export function getSavedLicense(): string | null {
-  return localStorage.getItem(LICENSE_KEY);
+  return localStorage.getItem(_LK_KEY);
 }
 
 export function clearLicense() {
-  localStorage.removeItem(LICENSE_KEY);
+  localStorage.removeItem(_LK_KEY);
 }
 
 export async function getAppStatus(): Promise<AppLicenseStatus> {
