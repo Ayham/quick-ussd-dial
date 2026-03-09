@@ -1155,7 +1155,7 @@ const Admin = () => {
 
             <SectionCard title="بيانات الدخول" icon={<Lock className="w-4 h-4" />}>
               {!showPasswordChange ? (
-                <Button onClick={() => { setNewUsername(getAdminCredentials()?.username || ''); setShowPasswordChange(true); }}
+                <Button onClick={async () => { const creds = await getAdminCredentials(); setNewUsername(creds?.username || ''); setShowPasswordChange(true); }}
                   variant="outline" size="sm" className="text-xs">
                   <Lock className="w-3.5 h-3.5 ml-1" />تغيير بيانات الدخول
                 </Button>
