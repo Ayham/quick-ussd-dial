@@ -20,7 +20,7 @@ export interface UpdateInfo {
   forceUpdate: boolean;
 }
 
-export const APP_VERSION = '1.0.6';
+export const APP_VERSION: string = __APP_VERSION__;
 
 // Get current app version
 export function getCurrentVersion(): string {
