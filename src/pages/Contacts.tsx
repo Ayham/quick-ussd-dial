@@ -148,6 +148,18 @@ const Contacts = () => {
 
   return (
     <AppLayout title="جهات الاتصال">
+      <PhoneBookPickerDialog
+        open={phoneBookOpen}
+        onOpenChange={setPhoneBookOpen}
+        onSelect={(picked) => {
+          // Insert selected phone into search box
+          setSearch(picked.phone);
+          // Keep current behavior: save it to our in-app contacts too
+          saveContact(picked.phone, picked.name);
+          reload();
+          toast.success(`تم اختيار ${picked.name || picked.phone}`);
+        }}
+      />
       <main className="flex-1 p-3 w-full overflow-y-auto pb-safe space-y-3" dir="rtl">
         {/* Search + Actions */}
         <div className="flex items-center gap-2">
