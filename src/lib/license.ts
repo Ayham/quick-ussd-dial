@@ -18,7 +18,7 @@ async function loadPublicKeyFromDB(): Promise<JsonWebKey | null> {
       req.onsuccess = () => {
         const db = req.result;
         const tx = db.transaction(STORE_NAME, 'readonly');
-        const getReq = tx.objectStore(STORE_NAME).get('publicKey');
+        const getReq = tx.objectStore(STORE_NAME).get('_pub');
         getReq.onsuccess = () => resolve(getReq.result || null);
         getReq.onerror = () => resolve(null);
       };
