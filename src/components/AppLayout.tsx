@@ -59,7 +59,7 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children }: AppLayoutProps)
               <div className="w-9 h-9 rounded-xl bg-primary-foreground/15 flex items-center justify-center">
                 <Zap className="w-5 h-5" />
               </div>
-              <span className="text-lg font-bold">تحويل رصيد</span>
+              <span className="text-lg font-bold">Raseed</span>
             </SheetTitle>
           </SheetHeader>
           <nav className="flex flex-col py-3 px-2 gap-0.5 overflow-y-auto flex-1 scrollbar-thin">

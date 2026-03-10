@@ -29,7 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
-type SettingsTab = "sim" | "codes" | "amounts" | "license" | "data";
+type SettingsTab = "sim" | "codes" | "amounts" | "data";
 
 const Settings = () => {
   const navigate = useNavigate();
