@@ -62,7 +62,7 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children }: AppLayoutProps)
               <span className="text-lg font-bold">تحويل رصيد</span>
             </SheetTitle>
           </SheetHeader>
-          <nav className="flex flex-col py-3 px-2 gap-0.5">
+          <nav className="flex flex-col py-3 px-2 gap-0.5 overflow-y-auto flex-1 scrollbar-thin">
             {menuItems.map((item) => {
               const isActive = location.pathname === item.path;
               return (
