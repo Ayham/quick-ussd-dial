@@ -85,6 +85,7 @@ const Index = () => {
     });
   }, []);
 
+  useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (contactsRef.current && !contactsRef.current.contains(e.target as Node)) {
         setShowContacts(false);
