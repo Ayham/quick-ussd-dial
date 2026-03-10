@@ -213,9 +213,22 @@ const Index = () => {
   };
 
   return (
-    <AppLayout title="تحويل رصيد" onTitleClick={handleTitleTap}>
+    <AppLayout title="Raseed" onTitleClick={handleTitleTap}>
       <main className="flex-1 p-3 w-full space-y-3 overflow-y-auto pb-4">
         
+        {/* Expiry Warning Banner */}
+        {expiryWarning.show && (
+          <button
+            onClick={() => navigate('/subscription')}
+            className="w-full bg-accent/15 border border-accent/30 rounded-2xl p-3 flex items-center gap-3 animate-slide-up"
+          >
+            <AlertTriangle className="w-5 h-5 text-accent shrink-0" />
+            <div className="flex-1 text-right">
+              <p className="text-xs font-bold text-foreground">{expiryWarning.message}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">اضغط هنا لتجديد الاشتراك</p>
+            </div>
+          </button>
+        )}
         {/* Phone Input Card */}
         <div className="bg-card rounded-2xl p-4 shadow-card space-y-2 animate-slide-up">
           <div className="relative" ref={contactsRef}>
