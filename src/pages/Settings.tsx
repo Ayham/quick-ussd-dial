@@ -23,10 +23,6 @@ import {
   type UssdTemplates, type OperatorPrefixes, type SimSlot, type SimAssignment,
   type BalanceCheckTemplates,
 } from "@/lib/ussd-profiles";
-import {
-  getAppStatus, getSavedLicense, clearLicense, saveLicense, validateLicense,
-  type AppLicenseStatus,
-} from "@/lib/license";
 import { getDeviceId } from "@/lib/device-id";
 import { getHistory } from "@/lib/transfer-history";
 import { Button } from "@/components/ui/button";
