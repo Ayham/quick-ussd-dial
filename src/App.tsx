@@ -15,6 +15,7 @@ import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
 import Activation from "./pages/Activation";
 import Updates from "./pages/Updates";
+import Subscription from "./pages/Subscription";
 
 import { getAppStatus, type AppLicenseStatus } from "./lib/license";
 import { startBackgroundSync, trackAppOpen, trackDeviceInfo, trackLicenseEvent } from "./lib/cloud-sync";
