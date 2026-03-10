@@ -51,6 +51,7 @@ const Index = () => {
   const [contactName, setContactName] = useState('');
   const [showSaveName, setShowSaveName] = useState(false);
   const [nameInput, setNameInput] = useState('');
+  const [expiryWarning, setExpiryWarning] = useState<ExpiryWarning>({ show: false, daysLeft: Infinity, type: 'trial', message: '' });
   
   const contactsRef = useRef<HTMLDivElement>(null);
 
