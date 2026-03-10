@@ -123,51 +123,10 @@ const Settings = () => {
     toast.info("تم إعادة تعيين جميع الإعدادات");
   };
 
-  // License actions
-  const handleActivateLicense = async () => {
-    if (!newLicenseKey.trim()) {
-      toast.error("الرجاء إدخال مفتاح الترخيص");
-      return;
-    }
-    setLicenseLoading(true);
-    try {
-      const result = await validateLicense(newLicenseKey.trim());
-      if (result.valid) {
-        saveLicense(newLicenseKey.trim());
-        toast.success("تم تفعيل الترخيص بنجاح!");
-        setNewLicenseKey("");
-        const s = await getAppStatus();
-        setLicenseStatus(s);
-      } else {
-        toast.error(result.error || "مفتاح غير صالح");
-      }
-    } catch {
-      toast.error("حدث خطأ أثناء التحقق");
-    } finally {
-      setLicenseLoading(false);
-    }
-  };
-
-  const copyDeviceId = async () => {
-    try {
-      await navigator.clipboard.writeText(deviceId);
-      toast.success("تم نسخ معرف الجهاز");
-    } catch {
-      const el = document.createElement("textarea");
-      el.value = deviceId;
-      document.body.appendChild(el);
-      el.select();
-      document.execCommand("copy");
-      document.body.removeChild(el);
-      toast.success("تم نسخ معرف الجهاز");
-    }
-  };
-
   const tabs: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
     { id: "sim", label: "الشريحة", icon: <Smartphone className="w-3.5 h-3.5" /> },
     { id: "codes", label: "الأكواد", icon: <Code className="w-3.5 h-3.5" /> },
     { id: "amounts", label: "المبالغ", icon: <SettingsIcon className="w-3.5 h-3.5" /> },
-    { id: "license", label: "الترخيص", icon: <Shield className="w-3.5 h-3.5" /> },
     { id: "data", label: "البيانات", icon: <Database className="w-3.5 h-3.5" /> },
   ];
 
