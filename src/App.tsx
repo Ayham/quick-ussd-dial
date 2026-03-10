@@ -23,6 +23,7 @@ import { isWebBrowser } from "./lib/platform";
 import { initDeviceId } from "./lib/device-id";
 import { verifyLicenseOnline, getLicenseApiEndpoint } from "./lib/license-api";
 import { checkForUpdate, type UpdateInfo } from "./lib/update-checker";
+import { syncLicense, startLicenseSyncListeners } from "./lib/license-sync";
 
 const queryClient = new QueryClient();
 
