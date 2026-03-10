@@ -73,7 +73,18 @@ const Index = () => {
   const currentPresets: AmountPreset[] = operator ? presets[operator] : [];
   const matchingContacts = useMemo(() => getMatchingContacts(phone), [phone]);
 
+  // Check expiry warning on mount
   useEffect(() => {
+    getAppStatus().then((status) => {
+      const warning = checkExpiryWarning(status);
+      setExpiryWarning(warning);
+      if (warning.show && shouldShowDailyNotification()) {
+        toast.warning(warning.message, { duration: 8000 });
+        markNotificationShown();
+      }
+    });
+  }, []);
+
     const handler = (e: MouseEvent) => {
       if (contactsRef.current && !contactsRef.current.contains(e.target as Node)) {
         setShowContacts(false);
