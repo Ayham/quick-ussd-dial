@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 
 import {
   Plus, Trash2, Key, Code, ArrowUp, ArrowDown, Smartphone, Signal,
-  Shield, ShieldCheck, Clock, Copy, AlertTriangle, Database, Settings as SettingsIcon,
+  Clock, Copy, AlertTriangle, Database, Settings as SettingsIcon,
   Download, Upload
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -23,17 +23,13 @@ import {
   type UssdTemplates, type OperatorPrefixes, type SimSlot, type SimAssignment,
   type BalanceCheckTemplates,
 } from "@/lib/ussd-profiles";
-import {
-  getAppStatus, getSavedLicense, clearLicense, saveLicense, validateLicense,
-  type AppLicenseStatus,
-} from "@/lib/license";
 import { getDeviceId } from "@/lib/device-id";
 import { getHistory } from "@/lib/transfer-history";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
-type SettingsTab = "sim" | "codes" | "amounts" | "license" | "data";
+type SettingsTab = "sim" | "codes" | "amounts" | "data";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -47,15 +43,7 @@ const Settings = () => {
   const [activeOperator, setActiveOperator] = useState<Operator>("mtn");
   const [newPrefix, setNewPrefix] = useState("");
 
-  // License state
-  const [licenseStatus, setLicenseStatus] = useState<AppLicenseStatus | null>(null);
-  const [newLicenseKey, setNewLicenseKey] = useState("");
-  const [licenseLoading, setLicenseLoading] = useState(false);
   const deviceId = getDeviceId();
-
-  useEffect(() => {
-    getAppStatus().then(setLicenseStatus);
-  }, []);
 
   // Preset handlers
   const handleAdd = () => {
@@ -135,51 +123,10 @@ const Settings = () => {
     toast.info("تم إعادة تعيين جميع الإعدادات");
   };
 
-  // License actions
-  const handleActivateLicense = async () => {
-    if (!newLicenseKey.trim()) {
-      toast.error("الرجاء إدخال مفتاح الترخيص");
-      return;
-    }
-    setLicenseLoading(true);
-    try {
-      const result = await validateLicense(newLicenseKey.trim());
-      if (result.valid) {
-        saveLicense(newLicenseKey.trim());
-        toast.success("تم تفعيل الترخيص بنجاح!");
-        setNewLicenseKey("");
-        const s = await getAppStatus();
-        setLicenseStatus(s);
-      } else {
-        toast.error(result.error || "مفتاح غير صالح");
-      }
-    } catch {
-      toast.error("حدث خطأ أثناء التحقق");
-    } finally {
-      setLicenseLoading(false);
-    }
-  };
-
-  const copyDeviceId = async () => {
-    try {
-      await navigator.clipboard.writeText(deviceId);
-      toast.success("تم نسخ معرف الجهاز");
-    } catch {
-      const el = document.createElement("textarea");
-      el.value = deviceId;
-      document.body.appendChild(el);
-      el.select();
-      document.execCommand("copy");
-      document.body.removeChild(el);
-      toast.success("تم نسخ معرف الجهاز");
-    }
-  };
-
   const tabs: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
     { id: "sim", label: "الشريحة", icon: <Smartphone className="w-3.5 h-3.5" /> },
     { id: "codes", label: "الأكواد", icon: <Code className="w-3.5 h-3.5" /> },
     { id: "amounts", label: "المبالغ", icon: <SettingsIcon className="w-3.5 h-3.5" /> },
-    { id: "license", label: "الترخيص", icon: <Shield className="w-3.5 h-3.5" /> },
     { id: "data", label: "البيانات", icon: <Database className="w-3.5 h-3.5" /> },
   ];
 
@@ -386,84 +333,6 @@ const Settings = () => {
           </div>
         )}
 
-        {/* ===== LICENSE TAB ===== */}
-        {settingsTab === "license" && (
-          <div className="space-y-5">
-            <SectionCard title="حالة الترخيص" icon={<Shield className="w-4 h-4" />}>
-              <div className="space-y-3">
-                {licenseStatus && (
-                  <div className={`flex items-center gap-3 p-3 rounded-lg ${
-                    licenseStatus.status === 'licensed'
-                      ? "bg-green-500/10 border border-green-500/30"
-                      : licenseStatus.status === 'trial'
-                        ? "bg-primary/10 border border-primary/30"
-                        : "bg-destructive/10 border border-destructive/30"
-                  }`}>
-                    {licenseStatus.status === 'licensed' ? (
-                      <ShieldCheck className="w-5 h-5 text-green-500 shrink-0" />
-                    ) : licenseStatus.status === 'trial' ? (
-                      <Clock className="w-5 h-5 text-primary shrink-0" />
-                    ) : (
-                      <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-foreground">
-                        {licenseStatus.status === 'licensed' ? 'مفعّل' :
-                         licenseStatus.status === 'trial' ? 'فترة تجريبية' :
-                         licenseStatus.status === 'trial_expired' ? 'انتهت الفترة التجريبية' :
-                         licenseStatus.status === 'license_expired' ? 'انتهى الترخيص' :
-                         'تلاعب بالتاريخ'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {licenseStatus.status === 'licensed' && `ينتهي: ${(licenseStatus as any).expiryDate} (${(licenseStatus as any).daysLeft} يوم)`}
-                        {licenseStatus.status === 'trial' && `متبقي ${(licenseStatus as any).daysLeft} يوم`}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Device ID */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                    <Smartphone className="w-3.5 h-3.5" />
-                    معرف الجهاز
-                  </label>
-                  <div className="flex gap-2">
-                    <Input value={deviceId} readOnly className="text-left text-[11px] h-9 font-mono flex-1 bg-muted" dir="ltr" />
-                    <Button onClick={copyDeviceId} variant="outline" size="icon" className="shrink-0 h-9 w-9">
-                      <Copy className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Enter license */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                    <Key className="w-3.5 h-3.5" />
-                    {getSavedLicense() ? "تجديد الترخيص" : "تفعيل الترخيص"}
-                  </label>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="الصق مفتاح الترخيص..."
-                      value={newLicenseKey}
-                      onChange={(e) => setNewLicenseKey(e.target.value)}
-                      className="text-left text-xs h-9 font-mono flex-1"
-                      dir="ltr"
-                    />
-                    <Button
-                      onClick={handleActivateLicense}
-                      disabled={licenseLoading || !newLicenseKey.trim()}
-                      size="sm"
-                      className="h-9 text-xs"
-                    >
-                      {licenseLoading ? "..." : "تفعيل"}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </SectionCard>
-          </div>
-        )}
 
         {/* ===== DATA TAB ===== */}
         {settingsTab === "data" && (

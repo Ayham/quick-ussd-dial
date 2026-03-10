@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "app.lovable.d8f5ea8ed86449c9b0842c093fa293c0"
+    namespace = "com.Apex.Raseed"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "app.lovable.d8f5ea8ed86449c9b0842c093fa293c0"
+        applicationId "com.Apex.Raseed"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
