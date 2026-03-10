@@ -131,48 +131,6 @@ const Updates = () => {
             </Button>
           </div>
 
-          {/* Previous Releases */}
-          {releases.length > 0 && (
-            <div className="bg-card border border-border rounded-2xl p-4">
-              <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-muted-foreground" />
-                الإصدارات السابقة
-              </h3>
-              <div className="space-y-2">
-                {releases.map((release) => (
-                  <div
-                    key={release.id}
-                    className={`border rounded-xl p-3 ${release.isLatest ? "border-primary/30 bg-primary/5" : "border-border"}`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm font-bold text-foreground">v{release.version}</span>
-                        {release.isLatest && (
-                          <span className="text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md font-medium">الأحدث</span>
-                        )}
-                      </div>
-                      {release.releaseDate && (
-                        <span className="text-[10px] text-muted-foreground">{release.releaseDate}</span>
-                      )}
-                    </div>
-                    {release.changelog && (
-                      <p className="text-[11px] text-muted-foreground mt-1 whitespace-pre-wrap line-clamp-3">{release.changelog}</p>
-                    )}
-                    {release.downloadUrl && (
-                      <button
-                        onClick={() => handleDownload(release.downloadUrl)}
-                        className="inline-flex items-center gap-1 text-[11px] text-primary font-medium mt-2 hover:underline disabled:opacity-50"
-                        disabled={isDownloading}
-                      >
-                        <Download className="w-3 h-3" /> تحميل وتثبيت
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
         </div>
       </div>
     </AppLayout>

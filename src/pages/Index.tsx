@@ -177,18 +177,32 @@ const Index = () => {
     return { todaySum, todayCount, weekSum, weekCount, monthSum, monthCount, totalSum, totalCount: phoneHistory.length };
   }, [phoneHistory]);
 
+  const getGradientColor = (index: number, total: number) => {
+    const ratio = index / (total - 1 || 1);
+
+    // أبيض → أخضر فاتح → لون التطبيق
+    const start = [255, 255, 255];        // أبيض
+    const mid = [144, 238, 144];          // أخضر فاتح
+    const end = [35, 141, 106];           // لون التطبيق
+
+    let color: number[];
+    if (ratio < 0.5) {
+      const localRatio = ratio / 0.5;
+      color = start.map((c, i) => Math.round(c + (mid[i] - c) * localRatio));
+    } else {
+      const localRatio = (ratio - 0.5) / 0.5;
+      color = mid.map((c, i) => Math.round(c + (end[i] - c) * localRatio));
+    }
+
+    return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+  };
+
   return (
     <AppLayout title="تحويل رصيد" onTitleClick={handleTitleTap}>
       <main className="flex-1 p-3 w-full space-y-3 overflow-y-auto pb-4">
         
         {/* Phone Input Card */}
         <div className="bg-card rounded-2xl p-4 shadow-card space-y-2 animate-slide-up">
-          <label className="text-xs font-semibold text-foreground flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center">
-              <Phone className="w-3.5 h-3.5 text-primary" />
-            </div>
-            رقم الهاتف
-          </label>
           <div className="relative" ref={contactsRef}>
             <Input
               type="tel"
@@ -313,47 +327,39 @@ const Index = () => {
               )}
             </div>
           )}
-          {phone.length >= 3 && phone.length < 10 && operator && (
-            <span
-              className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold ${
-                operator === "mtn"
-                  ? "bg-operator-mtn text-operator-mtn-foreground"
-                  : "bg-operator-syriatel text-operator-syriatel-foreground"
-              }`}
-            >
-              {operator === "mtn" ? "MTN" : "Syriatel"}
-            </span>
-          )}
-          {phone.length >= 3 && !operator && (
-            <span className="text-[11px] text-destructive font-medium">رقم غير معروف</span>
-          )}
         </div>
 
-        {/* Preset Amounts */}
+        {/* Preset Amounts with gradient coloring */}
         {operator && currentPresets.length > 0 && (
           <div className="space-y-2 animate-slide-up">
             <p className="text-xs font-semibold text-muted-foreground px-1">اختر المبلغ</p>
             <div className="grid grid-cols-3 gap-2 max-h-[240px] overflow-y-auto">
-              {currentPresets.map((preset, i) => (
-                <button
-                  key={i}
-                  onClick={() => setSelectedAmount(preset)}
-                  className={`flex flex-col items-center p-2.5 rounded-xl border-2 transition-smooth active:scale-95 ${
-                    selectedAmount?.amount === preset.amount
-                      ? operator === "mtn"
-                        ? "border-operator-mtn bg-operator-mtn/10 shadow-card"
-                        : "border-operator-syriatel bg-operator-syriatel/10 shadow-card"
-                      : "border-border bg-card hover:border-muted-foreground/30 hover:shadow-card"
-                  }`}
-                >
-                  <span className="text-[11px] text-muted-foreground">
-                    {preset.amount.toLocaleString()}
-                  </span>
-                  <span className="font-bold text-card-foreground text-sm mt-0.5">
-                    {preset.price.toLocaleString()}
-                  </span>
-                </button>
-              ))}
+              {currentPresets.map((preset, i) => {
+                const bgColor = getGradientColor(i, currentPresets.length);
+                const borderColor =
+                  selectedAmount?.amount === preset.amount
+                    ? operator === "mtn"
+                      ? "border-operator-mtn"
+                      : "border-operator-syriatel"
+                    : "border-border";
+                const shadow = selectedAmount?.amount === preset.amount ? "shadow-card" : "";
+
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setSelectedAmount(preset)}
+                    style={{ backgroundColor: bgColor }}
+                    className={`flex flex-col items-center p-2.5 rounded-xl border-2 transition-smooth active:scale-95 ${borderColor} ${shadow}`}
+                  >
+                    <span className="text-lg font-bold text-black">
+                      {preset.price.toLocaleString()} 
+                    </span>
+                    <span className="text-[17px] mt-1 text-black">
+                      {preset.amount.toLocaleString()}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -365,11 +371,7 @@ const Index = () => {
           className="w-full h-12 text-base font-bold rounded-xl shadow-elevated hover:shadow-card transition-smooth"
           size="lg"
         >
-          {dialing ? (
-            <Loader2 className="w-5 h-5 ml-2 animate-spin" />
-          ) : (
-            <Send className="w-5 h-5 ml-2" />
-          )}
+          {dialing ? <Loader2 className="w-5 h-5 ml-2 animate-spin" /> : <Send className="w-5 h-5 ml-2" />}
           تحويل
         </Button>
 
@@ -401,9 +403,7 @@ const Index = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground text-sm">المشغّل</span>
                     <span className={`font-bold px-2 py-0.5 rounded-full text-xs ${
-                      operator === "mtn" 
-                        ? "bg-operator-mtn text-operator-mtn-foreground" 
-                        : "bg-operator-syriatel text-operator-syriatel-foreground"
+                      operator === "mtn" ? "bg-operator-mtn text-operator-mtn-foreground" : "bg-operator-syriatel text-operator-syriatel-foreground"
                     }`}>
                       {operator === "mtn" ? "MTN" : "Syriatel"}
                     </span>
@@ -418,7 +418,7 @@ const Index = () => {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Phone-specific stats + history */}
+        {/* Phone stats + history */}
         {phoneStats && (
           <div className="space-y-2 animate-slide-up">
             <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 px-1">
@@ -426,14 +426,11 @@ const Index = () => {
               ملخص التحويلات لهذا الرقم
             </p>
 
-            {/* Stats row */}
             <div className="grid grid-cols-4 gap-1.5">
-              {[
-                { label: "اليوم", sum: phoneStats.todaySum, count: phoneStats.todayCount },
+              {[{ label: "اليوم", sum: phoneStats.todaySum, count: phoneStats.todayCount },
                 { label: "الأسبوع", sum: phoneStats.weekSum, count: phoneStats.weekCount },
                 { label: "الشهر", sum: phoneStats.monthSum, count: phoneStats.monthCount },
-                { label: "الإجمالي", sum: phoneStats.totalSum, count: phoneStats.totalCount },
-              ].map((stat) => (
+                { label: "الإجمالي", sum: phoneStats.totalSum, count: phoneStats.totalCount }].map((stat) => (
                 <div key={stat.label} className="bg-card border border-border rounded-xl p-2 text-center shadow-card">
                   <p className="text-[9px] text-muted-foreground">{stat.label}</p>
                   <p className="text-xs font-bold text-foreground">{stat.sum.toLocaleString()}</p>
@@ -442,7 +439,6 @@ const Index = () => {
               ))}
             </div>
 
-            {/* Recent records */}
             <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 px-1">
               <Clock className="w-3.5 h-3.5" />
               آخر العمليات
