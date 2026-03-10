@@ -32,7 +32,7 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children }: AppLayoutProps)
   const location = useLocation();
 
   return (
-    <div className="min-h-screen bg-background flex flex-col safe-area-insets">
+    <div className="min-h-dvh bg-background flex flex-col safe-area-insets">
       {/* Header with gradient */}
       <header className="header-gradient px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] flex items-center justify-between shadow-elevated">
         <div className="flex items-center gap-2.5 cursor-pointer" onClick={onTitleClick}>
