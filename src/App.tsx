@@ -69,6 +69,8 @@ const AppContent = () => {
         doUpdateCheck();
         checkStatus();
         startBackgroundSync();
+        startLicenseSyncListeners();
+        syncLicense().catch(() => {});
         trackDeviceInfo();
         trackAppOpen();
       }
