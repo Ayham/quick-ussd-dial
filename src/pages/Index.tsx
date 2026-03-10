@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
-import { Phone, Clock, CheckCircle, Loader2, Send, TrendingUp, BookUser, UserPlus, Contact } from "lucide-react";
+import { Phone, Clock, CheckCircle, Loader2, Send, TrendingUp, BookUser, UserPlus, Contact, AlertTriangle } from "lucide-react";
 import {
   detectOperator,
   buildUssdCode,
@@ -20,6 +20,8 @@ import {
 import { updateContactName, pickPhoneContact, type SavedContact } from "@/lib/contacts";
 import { dialUssdDirect } from "@/lib/ussd-dialer";
 import { trackTransfer } from "@/lib/cloud-sync";
+import { getAppStatus, type AppLicenseStatus } from "@/lib/license";
+import { checkExpiryWarning, shouldShowDailyNotification, markNotificationShown, type ExpiryWarning } from "@/lib/expiry-warning";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -49,6 +51,7 @@ const Index = () => {
   const [contactName, setContactName] = useState('');
   const [showSaveName, setShowSaveName] = useState(false);
   const [nameInput, setNameInput] = useState('');
+  const [expiryWarning, setExpiryWarning] = useState<ExpiryWarning>({ show: false, daysLeft: Infinity, type: 'trial', message: '' });
   
   const contactsRef = useRef<HTMLDivElement>(null);
 
@@ -69,6 +72,18 @@ const Index = () => {
   const operator = useMemo(() => detectOperator(phone), [phone]);
   const currentPresets: AmountPreset[] = operator ? presets[operator] : [];
   const matchingContacts = useMemo(() => getMatchingContacts(phone), [phone]);
+
+  // Check expiry warning on mount
+  useEffect(() => {
+    getAppStatus().then((status) => {
+      const warning = checkExpiryWarning(status);
+      setExpiryWarning(warning);
+      if (warning.show && shouldShowDailyNotification()) {
+        toast.warning(warning.message, { duration: 8000 });
+        markNotificationShown();
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -198,9 +213,22 @@ const Index = () => {
   };
 
   return (
-    <AppLayout title="تحويل رصيد" onTitleClick={handleTitleTap}>
+    <AppLayout title="Raseed" onTitleClick={handleTitleTap}>
       <main className="flex-1 p-3 w-full space-y-3 overflow-y-auto pb-4">
         
+        {/* Expiry Warning Banner */}
+        {expiryWarning.show && (
+          <button
+            onClick={() => navigate('/subscription')}
+            className="w-full bg-accent/15 border border-accent/30 rounded-2xl p-3 flex items-center gap-3 animate-slide-up"
+          >
+            <AlertTriangle className="w-5 h-5 text-accent shrink-0" />
+            <div className="flex-1 text-right">
+              <p className="text-xs font-bold text-foreground">{expiryWarning.message}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">اضغط هنا لتجديد الاشتراك</p>
+            </div>
+          </button>
+        )}
         {/* Phone Input Card */}
         <div className="bg-card rounded-2xl p-4 shadow-card space-y-2 animate-slide-up">
           <div className="relative" ref={contactsRef}>

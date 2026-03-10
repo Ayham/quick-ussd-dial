@@ -27,7 +27,6 @@ allprojects {
     afterEvaluate { project ->
         if (project.hasProperty('android')) {
             if (project.name == 'capacitor-call-number') {
-                // Correcting the namespace based on the manifest content
                 project.android.namespace = 'com.devmantosh.callnumber'
             }
         }

@@ -108,7 +108,7 @@
   #root {
     max-width: 100%;
     margin: 0 auto;
-    min-height: 100vh;
+    min-height: 100dvh;
   }
 }
 
@@ -140,7 +140,7 @@
   max-width: 500px;
   margin: 0 auto;
   width: 100%;
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Custom gradient header */
@@ -156,6 +156,33 @@
 /* Smooth transitions */
 .transition-smooth {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Thin scrollbar for sidebar/drawers */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 4px;
+}
+
+/* Z-index layering */
+.z-toast {
+  z-index: 100;
+}
+.z-popup {
+  z-index: 90;
+}
+.z-header {
+  z-index: 50;
 }
 
 /* Hide Lovable badge */

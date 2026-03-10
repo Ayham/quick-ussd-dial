@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Send, Wallet, BarChart3, Settings, Zap, Menu, ChevronLeft, Users, BookUser, Download } from "lucide-react";
+import { Send, Wallet, BarChart3, Settings, Zap, Menu, ChevronLeft, Users, BookUser, Download, Shield } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Sheet,
@@ -14,6 +14,7 @@ const menuItems = [
   { icon: Users, label: "الموزع", path: "/distributor", description: "إدارة حساب الموزع" },
   { icon: Wallet, label: "الرصيد", path: "/balance", description: "متابعة الرصيد" },
   { icon: BarChart3, label: "التقارير", path: "/reports", description: "إحصائيات التحويلات" },
+  { icon: Shield, label: "التفعيل", path: "/subscription", description: "الاشتراك والدفع" },
   { icon: Settings, label: "الإعدادات", path: "/settings", description: "إعدادات التطبيق" },
   { icon: Download, label: "التحديثات", path: "/updates", description: "البحث عن تحديثات" },
 ];
@@ -31,7 +32,7 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children }: AppLayoutProps)
   const location = useLocation();
 
   return (
-    <div className="min-h-screen bg-background flex flex-col safe-area-insets">
+    <div className="min-h-dvh bg-background flex flex-col safe-area-insets">
       {/* Header with gradient */}
       <header className="header-gradient px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] flex items-center justify-between shadow-elevated">
         <div className="flex items-center gap-2.5 cursor-pointer" onClick={onTitleClick}>
@@ -58,10 +59,10 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children }: AppLayoutProps)
               <div className="w-9 h-9 rounded-xl bg-primary-foreground/15 flex items-center justify-center">
                 <Zap className="w-5 h-5" />
               </div>
-              <span className="text-lg font-bold">تحويل رصيد</span>
+              <span className="text-lg font-bold">Raseed</span>
             </SheetTitle>
           </SheetHeader>
-          <nav className="flex flex-col py-3 px-2 gap-0.5">
+          <nav className="flex flex-col py-3 px-2 gap-0.5 overflow-y-auto flex-1 scrollbar-thin">
             {menuItems.map((item) => {
               const isActive = location.pathname === item.path;
               return (
