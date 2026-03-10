@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "801859100268",
+    "project_id": "ussd-dial-db41e",
+    "storage_bucket": "ussd-dial-db41e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:801859100268:android:73bce09cf1b6022a454249",
+        "android_client_info": {
+          "package_name": "com.Apex.Raseed"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDNU94qsvTUEWdSgrbyg4-PEfrNOxESpr8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
