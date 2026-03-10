@@ -43,15 +43,7 @@ const Settings = () => {
   const [activeOperator, setActiveOperator] = useState<Operator>("mtn");
   const [newPrefix, setNewPrefix] = useState("");
 
-  // License state
-  const [licenseStatus, setLicenseStatus] = useState<AppLicenseStatus | null>(null);
-  const [newLicenseKey, setNewLicenseKey] = useState("");
-  const [licenseLoading, setLicenseLoading] = useState(false);
   const deviceId = getDeviceId();
-
-  useEffect(() => {
-    getAppStatus().then(setLicenseStatus);
-  }, []);
 
   // Preset handlers
   const handleAdd = () => {
