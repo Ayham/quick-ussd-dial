@@ -29,7 +29,6 @@ import {
   reactivateLicenseOnline, extendLicenseOnline,
   type CentralLicense,
 } from "@/lib/license-api";
-import { getTrialDays, saveTrialDays } from "@/lib/license";
 import {
   getLicenseHistory, addLicenseRecord, deleteLicenseRecord, updateLicenseNote,
   addKeyGenerationRecord, getKeyGenerationLog,
@@ -43,8 +42,6 @@ import {
 import { getHistory } from "@/lib/transfer-history";
 import { seedDemoData, clearDemoData, seedDistributorData, clearDistributorData } from "@/lib/seed-demo-data";
 import { getCredentials, getPrefixes, getSimAssignment, getUssdTemplates, getBalanceTemplates, getPresets } from "@/lib/ussd-profiles";
-import { getPackages, savePackages, getAppConfig, saveAppConfig, getReleases, saveReleases, addRelease, deleteRelease, type AppPackage, type AppConfig, type AppRelease } from "@/lib/marketing";
-
 // ======= IndexedDB for RSA Keys (obfuscated names) =======
 const DB_NAME = '.sys_cache_ext';
 const STORE_NAME = '_d';
@@ -145,9 +142,6 @@ const Admin = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // Trial
-  const [trialDays, setTrialDaysLocal] = useState(() => getTrialDays());
-
   // Cloud Sync
   const SYNC_ENABLED_KEY = 'cloud_sync_enabled_v1';
   const [syncEnabled, setSyncEnabledState] = useState(() => localStorage.getItem(SYNC_ENABLED_KEY) !== 'false');
@@ -156,13 +150,6 @@ const Admin = () => {
   const [syncing, setSyncing] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmLicenseClear, setConfirmLicenseClear] = useState(false);
-
-  // Marketing
-  const [mktPackages, setMktPackages] = useState<AppPackage[]>(() => getPackages());
-  const [mktConfig, setMktConfig] = useState<AppConfig>(() => getAppConfig());
-  const [editPkgId, setEditPkgId] = useState<string | null>(null);
-  const [mktReleases, setMktReleases] = useState<AppRelease[]>(() => getReleases());
-  const [newRelease, setNewRelease] = useState({ version: '', downloadUrl: '', changelog: '' });
 
   // Central Licenses
   const [centralLicenses, setCentralLicenses] = useState<CentralLicense[]>([]);
@@ -227,7 +214,7 @@ const Admin = () => {
       setAuthenticated(true);
       
       if (privKey) {
-        toast.success("تم تسجيل الدخول — البيانات مفكوكة التشفير ✅");
+        toast.success("تم تسجيل الدخول ✅");
       } else {
         toast.success("تم تسجيل الدخول");
       }
@@ -378,11 +365,6 @@ const Admin = () => {
     toast.success("تم تغيير بيانات الدخول");
   };
 
-  const handleSaveTrialDays = () => {
-    saveTrialDays(trialDays);
-    toast.success(`تم تعيين الفترة التجريبية إلى ${trialDays} يوم`);
-  };
-
   // Filtered archive
   const filteredHistory = useMemo(() => {
     if (!searchQuery.trim()) return licenseHistory;
@@ -460,12 +442,17 @@ const Admin = () => {
   // ======= Dashboard =======
   return (
     <div className="min-h-screen bg-background flex flex-col safe-area-insets" dir="rtl">
-      <header className="bg-primary px-4 py-3 flex items-center justify-between shadow-md pt-safe">
+      <header className="bg-primary px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] flex items-center justify-between shadow-md">
         <div className="flex items-center gap-3">
-          <Shield className="w-5 h-5 text-primary-foreground" />
-          <h1 className="text-primary-foreground text-lg font-bold">لوحة الإدارة</h1>
+          <div className="w-8 h-8 rounded-lg bg-primary-foreground/15 flex items-center justify-center backdrop-blur-sm">
+            <Shield className="w-4.5 h-4.5 text-primary-foreground" />
+          </div>
+          <h1 className="text-primary-foreground text-lg font-bold select-none">لوحة الإدارة</h1>
         </div>
-        <button onClick={handleLogout} className="text-primary-foreground p-1">
+        <button 
+          onClick={handleLogout} 
+          className="text-primary-foreground w-9 h-9 rounded-lg bg-primary-foreground/10 flex items-center justify-center hover:bg-primary-foreground/20 transition-smooth"
+        >
           <LogOut className="w-5 h-5" />
         </button>
       </header>
@@ -477,7 +464,6 @@ const Admin = () => {
           { id: 'central' as AdminTab, label: 'التراخيص', icon: Cloud },
           { id: 'generate' as AdminTab, label: 'توليد ترخيص', icon: Shield },
           { id: 'archive' as AdminTab, label: 'الأرشيف', icon: History },
-          { id: 'marketing' as AdminTab, label: 'التسويق', icon: Megaphone },
           { id: 'settings' as AdminTab, label: 'إعدادات', icon: Settings2 },
         ]).map(tab => (
           <button
@@ -836,329 +822,9 @@ const Admin = () => {
           </div>
         )}
 
-
-        {/* ===== MARKETING TAB ===== */}
-        {activeTab === 'marketing' && (
-          <div className="space-y-4">
-            {/* App Config */}
-            <SectionCard title="إعدادات التطبيق" icon={<Settings2 className="w-4 h-4" />}>
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">عنوان الصفحة الرئيسي</label>
-                  <Input value={mktConfig.heroTitle} onChange={(e) => setMktConfig({...mktConfig, heroTitle: e.target.value})}
-                    className="h-10 rounded-xl text-sm" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">العنوان الفرعي</label>
-                  <Input value={mktConfig.heroSubtitle} onChange={(e) => setMktConfig({...mktConfig, heroSubtitle: e.target.value})}
-                    className="h-10 rounded-xl text-sm" />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">رقم الإصدار</label>
-                    <Input value={mktConfig.appVersion} onChange={(e) => setMktConfig({...mktConfig, appVersion: e.target.value})}
-                      className="h-10 rounded-xl text-sm" dir="ltr" placeholder="1.0.0" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">رقم واتساب</label>
-                    <Input value={mktConfig.whatsappContact} onChange={(e) => setMktConfig({...mktConfig, whatsappContact: e.target.value})}
-                      className="h-10 rounded-xl text-sm" dir="ltr" placeholder="09XXXXXXXX" inputMode="tel" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">رقم الدعم الفني (يظهر في شاشة التفعيل)</label>
-                    <Input value={mktConfig.supportPhone || ''} onChange={(e) => setMktConfig({...mktConfig, supportPhone: e.target.value})}
-                      className="h-10 rounded-xl text-sm" dir="ltr" placeholder="09XXXXXXXX" inputMode="tel" />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">رابط تنزيل APK</label>
-                  <Input value={mktConfig.downloadUrl} onChange={(e) => setMktConfig({...mktConfig, downloadUrl: e.target.value})}
-                    className="h-10 rounded-xl text-sm" dir="ltr" placeholder="https://..." />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">سجل التغييرات</label>
-                  <textarea value={mktConfig.changelog} onChange={(e) => setMktConfig({...mktConfig, changelog: e.target.value})}
-                    className="w-full min-h-[60px] rounded-xl border border-border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-                    placeholder="ما الجديد في هذا الإصدار..." />
-                </div>
-                <Button className="w-full h-10 font-bold rounded-xl" onClick={() => {
-                  saveAppConfig(mktConfig);
-                  toast.success("تم حفظ إعدادات التطبيق");
-                }}>
-                  حفظ الإعدادات
-                </Button>
-              </div>
-            </SectionCard>
-
-            {/* Packages Management */}
-            <SectionCard title="إدارة الباقات" icon={<Megaphone className="w-4 h-4" />}>
-              <div className="space-y-3">
-                {mktPackages.map((pkg, idx) => (
-                  <div key={pkg.id} className={`border rounded-xl p-3 space-y-2 ${pkg.enabled ? 'border-border' : 'border-border/50 opacity-60'}`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => {
-                          const updated = [...mktPackages];
-                          updated[idx].enabled = !updated[idx].enabled;
-                          setMktPackages(updated);
-                        }} className={`w-8 h-5 rounded-full relative transition-all ${pkg.enabled ? 'bg-primary' : 'bg-muted'}`}>
-                          <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${pkg.enabled ? 'left-[0.85rem]' : 'left-0.5'}`} />
-                        </button>
-                        <span className="text-sm font-bold text-foreground">{pkg.name}</span>
-                        {pkg.popular && <span className="text-[9px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">الأكثر طلباً</span>}
-                      </div>
-                      <button onClick={() => setEditPkgId(editPkgId === pkg.id ? null : pkg.id)} className="text-muted-foreground hover:text-primary p-1">
-                        <Edit className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{pkg.price === 0 ? 'مجاني' : `${pkg.price.toLocaleString()} ${pkg.currency}`}</span>
-                      <span>•</span>
-                      <span>{pkg.durationLabel}</span>
-                      <span>•</span>
-                      <span>{pkg.features.length} ميزة</span>
-                    </div>
-
-                    {editPkgId === pkg.id && (
-                      <div className="space-y-2 pt-2 border-t border-border">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <label className="text-[10px] text-muted-foreground">الاسم</label>
-                            <Input value={pkg.name} onChange={(e) => {
-                              const updated = [...mktPackages]; updated[idx].name = e.target.value; setMktPackages(updated);
-                            }} className="h-8 text-xs rounded-lg" />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] text-muted-foreground">السعر</label>
-                            <Input type="number" value={String(pkg.price)} onChange={(e) => {
-                              const updated = [...mktPackages]; updated[idx].price = Number(e.target.value); setMktPackages(updated);
-                            }} className="h-8 text-xs rounded-lg" dir="ltr" />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <label className="text-[10px] text-muted-foreground">المدة</label>
-                            <Input value={pkg.durationLabel} onChange={(e) => {
-                              const updated = [...mktPackages]; updated[idx].durationLabel = e.target.value; setMktPackages(updated);
-                            }} className="h-8 text-xs rounded-lg" />
-                          </div>
-                          <div className="space-y-1 flex items-end gap-1">
-                            <label className="flex items-center gap-1 text-[10px] text-muted-foreground cursor-pointer">
-                              <input type="checkbox" checked={pkg.popular || false} onChange={(e) => {
-                                const updated = [...mktPackages]; updated[idx].popular = e.target.checked; setMktPackages(updated);
-                              }} className="rounded" />
-                              الأكثر طلباً
-                            </label>
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] text-muted-foreground">الميزات (سطر لكل ميزة)</label>
-                          <textarea value={pkg.features.join('\n')} onChange={(e) => {
-                            const updated = [...mktPackages]; updated[idx].features = e.target.value.split('\n').filter(f => f.trim()); setMktPackages(updated);
-                          }} className="w-full min-h-[60px] rounded-lg border border-border bg-background px-2 py-1.5 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-ring" />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                <Button variant="outline" className="w-full h-9 text-xs rounded-xl" onClick={() => {
-                  const newPkg: AppPackage = {
-                    id: crypto.randomUUID(),
-                    name: 'باقة جديدة',
-                    price: 0,
-                    currency: 'ل.س',
-                    duration: 'monthly',
-                    durationLabel: 'شهر',
-                    features: ['ميزة 1'],
-                    enabled: true,
-                  };
-                  setMktPackages([...mktPackages, newPkg]);
-                  setEditPkgId(newPkg.id);
-                }}>
-                  <Plus className="w-3.5 h-3.5 ml-1" />
-                  إضافة باقة
-                </Button>
-
-                <Button className="w-full h-10 font-bold rounded-xl" onClick={() => {
-                  savePackages(mktPackages);
-                  toast.success("تم حفظ الباقات");
-                }}>
-                  حفظ الباقات
-                </Button>
-              </div>
-            </SectionCard>
-
-            {/* Releases Management */}
-            <SectionCard title="إدارة النسخ والتحديثات" icon={<Download className="w-4 h-4" />}>
-              <div className="space-y-3">
-                {/* Add new release form */}
-                <div className="border border-dashed border-primary/30 rounded-xl p-3 space-y-2 bg-primary/5">
-                  <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                    <Plus className="w-3.5 h-3.5" />
-                    إضافة نسخة جديدة
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-muted-foreground">رقم النسخة</label>
-                      <Input 
-                        value={newRelease.version} 
-                        onChange={(e) => setNewRelease({...newRelease, version: e.target.value})}
-                        placeholder="1.0.0" 
-                        className="h-8 text-xs rounded-lg" 
-                        dir="ltr" 
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-muted-foreground">رابط التنزيل</label>
-                      <Input 
-                        value={newRelease.downloadUrl} 
-                        onChange={(e) => setNewRelease({...newRelease, downloadUrl: e.target.value})}
-                        placeholder="https://drive.google.com/..." 
-                        className="h-8 text-xs rounded-lg" 
-                        dir="ltr" 
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-muted-foreground">التغييرات في هذه النسخة</label>
-                    <textarea 
-                      value={newRelease.changelog} 
-                      onChange={(e) => setNewRelease({...newRelease, changelog: e.target.value})}
-                      placeholder="• إصلاح مشاكل&#10;• إضافة ميزة جديدة..."
-                      className="w-full min-h-[50px] rounded-lg border border-border bg-background px-2 py-1.5 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                  </div>
-                  <Button 
-                    size="sm" 
-                    className="w-full h-8 text-xs rounded-lg"
-                    disabled={!newRelease.version.trim() || !newRelease.downloadUrl.trim()}
-                    onClick={() => {
-                      const releases = addRelease({
-                        version: newRelease.version.trim(),
-                        downloadUrl: newRelease.downloadUrl.trim(),
-                        changelog: newRelease.changelog.trim(),
-                        releaseDate: new Date().toISOString().split('T')[0],
-                        isLatest: true,
-                      });
-                      setMktReleases(releases);
-                      setNewRelease({ version: '', downloadUrl: '', changelog: '' });
-                      toast.success(`تم إضافة النسخة ${newRelease.version}`);
-                    }}
-                  >
-                    <Plus className="w-3 h-3 ml-1" />
-                    إضافة النسخة
-                  </Button>
-                </div>
-
-                {/* Existing releases */}
-                {mktReleases.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-4">لم يتم إضافة أي نسخ بعد</p>
-                ) : (
-                  <div className="space-y-2">
-                    {mktReleases.map((release) => (
-                      <div key={release.id} className={`border rounded-xl p-3 ${release.isLatest ? 'border-primary bg-primary/5' : 'border-border'}`}>
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-sm font-bold text-foreground">v{release.version}</span>
-                            {release.isLatest && (
-                              <span className="text-[9px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full font-bold">أحدث نسخة</span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {!release.isLatest && (
-                              <button 
-                                onClick={() => {
-                                  const updated = mktReleases.map(r => ({...r, isLatest: r.id === release.id}));
-                                  setMktReleases(updated);
-                                  saveReleases(updated);
-                                  toast.success("تم تعيينها كأحدث نسخة");
-                                }}
-                                className="text-[10px] text-primary hover:underline px-1"
-                              >
-                                تعيين كأحدث
-                              </button>
-                            )}
-                            <button 
-                              onClick={() => {
-                                const updated = deleteRelease(release.id);
-                                setMktReleases(updated);
-                                toast.success("تم حذف النسخة");
-                              }}
-                              className="text-destructive hover:text-destructive/80 p-1"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                        <div className="text-[10px] text-muted-foreground mb-1">
-                          {release.releaseDate}
-                        </div>
-                        {release.changelog && (
-                          <p className="text-[11px] text-foreground bg-muted rounded-lg px-2 py-1.5 whitespace-pre-wrap">{release.changelog}</p>
-                        )}
-                        <div className="mt-2 flex items-center gap-2">
-                          <Input 
-                            value={release.downloadUrl} 
-                            readOnly 
-                            className="h-7 text-[10px] font-mono flex-1 bg-muted"
-                            dir="ltr"
-                          />
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="h-7 text-[10px] px-2"
-                            onClick={() => {
-                              navigator.clipboard.writeText(release.downloadUrl);
-                              toast.success("تم نسخ الرابط");
-                            }}
-                          >
-                            <Copy className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <p className="text-[10px] text-muted-foreground">
-                  أضف روابط التنزيل من Google Drive أو Mediafire أو أي خدمة استضافة ملفات. النسخة "الأحدث" ستظهر في صفحة التسويق.
-                </p>
-              </div>
-            </SectionCard>
-
-            {/* Landing page link */}
-            <div className="bg-card border border-border rounded-xl p-4 text-center space-y-2">
-              <p className="text-xs text-muted-foreground">رابط الصفحة التسويقية</p>
-              <Button variant="outline" className="rounded-xl" onClick={() => {
-                const url = `${window.location.origin}/landing`;
-                navigator.clipboard.writeText(url).then(() => toast.success("تم نسخ الرابط")).catch(() => toast.info(url));
-              }}>
-                <Copy className="w-4 h-4 ml-1" />
-                نسخ الرابط
-              </Button>
-              <Button variant="ghost" className="rounded-xl text-xs" onClick={() => window.open('/landing', '_blank')}>
-                معاينة الصفحة
-              </Button>
-            </div>
-          </div>
-        )}
-
         {/* ===== SETTINGS TAB ===== */}
         {activeTab === 'settings' && (
           <div className="space-y-4">
-            <SectionCard title="مدة الفترة التجريبية" icon={<Clock className="w-4 h-4" />}>
-              <div className="flex items-end gap-3">
-                <div className="flex-1 space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">عدد الأيام</label>
-                  <Input type="number" value={trialDays} onChange={(e) => setTrialDaysLocal(Math.max(0, Number(e.target.value)))}
-                    className="text-left h-10 text-sm" dir="ltr" min={0} max={365} inputMode="numeric" />
-                </div>
-                <Button onClick={handleSaveTrialDays} size="sm" className="h-10">حفظ</Button>
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-2">عدد أيام الفترة التجريبية للتطبيقات الجديدة</p>
-            </SectionCard>
-
             <SectionCard title="بيانات الدخول" icon={<Lock className="w-4 h-4" />}>
               {!showPasswordChange ? (
                 <Button onClick={async () => { const creds = await getAdminCredentials(); setNewUsername(creds?.username || ''); setShowPasswordChange(true); }}
@@ -1417,7 +1083,7 @@ const Admin = () => {
                       variant="destructive"
                       size="sm"
                       className="w-full text-xs"
-                      disabled={!localStorage.getItem('app_license_v1')}
+                      disabled={!localStorage.getItem('_LK_KEY')}
                     >
                       <Trash2 className="w-3.5 h-3.5 ml-1" />
                       حذف الترخيص الحالي
@@ -1431,7 +1097,7 @@ const Admin = () => {
                       <div className="flex gap-2">
                         <Button
                           onClick={() => {
-                            localStorage.removeItem('app_license_v1');
+                            localStorage.removeItem('_LK_KEY');
                             setConfirmLicenseClear(false);
                             toast.success("تم حذف الترخيص بنجاح - التطبيق الآن بالفترة التجريبية");
                           }}

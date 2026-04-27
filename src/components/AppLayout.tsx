@@ -1,5 +1,19 @@
-import { useState } from "react";
-import { Send, Wallet, BarChart3, Settings, Zap, Menu, ChevronLeft, Users, BookUser, Download, Shield } from "lucide-react";
+import React, { useState } from "react";
+import { 
+  Send, 
+  Wallet, 
+  BarChart3, 
+  Settings, 
+  Zap, 
+  Menu, 
+  ChevronLeft, 
+  Users, 
+  BookUser, 
+  Download, 
+  Shield, 
+  ChevronDown, 
+  Home // ✅ Added Home icon
+} from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Sheet,
@@ -28,12 +42,21 @@ interface AppLayoutProps {
 
 const AppLayout = ({ title, titleIcon, onTitleClick, children }: AppLayoutProps) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showScrollHint, setShowScrollHint] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
+  const handleScroll = (e: React.UIEvent<HTMLElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollTop + clientHeight >= scrollHeight - 15) {
+      setShowScrollHint(false);
+    } else {
+      setShowScrollHint(true);
+    }
+  };
+
   return (
     <div className="min-h-dvh bg-background flex flex-col safe-area-insets">
-      {/* Header with gradient */}
       <header className="header-gradient px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] flex items-center justify-between shadow-elevated">
         <div className="flex items-center gap-2.5 cursor-pointer" onClick={onTitleClick}>
           {titleIcon || (
@@ -43,56 +66,82 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children }: AppLayoutProps)
           )}
           <h1 className="text-primary-foreground text-lg font-bold select-none tracking-tight">{title}</h1>
         </div>
-        <button 
-          onClick={() => setMenuOpen(true)} 
-          className="text-primary-foreground w-9 h-9 rounded-lg bg-primary-foreground/10 flex items-center justify-center hover:bg-primary-foreground/20 transition-smooth"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
+
+        {/* ✅ Action Buttons Container */}
+        <div className="flex items-center gap-2">
+          {/* Home Button */}
+          <button 
+            onClick={() => navigate("/")} 
+            className="text-primary-foreground w-9 h-9 rounded-lg bg-primary-foreground/10 flex items-center justify-center hover:bg-primary-foreground/20 transition-smooth"
+            aria-label="Home"
+          >
+            <Home className="w-5 h-5" />
+          </button>
+
+          {/* Menu Button */}
+          <button 
+            onClick={() => setMenuOpen(true)} 
+            className="text-primary-foreground w-9 h-9 rounded-lg bg-primary-foreground/10 flex items-center justify-center hover:bg-primary-foreground/20 transition-smooth"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        </div>
       </header>
 
-      {/* Drawer Menu */}
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-        <SheetContent side="left" className="w-72 p-0 border-0">
-          <SheetHeader className="header-gradient px-5 py-6">
-            <SheetTitle className="text-primary-foreground flex items-center gap-2.5">
+        <SheetContent side="left" className="w-72 p-0 border-0 flex flex-col">
+          <SheetHeader className="header-gradient px-5 py-6 flex-shrink-0">
+            <SheetTitle className="text-primary-foreground flex items-center gap-2.5 pt-2">
               <div className="w-9 h-9 rounded-xl bg-primary-foreground/15 flex items-center justify-center">
                 <Zap className="w-5 h-5" />
               </div>
-              <span className="text-lg font-bold">Raseed</span>
+              <span className="text-lg font-bold">تحويل رصيد</span>
             </SheetTitle>
+
           </SheetHeader>
-          <nav className="flex flex-col py-3 px-2 gap-0.5 overflow-y-auto flex-1 scrollbar-thin">
-            {menuItems.map((item) => {
-              const isActive = location.pathname === item.path;
-              return (
-                <button
-                  key={item.path}
-                  onClick={() => { setMenuOpen(false); navigate(item.path); }}
-                  className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-smooth ${
-                    isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-foreground hover:bg-muted"
-                  }`}
-                >
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-                    isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                  }`}>
-                    <item.icon className="w-4.5 h-4.5" />
-                  </div>
-                  <div className="text-right">
-                    <span className={`text-sm font-semibold block ${isActive ? "text-primary" : ""}`}>{item.label}</span>
-                    <span className="text-[11px] text-muted-foreground">{item.description}</span>
-                  </div>
-                  {isActive && <ChevronLeft className="w-4 h-4 text-primary mr-auto" />}
-                </button>
-              );
-            })}
-          </nav>
+          
+          <div className="relative flex-1 overflow-hidden">
+            <nav 
+              onScroll={handleScroll}
+              className="flex flex-col py-3 px-2 gap-0.5 overflow-y-auto h-full max-h-[100dvh] scrollbar-thin"
+            >
+              {menuItems.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <button
+                    key={item.path}
+                    onClick={() => { setMenuOpen(false); navigate(item.path); }}
+                    className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-smooth flex-shrink-0 ${
+                      isActive ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <div className={`w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center ${
+                      isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                    }`}>
+                      <item.icon className="w-4.5 h-4.5" />
+                    </div>
+                    <div className="text-right flex-1">
+                      <span className={`text-sm font-semibold block ${isActive ? "text-primary" : ""}`}>{item.label}</span>
+                      <span className="text-[11px] text-muted-foreground line-clamp-1">{item.description}</span>
+                    </div>
+                    {isActive && <ChevronLeft className="w-4 h-4 text-primary mr-auto flex-shrink-0" />}
+                  </button>
+                );
+              })}
+            </nav>
+
+            {showScrollHint && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none animate-bounce bg-primary/20 rounded-full p-1.5 border border-primary/30 backdrop-blur-sm z-50">
+                <ChevronDown className="w-4 h-4 text-primary" />
+              </div>
+            )}
+          </div>
         </SheetContent>
       </Sheet>
 
-      {children}
+      <main className="flex-1 overflow-y-auto">
+        {children}
+      </main>
     </div>
   );
 };

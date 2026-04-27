@@ -11,7 +11,6 @@ import Balance from "./pages/Balance";
 import Admin from "./pages/Admin";
 import Distributor from "./pages/Distributor";
 import Contacts from "./pages/Contacts";
-import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
 import Activation from "./pages/Activation";
 import Updates from "./pages/Updates";
@@ -84,7 +83,7 @@ const AppContent = () => {
       <BrowserRouter>
         <Routes>
           <Route path="/sys-panel" element={<Admin />} />
-          <Route path="*" element={<Landing />} />
+          <Route path="*" element={<Index />} />
         </Routes>
       </BrowserRouter>
     );
@@ -111,7 +110,6 @@ const AppContent = () => {
         <Route path="/" element={<Index />} />
         <Route path="/distributor" element={<Distributor />} />
         <Route path="/contacts" element={<Contacts />} />
-        <Route path="/landing" element={<Landing />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/balance" element={<Balance />} />

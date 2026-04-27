@@ -75,15 +75,34 @@ const Index = () => {
 
   // Check expiry warning on mount
   useEffect(() => {
-    getAppStatus().then((status) => {
-      const warning = checkExpiryWarning(status);
-      setExpiryWarning(warning);
-      if (warning.show && shouldShowDailyNotification()) {
-        toast.warning(warning.message, { duration: 8000 });
-        markNotificationShown();
+
+  async function checkLicense() {
+
+      const status = await getAppStatus();
+
+      if (
+        status.status === "trial_expired" ||
+        status.status === "license_expired"
+      ) {
+        navigate("/activation");
+        return;
       }
-    });
+
+    }
+
+    checkLicense();
+
   }, []);
+  // useEffect(() => {
+  //   getAppStatus().then((status) => {
+  //     const warning = checkExpiryWarning(status);
+  //     setExpiryWarning(warning);
+  //     if (warning.show && shouldShowDailyNotification()) {
+  //       toast.warning(warning.message, { duration: 8000 });
+  //       markNotificationShown();
+  //     }
+  //   });
+  // }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -213,7 +232,7 @@ const Index = () => {
   };
 
   return (
-    <AppLayout title="Raseed" onTitleClick={handleTitleTap}>
+    <AppLayout title="تحويل رصيد" onTitleClick={handleTitleTap}>
       <main className="flex-1 p-3 w-full space-y-3 overflow-y-auto pb-4">
         
         {/* Expiry Warning Banner */}

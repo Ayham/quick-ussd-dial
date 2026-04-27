@@ -19,6 +19,7 @@
     "@capacitor/core": "^8.1.0",
     "@capacitor/device": "^8.0.1",
     "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/preferences": "^8.0.1",
     "@capacitor/status-bar": "^8.0.1",
     "@capawesome-team/capacitor-file-opener": "^8.0.1",
     "@capgo/capacitor-intent-launcher": "^8.3.10",

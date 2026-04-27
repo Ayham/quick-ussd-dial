@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { getDeviceId } from "@/lib/device-id";
 import { validateLicense, saveLicense, type AppLicenseStatus } from "@/lib/license";
-import { getAppConfig } from "@/lib/marketing";
 
 interface ActivationProps {
   status: AppLicenseStatus;
@@ -22,10 +21,6 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
   const tapCountRef = useRef(0);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  useEffect(() => {
-    const config = getAppConfig();
-    if (config.supportPhone) setSupportPhone(config.supportPhone);
-  }, []);
   const handleTitleTap = () => {
     tapCountRef.current++;
     if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
@@ -81,11 +76,14 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col safe-area-insets" dir="rtl">
-      <header className="header-gradient px-4 py-4 flex items-center gap-3 shadow-elevated pt-safe">
-        <div className="w-9 h-9 rounded-xl bg-primary-foreground/15 flex items-center justify-center">
-          <Shield className="w-5 h-5 text-primary-foreground" />
+
+      <header className="bg-primary px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] flex items-center justify-between shadow-md">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-primary-foreground/15 flex items-center justify-center backdrop-blur-sm">
+            <Shield className="w-4.5 h-4.5 text-primary-foreground" />
+          </div>
+          <h1 className="text-primary-foreground text-lg font-bold select-none">تفعيل التطبيق</h1>
         </div>
-        <h1 className="text-primary-foreground text-xl font-bold cursor-default select-none tracking-tight" onClick={handleTitleTap}>تفعيل التطبيق</h1>
       </header>
 
       <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col justify-center gap-5">

@@ -1,4 +1,5 @@
 import { getDeviceId } from './device-id';
+import { getProtectedTrial } from './trial-guard';
 
 // Obfuscated storage keys
 const _TS_KEY = '_sys_v1_ts';
@@ -73,19 +74,6 @@ function initTrial(): string {
   localStorage.setItem(_TS_KEY, today);
   localStorage.setItem(_LD_KEY, today);
   return today;
-}
-
-// Trial days management
-export function getTrialDays(): number {
-  try {
-    const stored = localStorage.getItem(_TD_KEY);
-    if (stored) return Number(stored);
-  } catch {}
-  return DEFAULT_TRIAL_DAYS;
-}
-
-export function saveTrialDays(days: number) {
-  localStorage.setItem(_TD_KEY, String(days));
 }
 
 // Verify RSA signature using Web Crypto — loads public key from IndexedDB
@@ -168,44 +156,58 @@ export function clearLicense() {
 }
 
 export async function getAppStatus(): Promise<AppLicenseStatus> {
+
   if (checkClockTamper()) {
     return { status: 'clock_tampered' };
   }
 
   const today = getToday();
 
-  // Check saved license first
+  // 1️⃣ Check saved license FIRST
   const savedLicense = getSavedLicense();
+
   if (savedLicense) {
     const result = await validateLicense(savedLicense);
+
     if (result.valid && result.payload) {
+
       if (result.payload.expiryDate === 'permanent') {
-        return { status: 'licensed', expiryDate: 'permanent', daysLeft: Infinity, permanent: true };
+        return {
+          status: 'licensed',
+          expiryDate: 'permanent',
+          daysLeft: Infinity,
+          permanent: true
+        };
       }
+
       const daysLeft = daysBetween(today, result.payload.expiryDate);
+
       if (daysLeft >= 0) {
-        return { status: 'licensed', expiryDate: result.payload.expiryDate, daysLeft };
+        return {
+          status: 'licensed',
+          expiryDate: result.payload.expiryDate,
+          daysLeft
+        };
       }
+
       return { status: 'license_expired' };
     }
+
     if (result.error === 'انتهت صلاحية الترخيص') {
       return { status: 'license_expired' };
     }
   }
 
-  // Check trial
-  let trialStart = getTrialStart();
-  if (!trialStart) {
-    trialStart = initTrial();
+  // 2️⃣ If no valid license → check trial
+  const trial = await getProtectedTrial();
+
+  if (trial.status === "trial") {
+    return {
+      status: "trial",
+      daysLeft: trial.daysLeft
+    };
   }
 
-  const trialDays = getTrialDays();
-  const trialDaysUsed = daysBetween(trialStart, today);
-  const daysLeft = trialDays - trialDaysUsed;
+  return { status: "trial_expired" };
 
-  if (daysLeft > 0) {
-    return { status: 'trial', daysLeft };
-  }
-
-  return { status: 'trial_expired' };
 }

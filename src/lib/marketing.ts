@@ -41,53 +41,11 @@ export interface AppConfig {
   heroSubtitle: string;
 }
 
-const DEFAULT_PACKAGES: AppPackage[] = [
-  {
-    id: 'trial',
-    name: 'تجربة مجانية',
-    price: 0,
-    currency: 'ل.س',
-    duration: 'trial',
-    durationLabel: '30 يوم',
-    features: ['تحويل رصيد سريع', 'كشف المشغل تلقائياً', 'سجل التحويلات'],
-    enabled: true,
-  },
-  {
-    id: 'monthly',
-    name: 'شهري',
-    price: 25000,
-    currency: 'ل.س',
-    duration: 'monthly',
-    durationLabel: 'شهر واحد',
-    features: ['جميع الميزات', 'دعم فني واتساب', 'تحديثات مستمرة', 'إدارة الموزع'],
-    enabled: true,
-  },
-  {
-    id: 'yearly',
-    name: 'سنوي',
-    price: 200000,
-    currency: 'ل.س',
-    duration: 'yearly',
-    durationLabel: 'سنة كاملة',
-    features: ['جميع الميزات', 'دعم فني أولوية', 'تحديثات مستمرة', 'إدارة الموزع', 'نسخ احتياطي'],
-    popular: true,
-    enabled: true,
-  },
-  {
-    id: 'lifetime',
-    name: 'دائم',
-    price: 500000,
-    currency: 'ل.س',
-    duration: 'lifetime',
-    durationLabel: 'مدى الحياة',
-    features: ['جميع الميزات للأبد', 'دعم فني VIP', 'تحديثات مدى الحياة', 'إدارة الموزع', 'نسخ احتياطي', 'أولوية الميزات الجديدة'],
-    enabled: true,
-  },
-];
+const DEFAULT_PACKAGES: AppPackage[] = [];
 
 const DEFAULT_CONFIG: AppConfig = {
   appVersion: '1.0.0',
-  downloadUrl: 'https://github.com/mobi1298-del/ussd/releases/download/1.0.1/1.0.1.apk',
+  downloadUrl: 'https://github.com/mobi1298-del/ussd/releases/download/1/1.apk',
   whatsappContact: '',
   supportPhone: '0991214570',
   changelog: 'الإصدار الأول من التطبيق',

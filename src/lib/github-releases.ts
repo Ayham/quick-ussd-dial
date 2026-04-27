@@ -29,7 +29,7 @@ interface CachedData {
   timestamp: number;
 }
 
-function mapGitHubRelease(gh: GitHubRelease, isLatest: boolean): AppRelease {
+function mapGitHubRelease(gh: GitHubRelease, isLatest: boolean) {
   // Find APK asset
   const apkAsset = gh.assets.find(a => a.name.endsWith('.apk'));
   const downloadUrl = apkAsset?.browser_download_url || '';

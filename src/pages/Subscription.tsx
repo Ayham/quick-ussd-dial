@@ -14,7 +14,6 @@ import {
   type AppLicenseStatus,
 } from "@/lib/license";
 import { getPaymentMethods, type PaymentMethod } from "@/lib/payment-config";
-import { getAppConfig } from "@/lib/marketing";
 import { logActivity } from "@/lib/activity-logger";
 import { QRCodeCanvas } from "qrcode.react";
 
@@ -27,14 +26,23 @@ const Subscription = () => {
   const [supportPhone, setSupportPhone] = useState("0991214570");
   const deviceId = getDeviceId();
   const qrRefs = useRef<Record<string, HTMLCanvasElement | null>>({});
-
   useEffect(() => {
-    getAppStatus().then(setLicenseStatus);
-    setPaymentMethods(getPaymentMethods());
-    const config = getAppConfig();
-    if (config.supportPhone) setSupportPhone(config.supportPhone);
-    logActivity('activation_page_access');
+
+    async function loadStatus(){
+      const s = await getAppStatus();
+      setLicenseStatus(s);
+    }
+
+    loadStatus();
+
   }, []);
+  // useEffect(() => {
+  //   getAppStatus().then(setLicenseStatus);
+  //   setPaymentMethods(getPaymentMethods());
+  //   const config = getAppConfig();
+  //   if (config.supportPhone) setSupportPhone(config.supportPhone);
+  //   logActivity('activation_page_access');
+  // }, []);
 
   const copyToClipboard = async (text: string, label: string) => {
     try {
