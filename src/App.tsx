@@ -71,10 +71,13 @@ const AppContent = () => {
         doUpdateCheck();
         checkStatus();
         startBackgroundSync();
+        startSupabaseSync();
         startLicenseSyncListeners();
         syncLicense().catch(() => {});
         trackDeviceInfo();
         trackAppOpen();
+      } else {
+        startSupabaseSync();
       }
     };
     init();
