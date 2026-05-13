@@ -10,6 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+// Import new admin components
+import { DashboardOverview } from "@/components/admin/DashboardOverview";
+import { DevicesManager } from "@/components/admin/DevicesManager";
+import { LicensesManager } from "@/components/admin/LicensesManager";
+import { ActivationsManager } from "@/components/admin/ActivationsManager";
+import { SyncStatusMonitor } from "@/components/admin/SyncStatusMonitor";
+import { TransfersViewer } from "@/components/admin/TransfersViewer";
 import {
   verifyAdmin,
   isAdminAuthenticated,
@@ -101,7 +108,7 @@ async function loadPrivateKeyDecrypted(): Promise<JsonWebKey | null> {
 }
 
 // ======= Admin Tabs =======
-type AdminTab = 'dashboard' | 'generate' | 'archive' | 'settings' | 'marketing' | 'central';
+type AdminTab = 'dashboard' | 'devices' | 'licenses' | 'activations' | 'transfers' | 'sync' | 'generate' | 'archive' | 'settings' | 'marketing' | 'central';
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -461,8 +468,13 @@ const Admin = () => {
       <div className="bg-card border-b border-border px-2 py-1.5 flex gap-1 overflow-x-auto">
         {([
           { id: 'dashboard' as AdminTab, label: 'الرئيسية', icon: BarChart3 },
-          { id: 'central' as AdminTab, label: 'التراخيص', icon: Cloud },
-          { id: 'generate' as AdminTab, label: 'توليد ترخيص', icon: Shield },
+          { id: 'devices' as AdminTab, label: 'الأجهزة', icon: Smartphone },
+          { id: 'licenses' as AdminTab, label: 'التراخيص', icon: Key },
+          { id: 'activations' as AdminTab, label: 'الطلبات', icon: Clock },
+          { id: 'transfers' as AdminTab, label: 'التحويلات', icon: History },
+          { id: 'sync' as AdminTab, label: 'المزامنة', icon: Cloud },
+          { id: 'central' as AdminTab, label: 'المركزي', icon: Database },
+          { id: 'generate' as AdminTab, label: 'توليد', icon: Shield },
           { id: 'archive' as AdminTab, label: 'الأرشيف', icon: History },
           { id: 'settings' as AdminTab, label: 'إعدادات', icon: Settings2 },
         ]).map(tab => (
@@ -541,6 +553,21 @@ const Admin = () => {
             )}
           </div>
         )}
+
+        {/* ===== DEVICES TAB ===== */}
+        {activeTab === 'devices' && <DevicesManager />}
+
+        {/* ===== LICENSES TAB ===== */}
+        {activeTab === 'licenses' && <LicensesManager />}
+
+        {/* ===== ACTIVATIONS TAB ===== */}
+        {activeTab === 'activations' && <ActivationsManager />}
+
+        {/* ===== TRANSFERS TAB ===== */}
+        {activeTab === 'transfers' && <TransfersViewer />}
+
+        {/* ===== SYNC TAB ===== */}
+        {activeTab === 'sync' && <SyncStatusMonitor />}
 
         {/* ===== CENTRAL LICENSES TAB ===== */}
         {activeTab === 'central' && (

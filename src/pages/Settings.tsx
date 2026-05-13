@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
+import { useTranslation } from "react-i18next";
+import { setLanguage, getLanguage } from "@/lib/i18n";
 import {
   getPresets, savePresets,
   getCredentials, saveCredentials,
@@ -29,10 +31,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
-type SettingsTab = "sim" | "codes" | "amounts" | "data";
+type SettingsTab = "sim" | "codes" | "amounts" | "data" | "language";
 
 const Settings = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("sim");
   const [presets, setPresets] = useState(() => getPresets());
   const [credentials, setCredentials] = useState<OperatorCredentials>(() => getCredentials());
@@ -42,6 +45,7 @@ const Settings = () => {
   const [balanceTemplates, setBalanceTemplates] = useState<BalanceCheckTemplates>(() => getBalanceTemplates());
   const [activeOperator, setActiveOperator] = useState<Operator>("mtn");
   const [newPrefix, setNewPrefix] = useState("");
+  const [language, setLanguageState] = useState(() => getLanguage());
 
   const deviceId = getDeviceId();
 
@@ -112,15 +116,10 @@ const Settings = () => {
     navigate("/");
   };
 
-  const handleReset = () => {
-    resetAllSettings();
-    setPresets({ mtn: [...DEFAULT_MTN_PRESETS], syriatel: [...DEFAULT_SYRIATEL_PRESETS] });
-    setCredentials({ ...DEFAULT_CREDENTIALS });
-    setTemplates({ ...DEFAULT_USSD_TEMPLATES });
-    setPrefixes({ mtn: [...DEFAULT_PREFIXES.mtn], syriatel: [...DEFAULT_PREFIXES.syriatel] });
-    setSimAssignment({ ...DEFAULT_SIM_ASSIGNMENT });
-    setBalanceTemplates({ ...DEFAULT_BALANCE_TEMPLATES });
-    toast.info("تم إعادة تعيين جميع الإعدادات");
+  const handleLanguageChange = (newLang: 'ar' | 'en') => {
+    setLanguage(newLang);
+    setLanguageState(newLang);
+    toast.success(t('common.success'));
   };
 
   const tabs: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
@@ -128,6 +127,7 @@ const Settings = () => {
     { id: "codes", label: "الأكواد", icon: <Code className="w-3.5 h-3.5" /> },
     { id: "amounts", label: "المبالغ", icon: <SettingsIcon className="w-3.5 h-3.5" /> },
     { id: "data", label: "البيانات", icon: <Database className="w-3.5 h-3.5" /> },
+    { id: "language", label: "اللغة", icon: <AlertTriangle className="w-3.5 h-3.5" /> },
   ];
 
   return (
@@ -531,6 +531,28 @@ const Settings = () => {
               <p className="text-[10px] text-muted-foreground mt-2">
                 يعيد البادئات والأكواد والمبالغ والشريحة إلى الإعدادات الافتراضية. لا يؤثر على الترخيص أو البيانات.
               </p>
+            </SectionCard>
+          </div>
+        )}
+
+        {/* ===== LANGUAGE TAB ===== */}
+        {settingsTab === 'language' && (
+          <div className="space-y-4">
+            <SectionCard title="اللغة" icon={<AlertTriangle className="w-4 h-4" />}>
+              <div className="space-y-3">
+                <label className="text-sm font-medium block">اختر اللغة</label>
+                <select
+                  value={language}
+                  onChange={(e) => handleLanguageChange(e.target.value as 'ar' | 'en')}
+                  className="w-full p-3 border rounded-lg bg-background"
+                >
+                  <option value="ar">العربية</option>
+                  <option value="en">English</option>
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  سيتم تطبيق التغيير فوراً ويتم حفظ الإعداد تلقائياً
+                </p>
+              </div>
             </SectionCard>
           </div>
         )}
