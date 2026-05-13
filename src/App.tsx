@@ -15,9 +15,12 @@ import NotFound from "./pages/NotFound";
 import Activation from "./pages/Activation";
 import Updates from "./pages/Updates";
 import Subscription from "./pages/Subscription";
+import Auth from "./pages/Auth";
 
+import "./lib/i18n";
 import { getAppStatus, type AppLicenseStatus } from "./lib/license";
 import { startBackgroundSync, trackAppOpen, trackDeviceInfo, trackLicenseEvent } from "./lib/cloud-sync";
+import { startSupabaseSync } from "./lib/supabase-sync";
 import { isWebBrowser } from "./lib/platform";
 import { initDeviceId } from "./lib/device-id";
 import { verifyLicenseOnline, getLicenseApiEndpoint } from "./lib/license-api";
@@ -68,10 +71,13 @@ const AppContent = () => {
         doUpdateCheck();
         checkStatus();
         startBackgroundSync();
+        startSupabaseSync();
         startLicenseSyncListeners();
         syncLicense().catch(() => {});
         trackDeviceInfo();
         trackAppOpen();
+      } else {
+        startSupabaseSync();
       }
     };
     init();
@@ -116,6 +122,7 @@ const AppContent = () => {
         <Route path="/sys-panel" element={<Admin />} />
         <Route path="/updates" element={<Updates />} />
         <Route path="/subscription" element={<Subscription />} />
+        <Route path="/auth" element={<Auth />} />
         <Route path="/activation" element={<Activation status={status} onActivated={checkStatus} />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
