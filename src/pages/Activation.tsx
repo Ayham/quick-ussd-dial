@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { getDeviceId } from "@/lib/device-id";
 import { validateLicense, saveLicense, type AppLicenseStatus } from "@/lib/license";
+import { activateLicenseKey, formatLicenseKey, isShortFormat } from "@/lib/license-key";
 import { createActivationRequest, getActivationRequestLink, getLocalActivationRequest } from "@/lib/activation-request";
 
 interface ActivationProps {
