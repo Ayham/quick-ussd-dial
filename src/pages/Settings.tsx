@@ -525,7 +525,7 @@ const Settings = () => {
 
             {/* Reset all settings */}
             <SectionCard title="إعادة تعيين" icon={<AlertTriangle className="w-4 h-4" />}>
-              <Button onClick={handleReset} variant="outline" className="w-full text-xs">
+              <Button onClick={() => { resetAllSettings(); toast.success("تم إعادة التعيين"); window.location.reload(); }} variant="outline" className="w-full text-xs">
                 إعادة تعيين جميع الإعدادات إلى الافتراضي
               </Button>
               <p className="text-[10px] text-muted-foreground mt-2">
