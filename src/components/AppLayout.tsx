@@ -125,6 +125,37 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children }: AppLayoutProps)
                   </button>
                 );
               })}
+
+              {/* Sign In / Sign Out */}
+              <div className="border-t border-border mt-2 pt-2">
+                {user ? (
+                  <button
+                    onClick={async () => { await signOut(); setUser(null); toast.success(t("common.success")); setMenuOpen(false); }}
+                    className="flex items-center gap-3 px-4 py-3.5 rounded-xl transition-smooth flex-shrink-0 w-full text-foreground hover:bg-muted"
+                  >
+                    <div className="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center bg-muted text-muted-foreground">
+                      <LogOut className="w-4.5 h-4.5" />
+                    </div>
+                    <div className="text-right flex-1">
+                      <span className="text-sm font-semibold block">{t("common.logout")}</span>
+                      <span className="text-[11px] text-muted-foreground line-clamp-1">{user.email}</span>
+                    </div>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { setMenuOpen(false); navigate("/auth"); }}
+                    className="flex items-center gap-3 px-4 py-3.5 rounded-xl transition-smooth flex-shrink-0 w-full text-foreground hover:bg-muted"
+                  >
+                    <div className="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center bg-primary text-primary-foreground">
+                      <LogIn className="w-4.5 h-4.5" />
+                    </div>
+                    <div className="text-right flex-1">
+                      <span className="text-sm font-semibold block">{t("common.login")}</span>
+                      <span className="text-[11px] text-muted-foreground line-clamp-1">{t("auth.subtitle")}</span>
+                    </div>
+                  </button>
+                )}
+              </div>
             </nav>
 
             {showScrollHint && (
