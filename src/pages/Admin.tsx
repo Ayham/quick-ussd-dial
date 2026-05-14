@@ -111,7 +111,7 @@ async function loadPrivateKeyDecrypted(): Promise<JsonWebKey | null> {
 }
 
 // ======= Admin Tabs =======
-type AdminTab = 'dashboard' | 'devices' | 'licenses' | 'activations' | 'transfers' | 'sync' | 'generate' | 'archive' | 'settings' | 'marketing' | 'central';
+type AdminTab = 'dashboard' | 'customers' | 'devices' | 'licenses' | 'activations' | 'transfers' | 'events' | 'trials' | 'sync' | 'generate' | 'archive' | 'settings' | 'marketing' | 'central';
 
 const Admin = () => {
   const navigate = useNavigate();
