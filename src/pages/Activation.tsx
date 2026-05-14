@@ -97,13 +97,17 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
     }
     setLoading(true);
     try {
-      const result = await validateLicense(licenseKey.trim());
-      if (result.valid) {
-        saveLicense(licenseKey.trim());
+      // Try new short format first (cloud-validated, supports legacy fallback inside)
+      const result = await activateLicenseKey(licenseKey.trim());
+      if (result.ok) {
+        // For legacy keys, also save via legacy path
+        if (!isShortFormat(licenseKey.trim())) saveLicense(licenseKey.trim());
         toast.success(isArabic ? "تم تفعيل التطبيق بنجاح!" : "App activated successfully!");
         onActivated();
       } else {
-        toast.error(result.error || (isArabic ? "مفتاح الترخيص غير صالح" : "Invalid license key"));
+        toast.error(result.reason === "network"
+          ? (isArabic ? "تحقق من الاتصال بالإنترنت" : "Check your internet connection")
+          : (isArabic ? "مفتاح الترخيص غير صالح" : "Invalid license key"));
       }
     } catch {
       toast.error(isArabic ? "حدث خطأ أثناء التحقق" : "Verification error");
