@@ -1,37 +1,27 @@
-import React, { useState } from "react";
-import { 
-  Send, 
-  Wallet, 
-  BarChart3, 
-  Settings, 
-  Zap, 
-  Menu, 
-  ChevronLeft, 
-  Users, 
-  BookUser, 
-  Download, 
-  Shield, 
-  ChevronDown, 
-  Home // ✅ Added Home icon
+import React, { useState, useEffect } from "react";
+import {
+  Send, Wallet, BarChart3, Settings, Zap, Menu, ChevronLeft,
+  Users, BookUser, Download, Shield, ChevronDown, Home, LogIn, LogOut
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { useTranslation } from "react-i18next";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { getCurrentUser, signOut } from "@/lib/auth";
+import { toast } from "sonner";
 
-const menuItems = [
-  { icon: Send, label: "تحويل", path: "/", description: "تحويل رصيد سريع" },
-  { icon: BookUser, label: "جهات الاتصال", path: "/contacts", description: "إدارة أسماء الزبائن" },
-  { icon: Users, label: "الموزع", path: "/distributor", description: "إدارة حساب الموزع" },
-  { icon: Wallet, label: "الرصيد", path: "/balance", description: "متابعة الرصيد" },
-  { icon: BarChart3, label: "التقارير", path: "/reports", description: "إحصائيات التحويلات" },
-  { icon: Shield, label: "التفعيل", path: "/subscription", description: "الاشتراك والدفع" },
-  { icon: Settings, label: "الإعدادات", path: "/settings", description: "إعدادات التطبيق" },
-  { icon: Download, label: "التحديثات", path: "/updates", description: "البحث عن تحديثات" },
-];
+function useMenuItems() {
+  const { t } = useTranslation();
+  return [
+    { icon: Send, label: t("nav.transfer"), path: "/", description: t("nav.transferDesc", "Quick balance transfer") },
+    { icon: BookUser, label: t("nav.contacts"), path: "/contacts", description: t("nav.contactsDesc", "Manage customer names") },
+    { icon: Users, label: t("nav.distributor"), path: "/distributor", description: t("nav.distributorDesc", "Distributor account") },
+    { icon: Wallet, label: t("nav.balance"), path: "/balance", description: t("nav.balanceDesc", "Track balance") },
+    { icon: BarChart3, label: t("nav.reports"), path: "/reports", description: t("nav.reportsDesc", "Transfer statistics") },
+    { icon: Shield, label: t("nav.activation"), path: "/subscription", description: t("nav.activationDesc", "Subscription & payment") },
+    { icon: Settings, label: t("nav.settings"), path: "/settings", description: t("nav.settingsDesc", "App settings") },
+    { icon: Download, label: t("nav.updates"), path: "/updates", description: t("nav.updatesDesc", "Check for updates") },
+  ];
+}
 
 interface AppLayoutProps {
   title: string;
