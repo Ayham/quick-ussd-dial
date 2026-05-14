@@ -569,8 +569,17 @@ const Admin = () => {
         {/* ===== ACTIVATIONS TAB ===== */}
         {activeTab === 'activations' && <ActivationsManager />}
 
+        {/* ===== CUSTOMERS TAB ===== */}
+        {activeTab === 'customers' && <CustomersManager />}
+
         {/* ===== TRANSFERS TAB ===== */}
         {activeTab === 'transfers' && <TransfersViewer />}
+
+        {/* ===== EVENTS TAB ===== */}
+        {activeTab === 'events' && <EventsViewer />}
+
+        {/* ===== TRIALS TAB ===== */}
+        {activeTab === 'trials' && <TrialsManager />}
 
         {/* ===== SYNC TAB ===== */}
         {activeTab === 'sync' && <SyncStatusMonitor />}
