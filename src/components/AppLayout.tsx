@@ -31,10 +31,17 @@ interface AppLayoutProps {
 }
 
 const AppLayout = ({ title, titleIcon, onTitleClick, children }: AppLayoutProps) => {
+  const { t } = useTranslation();
+  const menuItems = useMenuItems();
   const [menuOpen, setMenuOpen] = useState(false);
   const [showScrollHint, setShowScrollHint] = useState(true);
+  const [user, setUser] = useState<{ email?: string } | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    getCurrentUser().then((u) => setUser(u ? { email: u.email } : null));
+  }, [menuOpen]);
 
   const handleScroll = (e: React.UIEvent<HTMLElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
