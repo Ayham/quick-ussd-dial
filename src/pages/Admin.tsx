@@ -17,6 +17,9 @@ import { LicensesManager } from "@/components/admin/LicensesManager";
 import { ActivationsManager } from "@/components/admin/ActivationsManager";
 import { SyncStatusMonitor } from "@/components/admin/SyncStatusMonitor";
 import { TransfersViewer } from "@/components/admin/TransfersViewer";
+import { CustomersManager } from "@/components/admin/CustomersManager";
+import { EventsViewer } from "@/components/admin/EventsViewer";
+import { TrialsManager } from "@/components/admin/TrialsManager";
 import {
   verifyAdmin,
   isAdminAuthenticated,
