@@ -83,12 +83,13 @@ const AppContent = () => {
     init();
   }, []);
 
-  // Web browser: only Landing page + Admin
+  // Web browser: only Landing page + Admin + Auth
   if (isWeb) {
     return (
       <BrowserRouter>
         <Routes>
           <Route path="/sys-panel" element={<Admin />} />
+          <Route path="/auth" element={<Auth />} />
           <Route path="*" element={<Index />} />
         </Routes>
       </BrowserRouter>
@@ -104,6 +105,7 @@ const AppContent = () => {
       <BrowserRouter>
         <Routes>
           <Route path="/sys-panel" element={<Admin />} />
+          <Route path="/auth" element={<Auth />} />
           <Route path="*" element={<Activation status={status} onActivated={checkStatus} />} />
         </Routes>
       </BrowserRouter>

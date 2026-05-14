@@ -1,37 +1,27 @@
-import React, { useState } from "react";
-import { 
-  Send, 
-  Wallet, 
-  BarChart3, 
-  Settings, 
-  Zap, 
-  Menu, 
-  ChevronLeft, 
-  Users, 
-  BookUser, 
-  Download, 
-  Shield, 
-  ChevronDown, 
-  Home // ✅ Added Home icon
+import React, { useState, useEffect } from "react";
+import {
+  Send, Wallet, BarChart3, Settings, Zap, Menu, ChevronLeft,
+  Users, BookUser, Download, Shield, ChevronDown, Home, LogIn, LogOut
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { useTranslation } from "react-i18next";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { getCurrentUser, signOut } from "@/lib/auth";
+import { toast } from "sonner";
 
-const menuItems = [
-  { icon: Send, label: "تحويل", path: "/", description: "تحويل رصيد سريع" },
-  { icon: BookUser, label: "جهات الاتصال", path: "/contacts", description: "إدارة أسماء الزبائن" },
-  { icon: Users, label: "الموزع", path: "/distributor", description: "إدارة حساب الموزع" },
-  { icon: Wallet, label: "الرصيد", path: "/balance", description: "متابعة الرصيد" },
-  { icon: BarChart3, label: "التقارير", path: "/reports", description: "إحصائيات التحويلات" },
-  { icon: Shield, label: "التفعيل", path: "/subscription", description: "الاشتراك والدفع" },
-  { icon: Settings, label: "الإعدادات", path: "/settings", description: "إعدادات التطبيق" },
-  { icon: Download, label: "التحديثات", path: "/updates", description: "البحث عن تحديثات" },
-];
+function useMenuItems() {
+  const { t } = useTranslation();
+  return [
+    { icon: Send, label: t("nav.transfer"), path: "/", description: t("nav.transferDesc", "Quick balance transfer") },
+    { icon: BookUser, label: t("nav.contacts"), path: "/contacts", description: t("nav.contactsDesc", "Manage customer names") },
+    { icon: Users, label: t("nav.distributor"), path: "/distributor", description: t("nav.distributorDesc", "Distributor account") },
+    { icon: Wallet, label: t("nav.balance"), path: "/balance", description: t("nav.balanceDesc", "Track balance") },
+    { icon: BarChart3, label: t("nav.reports"), path: "/reports", description: t("nav.reportsDesc", "Transfer statistics") },
+    { icon: Shield, label: t("nav.activation"), path: "/subscription", description: t("nav.activationDesc", "Subscription & payment") },
+    { icon: Settings, label: t("nav.settings"), path: "/settings", description: t("nav.settingsDesc", "App settings") },
+    { icon: Download, label: t("nav.updates"), path: "/updates", description: t("nav.updatesDesc", "Check for updates") },
+  ];
+}
 
 interface AppLayoutProps {
   title: string;
@@ -41,10 +31,17 @@ interface AppLayoutProps {
 }
 
 const AppLayout = ({ title, titleIcon, onTitleClick, children }: AppLayoutProps) => {
+  const { t } = useTranslation();
+  const menuItems = useMenuItems();
   const [menuOpen, setMenuOpen] = useState(false);
   const [showScrollHint, setShowScrollHint] = useState(true);
+  const [user, setUser] = useState<{ email?: string } | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    getCurrentUser().then((u) => setUser(u ? { email: u.email } : null));
+  }, [menuOpen]);
 
   const handleScroll = (e: React.UIEvent<HTMLElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
@@ -128,6 +125,37 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children }: AppLayoutProps)
                   </button>
                 );
               })}
+
+              {/* Sign In / Sign Out */}
+              <div className="border-t border-border mt-2 pt-2">
+                {user ? (
+                  <button
+                    onClick={async () => { await signOut(); setUser(null); toast.success(t("common.success")); setMenuOpen(false); }}
+                    className="flex items-center gap-3 px-4 py-3.5 rounded-xl transition-smooth flex-shrink-0 w-full text-foreground hover:bg-muted"
+                  >
+                    <div className="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center bg-muted text-muted-foreground">
+                      <LogOut className="w-4.5 h-4.5" />
+                    </div>
+                    <div className="text-right flex-1">
+                      <span className="text-sm font-semibold block">{t("common.logout")}</span>
+                      <span className="text-[11px] text-muted-foreground line-clamp-1">{user.email}</span>
+                    </div>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { setMenuOpen(false); navigate("/auth"); }}
+                    className="flex items-center gap-3 px-4 py-3.5 rounded-xl transition-smooth flex-shrink-0 w-full text-foreground hover:bg-muted"
+                  >
+                    <div className="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center bg-primary text-primary-foreground">
+                      <LogIn className="w-4.5 h-4.5" />
+                    </div>
+                    <div className="text-right flex-1">
+                      <span className="text-sm font-semibold block">{t("common.login")}</span>
+                      <span className="text-[11px] text-muted-foreground line-clamp-1">{t("auth.subtitle")}</span>
+                    </div>
+                  </button>
+                )}
+              </div>
             </nav>
 
             {showScrollHint && (

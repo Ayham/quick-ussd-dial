@@ -3,7 +3,7 @@ import {
   Shield, Key, Copy, Lock, LogOut, Settings2, Clock,
   AlertTriangle, BarChart3, History, Trash2, Search, Edit, Check, X,
   Cloud, Wifi, WifiOff, RefreshCw, Database, ShieldCheck, Power, Users,
-  Megaphone, Plus, Minus, Download
+  Megaphone, Plus, Minus, Download, Smartphone, Activity, FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,9 @@ import { LicensesManager } from "@/components/admin/LicensesManager";
 import { ActivationsManager } from "@/components/admin/ActivationsManager";
 import { SyncStatusMonitor } from "@/components/admin/SyncStatusMonitor";
 import { TransfersViewer } from "@/components/admin/TransfersViewer";
+import { CustomersManager } from "@/components/admin/CustomersManager";
+import { EventsViewer } from "@/components/admin/EventsViewer";
+import { TrialsManager } from "@/components/admin/TrialsManager";
 import {
   verifyAdmin,
   isAdminAuthenticated,
@@ -108,7 +111,7 @@ async function loadPrivateKeyDecrypted(): Promise<JsonWebKey | null> {
 }
 
 // ======= Admin Tabs =======
-type AdminTab = 'dashboard' | 'devices' | 'licenses' | 'activations' | 'transfers' | 'sync' | 'generate' | 'archive' | 'settings' | 'marketing' | 'central';
+type AdminTab = 'dashboard' | 'customers' | 'devices' | 'licenses' | 'activations' | 'transfers' | 'events' | 'trials' | 'sync' | 'generate' | 'archive' | 'settings' | 'marketing' | 'central';
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -468,11 +471,14 @@ const Admin = () => {
       <div className="bg-card border-b border-border px-2 py-1.5 flex gap-1 overflow-x-auto">
         {([
           { id: 'dashboard' as AdminTab, label: 'الرئيسية', icon: BarChart3 },
+          { id: 'customers' as AdminTab, label: 'العملاء', icon: Users },
           { id: 'devices' as AdminTab, label: 'الأجهزة', icon: Smartphone },
           { id: 'licenses' as AdminTab, label: 'التراخيص', icon: Key },
           { id: 'activations' as AdminTab, label: 'الطلبات', icon: Clock },
           { id: 'transfers' as AdminTab, label: 'التحويلات', icon: History },
-          { id: 'sync' as AdminTab, label: 'المزامنة', icon: Cloud },
+          { id: 'events' as AdminTab, label: 'الأحداث', icon: Activity },
+          { id: 'trials' as AdminTab, label: 'الفترات التجريبية', icon: Clock },
+          { id: 'sync' as AdminTab, label: 'سجلات المزامنة', icon: Cloud },
           { id: 'central' as AdminTab, label: 'المركزي', icon: Database },
           { id: 'generate' as AdminTab, label: 'توليد', icon: Shield },
           { id: 'archive' as AdminTab, label: 'الأرشيف', icon: History },
@@ -563,8 +569,17 @@ const Admin = () => {
         {/* ===== ACTIVATIONS TAB ===== */}
         {activeTab === 'activations' && <ActivationsManager />}
 
+        {/* ===== CUSTOMERS TAB ===== */}
+        {activeTab === 'customers' && <CustomersManager />}
+
         {/* ===== TRANSFERS TAB ===== */}
         {activeTab === 'transfers' && <TransfersViewer />}
+
+        {/* ===== EVENTS TAB ===== */}
+        {activeTab === 'events' && <EventsViewer />}
+
+        {/* ===== TRIALS TAB ===== */}
+        {activeTab === 'trials' && <TrialsManager />}
 
         {/* ===== SYNC TAB ===== */}
         {activeTab === 'sync' && <SyncStatusMonitor />}
