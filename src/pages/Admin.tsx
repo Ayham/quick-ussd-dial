@@ -471,11 +471,14 @@ const Admin = () => {
       <div className="bg-card border-b border-border px-2 py-1.5 flex gap-1 overflow-x-auto">
         {([
           { id: 'dashboard' as AdminTab, label: 'الرئيسية', icon: BarChart3 },
+          { id: 'customers' as AdminTab, label: 'العملاء', icon: Users },
           { id: 'devices' as AdminTab, label: 'الأجهزة', icon: Smartphone },
           { id: 'licenses' as AdminTab, label: 'التراخيص', icon: Key },
           { id: 'activations' as AdminTab, label: 'الطلبات', icon: Clock },
           { id: 'transfers' as AdminTab, label: 'التحويلات', icon: History },
-          { id: 'sync' as AdminTab, label: 'المزامنة', icon: Cloud },
+          { id: 'events' as AdminTab, label: 'الأحداث', icon: Activity },
+          { id: 'trials' as AdminTab, label: 'الفترات التجريبية', icon: Clock },
+          { id: 'sync' as AdminTab, label: 'سجلات المزامنة', icon: Cloud },
           { id: 'central' as AdminTab, label: 'المركزي', icon: Database },
           { id: 'generate' as AdminTab, label: 'توليد', icon: Shield },
           { id: 'archive' as AdminTab, label: 'الأرشيف', icon: History },
