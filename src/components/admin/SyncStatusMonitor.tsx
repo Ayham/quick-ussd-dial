@@ -7,13 +7,12 @@ import { toast } from 'sonner';
 
 export interface SyncLog {
   id: string;
-  device_id: string;
-  event_type: string;
-  status: 'synced' | 'failed' | 'pending';
-  records_count: number;
-  error_message?: string;
+  device_id: string | null;
+  event: string;
+  status: string;
+  payload: any;
+  error?: string | null;
   created_at: string;
-  synced_at: string;
 }
 
 export function SyncStatusMonitor() {
