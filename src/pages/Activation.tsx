@@ -434,31 +434,80 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
         {/* Activation Request (for expired trials) */}
         {isExpired && !showActivationRequest && (
           <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-            <label className="text-sm font-medium text-foreground">
-              {t('activation.requestActivation')}
-            </label>
-            <Input
-              placeholder={isArabic ? "الاسم (اختياري)" : "Name (optional)"}
-              value={contactName}
-              onChange={(e) => setContactName(e.target.value)}
-              className="h-10"
-            />
-            <Input
-              placeholder={isArabic ? "الهاتف (اختياري)" : "Phone (optional)"}
-              value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
-              className="h-10"
-              dir="ltr"
-            />
-            <Button
-              onClick={handleRequestActivation}
-              className="w-full h-11"
-            >
-              <Send className="w-4 h-4 mr-2" />
-              {isArabic ? "إرسال طلب التفعيل" : "Request Activation"}
-            </Button>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-semibold text-foreground">
+                {t('activation.requestActivation')}
+              </label>
+              {signedIn === false && (
+                <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
+                  <LogIn className="w-3 h-3" />
+                  {isArabic ? "يتطلب تسجيل الدخول" : "Login required"}
+                </span>
+              )}
+            </div>
+
+            {signedIn === false ? (
+              <Button
+                onClick={() => navigate("/auth?next=/activation")}
+                className="w-full h-11"
+              >
+                <LogIn className="w-4 h-4 mr-2" />
+                {isArabic ? "تسجيل الدخول لإرسال الطلب" : "Sign in to request activation"}
+              </Button>
+            ) : (
+              <>
+                <p className="text-[11px] text-muted-foreground">
+                  {isArabic
+                    ? "بياناتك مأخوذة من حسابك. عدّلها إذا لزم."
+                    : "Pre-filled from your account. Edit if needed."}
+                </p>
+                <Input
+                  placeholder={isArabic ? "الاسم" : "Name"}
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  className="h-10"
+                />
+                <Input
+                  placeholder={isArabic ? "الهاتف" : "Phone"}
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                  className="h-10"
+                  dir="ltr"
+                />
+                {contactEmail && (
+                  <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
+                    <User className="w-3 h-3" /> {contactEmail}
+                  </p>
+                )}
+                <Button
+                  onClick={handleRequestActivation}
+                  disabled={requesting}
+                  className="w-full h-11"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  {requesting
+                    ? (isArabic ? "جاري الإرسال..." : "Sending...")
+                    : (isArabic ? "إرسال طلب التفعيل" : "Request Activation")}
+                </Button>
+              </>
+            )}
           </div>
         )}
+
+        {/* Pending request status */}
+        {isExpired && activationToken && !showActivationRequest && (
+          <div className="bg-primary/5 border border-primary/20 rounded-2xl p-3 text-center">
+            <p className="text-xs text-muted-foreground">
+              {isArabic
+                ? "طلبك قيد المراجعة — سيتم تفعيل التطبيق تلقائياً عند الموافقة"
+                : "Request pending — app will activate automatically once approved"}
+            </p>
+            <p className="text-[10px] font-mono text-muted-foreground mt-1" dir="ltr">
+              #{activationToken}
+            </p>
+          </div>
+        )}
+
 
         {/* License Input */}
         {!isTampered && (
