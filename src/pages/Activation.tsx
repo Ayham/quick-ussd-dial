@@ -1,14 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Copy, Key, Smartphone, CheckCircle, AlertTriangle, Clock, Shield, ShieldCheck, MessageCircle, PhoneCall, Send } from "lucide-react";
+import { Copy, Key, Smartphone, CheckCircle, AlertTriangle, Clock, Shield, ShieldCheck, MessageCircle, PhoneCall, Send, LogIn, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { getDeviceId } from "@/lib/device-id";
-import { validateLicense, saveLicense, type AppLicenseStatus } from "@/lib/license";
-import { activateLicenseKey, formatLicenseKey, isShortFormat } from "@/lib/license-key";
-import { createActivationRequest, getActivationRequestLink, getLocalActivationRequest } from "@/lib/activation-request";
+import { saveLicense, type AppLicenseStatus } from "@/lib/license";
+import { activateLicenseKey, isShortFormat } from "@/lib/license-key";
+import { createActivationRequest, getActivationRequestLink, getLocalActivationRequest, checkActivationStatus } from "@/lib/activation-request";
+import { getCurrentUser, getProfile } from "@/lib/auth";
 
 interface ActivationProps {
   status: AppLicenseStatus;
@@ -23,12 +24,58 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
   const [adminPassword, setAdminPassword] = useState("");
   const [showActivationRequest, setShowActivationRequest] = useState(false);
   const [activationLink, setActivationLink] = useState("");
-  const [supportPhone, setSupportPhone] = useState("0991214570");
+  const [activationToken, setActivationToken] = useState("");
+  const [supportPhone] = useState("0991214570");
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
-  
+  const [contactEmail, setContactEmail] = useState("");
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const [requesting, setRequesting] = useState(false);
+
   const deviceId = getDeviceId();
   const navigate = useNavigate();
+
+  // Auto-fill from profile when signed in; check existing pending request.
+  useEffect(() => {
+    (async () => {
+      const user = await getCurrentUser();
+      setSignedIn(!!user);
+      if (user) {
+        const p = await getProfile();
+        if (p) {
+          setContactName(p.display_name || "");
+          setContactPhone(p.phone || "");
+          setContactEmail(p.email || "");
+        }
+      }
+      const local = getLocalActivationRequest();
+      if (local && (status.status === "trial_expired" || status.status === "license_expired")) {
+        setActivationToken(local.requestToken);
+        setActivationLink(getActivationRequestLink(local.requestToken));
+      }
+    })();
+  }, [status.status]);
+
+  // Poll status while awaiting admin approval — when approved, auto-activate.
+  useEffect(() => {
+    if (!activationToken) return;
+    const id = setInterval(async () => {
+      const s = await checkActivationStatus(activationToken);
+      if (s === "approved") {
+        const cached = localStorage.getItem("trial_approved_license");
+        if (cached) {
+          const r = await activateLicenseKey(cached);
+          if (r.ok) {
+            toast.success(isArabic ? "تم تفعيل التطبيق" : "App activated");
+            onActivated();
+          }
+        }
+        clearInterval(id);
+      }
+    }, 8000);
+    return () => clearInterval(id);
+  }, [activationToken]);
+
   const titleTapCountRef = useRef(0);
   const iconTapCountRef = useRef(0);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -117,14 +164,29 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
   };
 
   const handleRequestActivation = async () => {
-    const request = await createActivationRequest(contactName || undefined, contactPhone || undefined);
-    if (request) {
-      const link = getActivationRequestLink(request.requestToken);
-      setActivationLink(link);
-      setShowActivationRequest(true);
-      toast.success(isArabic ? "تم إنشاء رابط التفعيل" : "Activation link created");
-    } else {
-      toast.error(isArabic ? "فشل إنشاء الرابط" : "Failed to create link");
+    if (!signedIn) {
+      toast.error(isArabic ? "سجّل الدخول أولاً لإرسال الطلب" : "Sign in first to send the request");
+      navigate("/auth?next=/activation");
+      return;
+    }
+    if (!contactName.trim() || !contactPhone.trim()) {
+      toast.error(isArabic ? "الاسم ورقم الهاتف مطلوبان" : "Name and phone are required");
+      return;
+    }
+    setRequesting(true);
+    try {
+      const request = await createActivationRequest(contactName.trim(), contactPhone.trim());
+      if (request) {
+        const link = getActivationRequestLink(request.requestToken);
+        setActivationLink(link);
+        setActivationToken(request.requestToken);
+        setShowActivationRequest(true);
+        toast.success(isArabic ? "تم إرسال طلب التفعيل" : "Activation request sent");
+      } else {
+        toast.error(isArabic ? "تعذّر إنشاء الطلب — تحقق من الاتصال" : "Could not create request — check connection");
+      }
+    } finally {
+      setRequesting(false);
     }
   };
 
