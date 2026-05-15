@@ -16,6 +16,7 @@ import Activation from "./pages/Activation";
 import Updates from "./pages/Updates";
 import Subscription from "./pages/Subscription";
 import Auth from "./pages/Auth";
+import Profile from "./pages/Profile";
 
 import "./lib/i18n";
 import { getAppStatus, type AppLicenseStatus } from "./lib/license";
@@ -125,6 +126,7 @@ const AppContent = () => {
         <Route path="/updates" element={<Updates />} />
         <Route path="/subscription" element={<Subscription />} />
         <Route path="/auth" element={<Auth />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/activation" element={<Activation status={status} onActivated={checkStatus} />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

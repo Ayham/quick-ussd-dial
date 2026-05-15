@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   Send, Wallet, BarChart3, Settings, Zap, Menu, ChevronLeft,
-  Users, BookUser, Download, Shield, ChevronDown, Home, LogIn, LogOut
+  Users, BookUser, Download, Shield, ChevronDown, Home, LogIn, LogOut, User
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -18,6 +18,7 @@ function useMenuItems() {
     { icon: Wallet, label: t("nav.balance"), path: "/balance", description: t("nav.balanceDesc", "Track balance") },
     { icon: BarChart3, label: t("nav.reports"), path: "/reports", description: t("nav.reportsDesc", "Transfer statistics") },
     { icon: Shield, label: t("nav.activation"), path: "/subscription", description: t("nav.activationDesc", "Subscription & payment") },
+    { icon: User, label: t("nav.profile", "الملف الشخصي"), path: "/profile", description: t("nav.profileDesc", "Account & language") },
     { icon: Settings, label: t("nav.settings"), path: "/settings", description: t("nav.settingsDesc", "App settings") },
     { icon: Download, label: t("nav.updates"), path: "/updates", description: t("nav.updatesDesc", "Check for updates") },
   ];

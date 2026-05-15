@@ -1,14 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Copy, Key, Smartphone, CheckCircle, AlertTriangle, Clock, Shield, ShieldCheck, MessageCircle, PhoneCall, Send } from "lucide-react";
+import { Copy, Key, Smartphone, CheckCircle, AlertTriangle, Clock, Shield, ShieldCheck, MessageCircle, PhoneCall, Send, LogIn, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { getDeviceId } from "@/lib/device-id";
-import { validateLicense, saveLicense, type AppLicenseStatus } from "@/lib/license";
-import { activateLicenseKey, formatLicenseKey, isShortFormat } from "@/lib/license-key";
-import { createActivationRequest, getActivationRequestLink, getLocalActivationRequest } from "@/lib/activation-request";
+import { saveLicense, type AppLicenseStatus } from "@/lib/license";
+import { activateLicenseKey, isShortFormat } from "@/lib/license-key";
+import { createActivationRequest, getActivationRequestLink, getLocalActivationRequest, checkActivationStatus } from "@/lib/activation-request";
+import { getCurrentUser, getProfile } from "@/lib/auth";
 
 interface ActivationProps {
   status: AppLicenseStatus;
@@ -23,12 +24,58 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
   const [adminPassword, setAdminPassword] = useState("");
   const [showActivationRequest, setShowActivationRequest] = useState(false);
   const [activationLink, setActivationLink] = useState("");
-  const [supportPhone, setSupportPhone] = useState("0991214570");
+  const [activationToken, setActivationToken] = useState("");
+  const [supportPhone] = useState("0991214570");
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
-  
+  const [contactEmail, setContactEmail] = useState("");
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const [requesting, setRequesting] = useState(false);
+
   const deviceId = getDeviceId();
   const navigate = useNavigate();
+
+  // Auto-fill from profile when signed in; check existing pending request.
+  useEffect(() => {
+    (async () => {
+      const user = await getCurrentUser();
+      setSignedIn(!!user);
+      if (user) {
+        const p = await getProfile();
+        if (p) {
+          setContactName(p.display_name || "");
+          setContactPhone(p.phone || "");
+          setContactEmail(p.email || "");
+        }
+      }
+      const local = getLocalActivationRequest();
+      if (local && (status.status === "trial_expired" || status.status === "license_expired")) {
+        setActivationToken(local.requestToken);
+        setActivationLink(getActivationRequestLink(local.requestToken));
+      }
+    })();
+  }, [status.status]);
+
+  // Poll status while awaiting admin approval — when approved, auto-activate.
+  useEffect(() => {
+    if (!activationToken) return;
+    const id = setInterval(async () => {
+      const s = await checkActivationStatus(activationToken);
+      if (s === "approved") {
+        const cached = localStorage.getItem("trial_approved_license");
+        if (cached) {
+          const r = await activateLicenseKey(cached);
+          if (r.ok) {
+            toast.success(isArabic ? "تم تفعيل التطبيق" : "App activated");
+            onActivated();
+          }
+        }
+        clearInterval(id);
+      }
+    }, 8000);
+    return () => clearInterval(id);
+  }, [activationToken]);
+
   const titleTapCountRef = useRef(0);
   const iconTapCountRef = useRef(0);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -117,14 +164,29 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
   };
 
   const handleRequestActivation = async () => {
-    const request = await createActivationRequest(contactName || undefined, contactPhone || undefined);
-    if (request) {
-      const link = getActivationRequestLink(request.requestToken);
-      setActivationLink(link);
-      setShowActivationRequest(true);
-      toast.success(isArabic ? "تم إنشاء رابط التفعيل" : "Activation link created");
-    } else {
-      toast.error(isArabic ? "فشل إنشاء الرابط" : "Failed to create link");
+    if (!signedIn) {
+      toast.error(isArabic ? "سجّل الدخول أولاً لإرسال الطلب" : "Sign in first to send the request");
+      navigate("/auth?next=/activation");
+      return;
+    }
+    if (!contactName.trim() || !contactPhone.trim()) {
+      toast.error(isArabic ? "الاسم ورقم الهاتف مطلوبان" : "Name and phone are required");
+      return;
+    }
+    setRequesting(true);
+    try {
+      const request = await createActivationRequest(contactName.trim(), contactPhone.trim());
+      if (request) {
+        const link = getActivationRequestLink(request.requestToken);
+        setActivationLink(link);
+        setActivationToken(request.requestToken);
+        setShowActivationRequest(true);
+        toast.success(isArabic ? "تم إرسال طلب التفعيل" : "Activation request sent");
+      } else {
+        toast.error(isArabic ? "تعذّر إنشاء الطلب — تحقق من الاتصال" : "Could not create request — check connection");
+      }
+    } finally {
+      setRequesting(false);
     }
   };
 
@@ -372,31 +434,80 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
         {/* Activation Request (for expired trials) */}
         {isExpired && !showActivationRequest && (
           <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-            <label className="text-sm font-medium text-foreground">
-              {t('activation.requestActivation')}
-            </label>
-            <Input
-              placeholder={isArabic ? "الاسم (اختياري)" : "Name (optional)"}
-              value={contactName}
-              onChange={(e) => setContactName(e.target.value)}
-              className="h-10"
-            />
-            <Input
-              placeholder={isArabic ? "الهاتف (اختياري)" : "Phone (optional)"}
-              value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
-              className="h-10"
-              dir="ltr"
-            />
-            <Button
-              onClick={handleRequestActivation}
-              className="w-full h-11"
-            >
-              <Send className="w-4 h-4 mr-2" />
-              {isArabic ? "إرسال طلب التفعيل" : "Request Activation"}
-            </Button>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-semibold text-foreground">
+                {t('activation.requestActivation')}
+              </label>
+              {signedIn === false && (
+                <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
+                  <LogIn className="w-3 h-3" />
+                  {isArabic ? "يتطلب تسجيل الدخول" : "Login required"}
+                </span>
+              )}
+            </div>
+
+            {signedIn === false ? (
+              <Button
+                onClick={() => navigate("/auth?next=/activation")}
+                className="w-full h-11"
+              >
+                <LogIn className="w-4 h-4 mr-2" />
+                {isArabic ? "تسجيل الدخول لإرسال الطلب" : "Sign in to request activation"}
+              </Button>
+            ) : (
+              <>
+                <p className="text-[11px] text-muted-foreground">
+                  {isArabic
+                    ? "بياناتك مأخوذة من حسابك. عدّلها إذا لزم."
+                    : "Pre-filled from your account. Edit if needed."}
+                </p>
+                <Input
+                  placeholder={isArabic ? "الاسم" : "Name"}
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  className="h-10"
+                />
+                <Input
+                  placeholder={isArabic ? "الهاتف" : "Phone"}
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                  className="h-10"
+                  dir="ltr"
+                />
+                {contactEmail && (
+                  <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
+                    <User className="w-3 h-3" /> {contactEmail}
+                  </p>
+                )}
+                <Button
+                  onClick={handleRequestActivation}
+                  disabled={requesting}
+                  className="w-full h-11"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  {requesting
+                    ? (isArabic ? "جاري الإرسال..." : "Sending...")
+                    : (isArabic ? "إرسال طلب التفعيل" : "Request Activation")}
+                </Button>
+              </>
+            )}
           </div>
         )}
+
+        {/* Pending request status */}
+        {isExpired && activationToken && !showActivationRequest && (
+          <div className="bg-primary/5 border border-primary/20 rounded-2xl p-3 text-center">
+            <p className="text-xs text-muted-foreground">
+              {isArabic
+                ? "طلبك قيد المراجعة — سيتم تفعيل التطبيق تلقائياً عند الموافقة"
+                : "Request pending — app will activate automatically once approved"}
+            </p>
+            <p className="text-[10px] font-mono text-muted-foreground mt-1" dir="ltr">
+              #{activationToken}
+            </p>
+          </div>
+        )}
+
 
         {/* License Input */}
         {!isTampered && (
