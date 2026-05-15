@@ -8,10 +8,10 @@ import { toast } from 'sonner';
 export interface SyncLog {
   id: string;
   device_id: string | null;
-  event: string;
+  event_type: string;
   status: string;
-  payload: any;
-  error?: string | null;
+  records_count: number;
+  error_message?: string | null;
   created_at: string;
 }
 
@@ -80,7 +80,7 @@ export function SyncStatusMonitor() {
   const stats = {
     total: syncLogs.length,
     succeeded: syncLogs.filter(s => s.status === 'synced').length,
-    failed: syncLogs.filter(s => s.status === 'failed').length,
+    failed: syncLogs.filter(s => s.status === 'failed' || s.status === 'error').length,
     pending: syncLogs.filter(s => s.status === 'pending').length,
   };
 
@@ -178,25 +178,25 @@ export function SyncStatusMonitor() {
               {syncLogs.map(log => (
                 <tr key={log.id} className="border-b hover:bg-muted/50">
                   <td className="p-3 text-xs font-mono">{(log.device_id || '').substring(0, 8)}...</td>
-                  <td className="p-3 text-xs">{log.event}</td>
+                  <td className="p-3 text-xs">{log.event_type}</td>
                   <td className="p-3">
                     <span className={`text-xs px-2 py-1 rounded ${
                       log.status === 'synced' ? 'bg-green-500/20 text-green-700' :
-                      log.status === 'failed' ? 'bg-red-500/20 text-red-700' :
+                      (log.status === 'failed' || log.status === 'error') ? 'bg-red-500/20 text-red-700' :
                       'bg-blue-500/20 text-blue-700'
                     }`}>
                       {log.status}
                     </span>
                   </td>
-                  <td className="p-3 text-xs font-mono">{Array.isArray(log.payload?.events) ? log.payload.events.length : '-'}</td>
+                  <td className="p-3 text-xs font-mono">{log.records_count ?? '-'}</td>
                   <td className="p-3 text-xs">
                     {new Date(log.created_at).toLocaleTimeString()}
                   </td>
                   <td className="p-3 text-xs">
-                    {log.error ? (
+                    {log.error_message ? (
                       <div className="flex items-center gap-1 text-red-600">
                         <AlertCircle className="w-3 h-3" />
-                        {log.error.substring(0, 20)}...
+                        {log.error_message.substring(0, 40)}...
                       </div>
                     ) : '-'}
                   </td>

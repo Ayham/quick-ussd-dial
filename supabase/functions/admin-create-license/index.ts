@@ -1,6 +1,11 @@
 // Admin-only — generate a license key in AB12-CD34-EF56 format.
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 const sb = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -27,10 +32,10 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: auth } } },
     );
-    const { data: claims, error: cErr } = await userClient.auth.getClaims(token);
-    if (cErr || !claims?.claims?.sub) return json({ error: "unauth" }, 401);
+    const { data: claims, error: cErr } = await userClient.auth.getUser(token);
+    if (cErr || !claims?.user?.id) return json({ error: "unauth" }, 401);
 
-    const userId = claims.claims.sub;
+    const userId = claims.user.id;
     const { data: roles } = await sb.from("user_roles").select("role").eq("user_id", userId);
     const isAdmin = (roles || []).some((r) => r.role === "admin");
     if (!isAdmin) return json({ error: "forbidden" }, 403);

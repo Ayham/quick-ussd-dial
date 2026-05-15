@@ -42,7 +42,8 @@ export type AppLicenseStatus =
   | { status: 'licensed'; expiryDate: string; daysLeft: number; permanent?: boolean }
   | { status: 'trial_expired' }
   | { status: 'license_expired' }
-  | { status: 'clock_tampered' };
+  | { status: 'clock_tampered' }
+  | { status: 'blocked' };
 
 function getToday(): string {
   return new Date().toISOString().split('T')[0];
@@ -67,6 +68,18 @@ function checkClockTamper(): boolean {
 
 function getTrialStart(): string | null {
   return localStorage.getItem(_TS_KEY);
+}
+
+function getSavedShortLicenseMeta(): {
+  status?: string;
+  expiry_date?: string | null;
+  permanent?: boolean;
+} | null {
+  try {
+    return JSON.parse(localStorage.getItem("_sys_v2_lk_meta") || "null");
+  } catch {
+    return null;
+  }
 }
 
 function initTrial(): string {
@@ -162,6 +175,25 @@ export async function getAppStatus(): Promise<AppLicenseStatus> {
   }
 
   const today = getToday();
+
+  if (localStorage.getItem("_sys_device_blocked_v1") === "1") {
+    return { status: "blocked" };
+  }
+
+  const shortLicense = getSavedShortLicenseMeta();
+  if (shortLicense) {
+    if (shortLicense.status === "revoked") return { status: "license_expired" };
+    if (shortLicense.permanent) {
+      return { status: "licensed", expiryDate: "permanent", daysLeft: Infinity, permanent: true };
+    }
+    if (shortLicense.expiry_date) {
+      const daysLeft = daysBetween(today, shortLicense.expiry_date);
+      if (daysLeft >= 0 && shortLicense.status !== "expired") {
+        return { status: "licensed", expiryDate: shortLicense.expiry_date, daysLeft };
+      }
+      return { status: "license_expired" };
+    }
+  }
 
   // 1️⃣ Check saved license FIRST
   const savedLicense = getSavedLicense();

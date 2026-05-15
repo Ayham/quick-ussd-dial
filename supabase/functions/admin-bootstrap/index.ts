@@ -2,7 +2,12 @@
 // IF no admin exists yet. After the first admin is set, only existing admins
 // can promote others (via this same endpoint with target_user_id).
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 const sb = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -19,8 +24,8 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: auth } } },
     );
-    const { data: claims } = await userClient.auth.getClaims(auth.replace("Bearer ", ""));
-    const userId = claims?.claims?.sub;
+    const { data: claims } = await userClient.auth.getUser(auth.replace("Bearer ", ""));
+    const userId = claims?.user?.id;
     if (!userId) return json({ error: "unauth" }, 401);
 
     const body = await req.json().catch(() => ({}));

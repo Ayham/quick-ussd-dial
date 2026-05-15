@@ -61,7 +61,12 @@ export function DashboardOverview() {
       const pendingActivations = activations?.filter(a => a.status === 'pending').length || 0;
       const totalTransferValue = transfers?.reduce((sum, t) => sum + (Number(t.amount) || 0), 0) || 0;
 
-      const queueSize = Number(localStorage.getItem('supabase_sync_queue_v1')?.split(',').length || 0);
+      let queueSize = 0;
+      try {
+        queueSize = JSON.parse(localStorage.getItem('supabase_sync_queue_v1') || '[]').length;
+      } catch {
+        queueSize = 0;
+      }
 
       setMetrics({
         totalDevices: devices?.length || 0,

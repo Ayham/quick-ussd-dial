@@ -7,13 +7,23 @@ const ar = {
     appName: "تحويل رصيد",
     nav: {
       transfer: "تحويل",
+      transferDesc: "تحويل رصيد سريع",
       contacts: "جهات الاتصال",
+      contactsDesc: "إدارة أسماء المتصلين",
       distributor: "الموزع",
+      distributorDesc: "حساب الموزع",
       balance: "الرصيد",
+      balanceDesc: "تتبع الرصيد",
       reports: "التقارير",
+      reportsDesc: "إحصائيات التحويلات",
       activation: "التفعيل",
+      activationDesc: "الاشتراك والدفع",
       settings: "الإعدادات",
+      settingsDesc: "إعدادات التطبيق",
       updates: "التحديثات",
+      updatesDesc: "التحقق من التحديثات",
+      profile: "الملف الشخصي",
+      profileDesc: "الحساب واللغة",
     },
     common: {
       save: "حفظ", cancel: "إلغاء", delete: "حذف", edit: "تعديل",
@@ -72,13 +82,23 @@ const en = {
     appName: "Quick USSD Dial",
     nav: {
       transfer: "Transfer",
+      transferDesc: "Quick balance transfer",
       contacts: "Contacts",
+      contactsDesc: "Manage customer names",
       distributor: "Distributor",
+      distributorDesc: "Distributor account",
       balance: "Balance",
+      balanceDesc: "Track balance",
       reports: "Reports",
+      reportsDesc: "Transfer statistics",
       activation: "Activation",
+      activationDesc: "Subscription & payment",
       settings: "Settings",
+      settingsDesc: "App settings",
       updates: "Updates",
+      updatesDesc: "Check for updates",
+      profile: "Profile",
+      profileDesc: "Account & language",
     },
     common: {
       save: "Save", cancel: "Cancel", delete: "Delete", edit: "Edit",
@@ -161,12 +181,18 @@ const en = {
 
 const STORAGE_KEY = "app_lang_v1";
 
+// Ensure Arabic is set as default before i18n initialization
+const savedLanguage = localStorage.getItem(STORAGE_KEY) as "ar" | "en" | null;
+const browserLang = navigator.language.toLowerCase();
+const detectedLang: "ar" | "en" = savedLanguage || (browserLang.startsWith("ar") ? "ar" : "ar"); // Default to Arabic
+
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     resources: { ar, en },
     fallbackLng: "ar",
+    lng: detectedLang, // Force initial language
     supportedLngs: ["ar", "en"],
     detection: { order: ["localStorage", "navigator"], lookupLocalStorage: STORAGE_KEY, caches: ["localStorage"] },
     interpolation: { escapeValue: false },

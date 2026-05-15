@@ -22,7 +22,7 @@ export async function signUpWithEmail(
     email,
     password,
     options: {
-      emailRedirectTo: window.location.origin,
+      emailRedirectTo: `${window.location.origin}/auth`,
       data: {
         full_name: displayName,
         phone,
@@ -33,6 +33,26 @@ export async function signUpWithEmail(
 
 export async function signOut() {
   return supabase.auth.signOut();
+}
+
+export async function signInWithGoogle(next = "/") {
+  const redirectTo = `${window.location.origin}/auth?next=${encodeURIComponent(next)}`;
+  return supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo,
+      queryParams: {
+        access_type: "offline",
+        prompt: "consent",
+      },
+    },
+  });
+}
+
+export async function sendPasswordReset(email: string) {
+  return supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/auth?mode=reset`,
+  });
 }
 
 export async function getCurrentUser() {

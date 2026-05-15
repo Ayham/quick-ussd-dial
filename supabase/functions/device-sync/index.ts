@@ -1,7 +1,12 @@
 // Public device sync endpoint — no auth required.
 // Devices push batched events; we upsert into Supabase using service role.
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 interface DeviceMeta {
   device_id: string;
@@ -33,6 +38,18 @@ Deno.serve(async (req) => {
     const device: DeviceMeta = body.device || {};
     const events: SyncEvent[] = body.events || [];
     const deviceId = device.device_id || body.device_id;
+    let userId: string | null = null;
+
+    const auth = req.headers.get("Authorization");
+    if (auth?.startsWith("Bearer ")) {
+      const userClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: auth } } },
+      );
+      const { data } = await userClient.auth.getUser(auth.replace("Bearer ", ""));
+      userId = data.user?.id ?? null;
+    }
 
     if (!deviceId || typeof deviceId !== "string" || deviceId.length < 4) {
       return json({ error: "device_id required" }, 400);
@@ -47,6 +64,7 @@ Deno.serve(async (req) => {
       app_version: device.app_version,
       language: device.language,
       timezone: device.timezone,
+      user_id: userId,
       last_seen: new Date().toISOString(),
     }, { onConflict: "device_id" });
 
@@ -64,6 +82,7 @@ Deno.serve(async (req) => {
               amount: Number(data.amount || 0),
               operator: String(data.operator || "unknown"),
               status: String(data.status || "completed"),
+              user_id: userId,
               created_at: ev.timestamp,
             }, { onConflict: "device_id,client_id" });
             break;
@@ -87,11 +106,22 @@ Deno.serve(async (req) => {
       } catch (e) {
         errors++;
         await sb.from("sync_logs").insert({
-          device_id: deviceId, event: ev.event, status: "error",
-          error: (e as Error).message, payload: ev as unknown as Record<string, unknown>,
+          device_id: deviceId,
+          event_type: ev.event,
+          status: "failed",
+          records_count: 1,
+          error_message: (e as Error).message,
         });
       }
     }
+
+    await sb.from("sync_logs").insert({
+      device_id: deviceId,
+      event_type: "device_sync",
+      status: errors > 0 ? "failed" : "synced",
+      records_count: inserted,
+      error_message: errors > 0 ? `${errors} event(s) failed` : null,
+    });
 
     // 3) Return current license status for the device (for offline-first sync down)
     const { data: lic } = await sb.from("licenses")

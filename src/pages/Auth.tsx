@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { signInWithEmail, signUpWithEmail, getCurrentUser, signOut, isAdminUser } from "@/lib/auth";
-import { lovable } from "@/integrations/lovable";
+import { signInWithEmail, signUpWithEmail, getCurrentUser, signOut, isAdminUser, signInWithGoogle, sendPasswordReset } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { Shield, ArrowRight, Crown, Database, LogOut, Mail, Lock, User, Phone } from "lucide-react";
 
@@ -39,9 +38,14 @@ const Auth = () => {
 
   useEffect(() => {
     refresh();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => refresh());
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      refresh();
+      if (session?.user && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
+        nav(next, { replace: true });
+      }
+    });
     return () => sub.subscription.unsubscribe();
-  }, []);
+  }, [nav, next]);
 
   const submit = async () => {
     if (!email || !password) {
@@ -59,8 +63,9 @@ const Auth = () => {
         if (error) toast.error(error.message);
         else {
           toast.success(isArabic ? "تم إنشاء الحساب" : "Account created");
+          const { data } = await supabase.auth.getSession();
           await refresh();
-          nav(next, { replace: true });
+          if (data.session) nav(next, { replace: true });
         }
       } else {
         const { error } = await signInWithEmail(email, password);
@@ -77,8 +82,18 @@ const Auth = () => {
   };
 
   const google = async () => {
-    const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + next });
+    const r = await signInWithGoogle(next);
     if (r.error) toast.error(r.error.message || "OAuth failed");
+  };
+
+  const resetPassword = async () => {
+    if (!email) {
+      toast.error(t("auth.email"));
+      return;
+    }
+    const { error } = await sendPasswordReset(email);
+    if (error) toast.error(error.message);
+    else toast.success(isArabic ? "تم إرسال رابط إعادة تعيين كلمة السر" : "Password reset link sent");
   };
 
   const promote = async () => {
@@ -189,6 +204,11 @@ const Auth = () => {
               ? (isArabic ? "ليس لديك حساب؟ أنشئ واحداً" : "No account? Create one")
               : (isArabic ? "لديك حساب؟ سجّل الدخول" : "Have an account? Sign in")}
           </button>
+          {mode === "signin" && (
+            <button className="text-xs text-primary w-full" onClick={resetPassword} type="button">
+              {isArabic ? "نسيت كلمة السر؟" : "Forgot password?"}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -1,7 +1,12 @@
 // Public endpoint — trial-expired devices request activation.
 // Returns a unique token that becomes part of the share link.
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 const sb = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -24,6 +29,18 @@ Deno.serve(async (req) => {
     const ussdNumbers = Array.isArray(body.ussd_numbers) ? body.ussd_numbers.map(String) : [];
     const contactPhone = body.contact_phone ? String(body.contact_phone) : null;
     const contactName = body.contact_name ? String(body.contact_name) : null;
+    let userId: string | null = null;
+
+    const auth = req.headers.get("Authorization");
+    if (auth?.startsWith("Bearer ")) {
+      const userClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: auth } } },
+      );
+      const { data } = await userClient.auth.getUser(auth.replace("Bearer ", ""));
+      userId = data.user?.id ?? null;
+    }
 
     if (!deviceId || deviceId.length < 4) return json({ error: "device_id required" }, 400);
 
@@ -41,6 +58,7 @@ Deno.serve(async (req) => {
     const { error } = await sb.from("activations").insert({
       request_token: token,
       device_id: deviceId,
+      user_id: userId,
       ussd_numbers: ussdNumbers,
       contact_phone: contactPhone,
       contact_name: contactName,
