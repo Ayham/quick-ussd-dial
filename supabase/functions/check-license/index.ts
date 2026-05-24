@@ -33,6 +33,12 @@ Deno.serve(async (req) => {
 
     if (!lic) return json({ valid: false, reason: "not_found" });
     if (lic.status === "revoked") return json({ valid: false, reason: "revoked" });
+    const { data: dev } = await sb.from("devices")
+      .select("is_blocked")
+      .eq("device_id", device_id)
+      .maybeSingle();
+    if (dev?.is_blocked) return json({ valid: false, reason: "blocked" });
+
     if (!lic.permanent && lic.expiry_date && new Date(lic.expiry_date) < new Date()) {
       await sb.from("licenses").update({ status: "expired" }).eq("id", lic.id);
       return json({ valid: false, reason: "expired" });

@@ -8,10 +8,10 @@ import { toast } from 'sonner';
 export interface SyncLog {
   id: string;
   device_id: string | null;
-  event_type: string;
+  event: string;
   status: string;
-  records_count: number;
-  error_message?: string | null;
+  payload?: unknown;
+  error?: string | null;
   created_at: string;
 }
 
@@ -46,7 +46,7 @@ export function SyncStatusMonitor() {
         .limit(50);
 
       if (error) throw error;
-      setSyncLogs(data || []);
+      setSyncLogs((data || []) as SyncLog[]);
 
       const lastTime = localStorage.getItem('supabase_sync_last_v1');
       setLastSync(lastTime);
@@ -178,7 +178,7 @@ export function SyncStatusMonitor() {
               {syncLogs.map(log => (
                 <tr key={log.id} className="border-b hover:bg-muted/50">
                   <td className="p-3 text-xs font-mono">{(log.device_id || '').substring(0, 8)}...</td>
-                  <td className="p-3 text-xs">{log.event_type}</td>
+                  <td className="p-3 text-xs">{log.event}</td>
                   <td className="p-3">
                     <span className={`text-xs px-2 py-1 rounded ${
                       log.status === 'synced' ? 'bg-green-500/20 text-green-700' :
@@ -188,15 +188,19 @@ export function SyncStatusMonitor() {
                       {log.status}
                     </span>
                   </td>
-                  <td className="p-3 text-xs font-mono">{log.records_count ?? '-'}</td>
+                  <td className="p-3 text-xs font-mono">
+                    {typeof (log.payload as { records_count?: unknown } | undefined)?.records_count === 'number'
+                      ? (log.payload as { records_count: number }).records_count
+                      : '-'}
+                  </td>
                   <td className="p-3 text-xs">
                     {new Date(log.created_at).toLocaleTimeString()}
                   </td>
                   <td className="p-3 text-xs">
-                    {log.error_message ? (
+                    {log.error ? (
                       <div className="flex items-center gap-1 text-red-600">
                         <AlertCircle className="w-3 h-3" />
-                        {log.error_message.substring(0, 40)}...
+                        {log.error.substring(0, 40)}...
                       </div>
                     ) : '-'}
                   </td>

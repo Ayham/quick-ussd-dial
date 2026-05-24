@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { signInWithEmail, signUpWithEmail, getCurrentUser, signOut, isAdminUser, signInWithGoogle, sendPasswordReset } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
-import { Shield, ArrowRight, Crown, Database, LogOut, Mail, Lock, User, Phone } from "lucide-react";
+import { Shield, ArrowRight, Crown, LogOut, Mail, Lock, User, Phone } from "lucide-react";
+import { useAuthSession } from "@/lib/auth-session";
 
 const Auth = () => {
   const { t, i18n } = useTranslation();
@@ -16,14 +17,17 @@ const Auth = () => {
   const isArabic = i18n.language === "ar";
 
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const isResetMode = params.get("mode") === "reset";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [busy, setBusy] = useState<"bootstrap" | "migrate" | null>(null);
+  const authSession = useAuthSession();
 
   async function refresh() {
     const u = await getCurrentUser();
@@ -62,10 +66,14 @@ const Auth = () => {
         const { error } = await signUpWithEmail(email, password, name, phone);
         if (error) toast.error(error.message);
         else {
-          toast.success(isArabic ? "تم إنشاء الحساب" : "Account created");
           const { data } = await supabase.auth.getSession();
           await refresh();
-          if (data.session) nav(next, { replace: true });
+          if (data.session) {
+            toast.success(isArabic ? "تم إنشاء الحساب" : "Account created");
+            nav(next, { replace: true });
+          } else {
+            toast.success(isArabic ? "تم إنشاء الحساب. تحقق من بريدك الإلكتروني لتأكيد الحساب." : "Account created. Check your email to confirm it.");
+          }
         }
       } else {
         const { error } = await signInWithEmail(email, password);
@@ -96,6 +104,25 @@ const Auth = () => {
     else toast.success(isArabic ? "تم إرسال رابط إعادة تعيين كلمة السر" : "Password reset link sent");
   };
 
+  const updatePassword = async () => {
+    if (!password || password.length < 6) {
+      toast.error(isArabic ? "كلمة السر يجب أن تكون 6 أحرف على الأقل" : "Password must be at least 6 characters");
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast.error(isArabic ? "كلمتا السر غير متطابقتين" : "Passwords do not match");
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.updateUser({ password });
+    setLoading(false);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(isArabic ? "تم تحديث كلمة السر" : "Password updated");
+      nav(next, { replace: true });
+    }
+  };
+
   const promote = async () => {
     setBusy("bootstrap");
     try {
@@ -105,11 +132,31 @@ const Auth = () => {
       } else {
         toast.success(isArabic ? "تم منحك صلاحيات الإدارة ✨" : "You are now an admin ✨");
         await refresh();
+        await authSession.refresh();
       }
     } finally {
       setBusy(null);
     }
   };
+
+  if (isResetMode) {
+    return (
+      <div className="min-h-dvh bg-background flex items-center justify-center p-6 safe-area-insets" dir={isArabic ? "rtl" : "ltr"}>
+        <div className="w-full max-w-sm space-y-5">
+          <div className="text-center space-y-2">
+            <Shield className="w-14 h-14 mx-auto text-primary" />
+            <h1 className="text-2xl font-bold">{isArabic ? "تعيين كلمة سر جديدة" : "Set a new password"}</h1>
+            <p className="text-sm text-muted-foreground">{isArabic ? "أدخل كلمة السر الجديدة لحسابك" : "Enter your new account password"}</p>
+          </div>
+          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+            <Input type="password" placeholder={isArabic ? "كلمة السر الجديدة" : "New password"} value={password} onChange={(e) => setPassword(e.target.value)} className="h-11" dir="ltr" />
+            <Input type="password" placeholder={isArabic ? "تأكيد كلمة السر" : "Confirm password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="h-11" dir="ltr" onKeyDown={(e) => e.key === "Enter" && updatePassword()} />
+            <Button className="w-full h-11 font-bold" onClick={updatePassword} disabled={loading}>{loading ? t("common.loading") : (isArabic ? "تحديث كلمة السر" : "Update password")}</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Signed in: show profile shortcut + admin tools (only relevant ones)
   if (user) {

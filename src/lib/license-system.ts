@@ -55,43 +55,26 @@ export async function adminGenerateLicenses(
 ): Promise<{ success: boolean; keys: string[]; error?: string }> {
   try {
     const keys: string[] = [];
-    
+
     for (let i = 0; i < count; i++) {
-      let key: string;
-      let attempts = 0;
-      
-      // Ensure uniqueness
-      do {
-        key = generateLicenseKey();
-        attempts++;
-      } while (keys.includes(key) && attempts < 10);
-      
-      if (attempts >= 10) {
-        return { success: false, keys, error: 'Failed to generate unique key' };
-      }
-      
-      // Create license in database
-      const { error } = await supabase
-        .from('licenses')
-        .insert({
-          license_key: key,
-          status: 'pending',
-          expiry_date: expiryDate,
-          permanent: permanent,
+      const { data, error } = await supabase.functions.invoke('admin-create-license', {
+        body: {
+          expiry_date: permanent ? null : expiryDate,
+          permanent,
           ussd_numbers: ussdNumbers,
-        });
-      
-      if (error) {
-        console.error('Error creating license:', error);
-        continue;
+        },
+      });
+
+      if (error || !data?.ok || !data?.license?.license_key) {
+        return { success: false, keys, error: data?.error || error?.message || 'Failed to generate license' };
       }
-      
-      keys.push(key);
+
+      keys.push(data.formatted || data.license.license_key);
     }
-    
+
     // Store generation record
     saveGeneratedKeys(keys, expiryDate, permanent, ussdNumbers);
-    
+
     return { success: true, keys };
   } catch (e) {
     return { success: false, keys: [], error: String(e) };
