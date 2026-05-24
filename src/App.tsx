@@ -17,7 +17,7 @@ import Updates from "./pages/Updates";
 import Subscription from "./pages/Subscription";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
-import { AuthSessionProvider, RequireAdmin, RequireAuth } from "./lib/auth-session";
+import { AuthSessionProvider, RequireAuth } from "./lib/auth-session";
 
 import "./lib/i18n";
 import { getAppStatus, type AppLicenseStatus } from "./lib/license";
@@ -93,7 +93,7 @@ const AppContent = () => {
         <AuthSessionProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
-            <Route path="/sys-panel" element={<RequireAdmin><Admin /></RequireAdmin>} />
+            <Route path="/sys-panel" element={<RequireAuth><Admin /></RequireAuth>} />
             <Route path="*" element={<RequireAuth><Activation status={status} onActivated={checkStatus} /></RequireAuth>} />
           </Routes>
         </AuthSessionProvider>
@@ -112,7 +112,7 @@ const AppContent = () => {
           <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
           <Route path="/reports" element={<RequireAuth><Reports /></RequireAuth>} />
           <Route path="/balance" element={<RequireAuth><Balance /></RequireAuth>} />
-          <Route path="/sys-panel" element={<RequireAdmin><Admin /></RequireAdmin>} />
+          <Route path="/sys-panel" element={<RequireAuth><Admin /></RequireAuth>} />
           <Route path="/updates" element={<RequireAuth><Updates /></RequireAuth>} />
           <Route path="/subscription" element={<RequireAuth><Subscription /></RequireAuth>} />
           <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
