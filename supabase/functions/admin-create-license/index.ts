@@ -47,6 +47,7 @@ Deno.serve(async (req) => {
     const level = body.level || "standard";
     const notes = body.notes || null;
     const deviceId = body.device_id || null;
+    if (!permanent && !expiryDate) return json({ error: "expiry_date_required" }, 400);
 
     // Try a few times in case of UNIQUE collision
     for (let i = 0; i < 5; i++) {
