@@ -90,12 +90,13 @@ Deno.serve(async (req) => {
           case "distributor_topup":
           case "distributor_payment": {
             // skip — handled via dedicated upsert if needed
-            await sb.from("app_events").insert({ device_id: deviceId, event: ev.event, data });
+            await sb.from("app_events").insert({ device_id: deviceId, user_id: userId, event: ev.event, data });
             break;
           }
           default: {
             await sb.from("app_events").insert({
               device_id: deviceId,
+              user_id: userId,
               event: ev.event,
               data,
               created_at: ev.timestamp,
@@ -107,20 +108,22 @@ Deno.serve(async (req) => {
         errors++;
         await sb.from("sync_logs").insert({
           device_id: deviceId,
-          event_type: ev.event,
+          user_id: userId,
+          event: ev.event,
           status: "failed",
-          records_count: 1,
-          error_message: (e as Error).message,
+          payload: { record_count: 1, event_id: ev.id ?? null },
+          error: (e as Error).message,
         });
       }
     }
 
     await sb.from("sync_logs").insert({
       device_id: deviceId,
-      event_type: "device_sync",
+      user_id: userId,
+      event: "device_sync",
       status: errors > 0 ? "failed" : "synced",
-      records_count: inserted,
-      error_message: errors > 0 ? `${errors} event(s) failed` : null,
+      payload: { records_count: inserted, errors },
+      error: errors > 0 ? `${errors} event(s) failed` : null,
     });
 
     // 3) Return current license status for the device (for offline-first sync down)
