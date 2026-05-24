@@ -69,46 +69,19 @@ const AppContent = () => {
   useEffect(() => {
     const init = async () => {
       await initDeviceId(); // Must run first — generates stable device ID
+      await checkStatus();
+      startSupabaseSync();
       if (!isWeb) {
         doUpdateCheck();
-        checkStatus();
         startBackgroundSync();
-        startSupabaseSync();
         startLicenseSyncListeners();
         syncLicense().catch(() => {});
         trackDeviceInfo();
         trackAppOpen();
-      } else {
-        startSupabaseSync();
       }
     };
     init();
   }, []);
-
-  // Web browser: only Landing page + Admin + Auth
-  if (isWeb) {
-    return (
-      <BrowserRouter>
-        <AuthSessionProvider>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/sys-panel" element={<RequireAdmin><Admin /></RequireAdmin>} />
-            <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
-            <Route path="/distributor" element={<RequireAuth><Distributor /></RequireAuth>} />
-            <Route path="/contacts" element={<RequireAuth><Contacts /></RequireAuth>} />
-            <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
-            <Route path="/reports" element={<RequireAuth><Reports /></RequireAuth>} />
-            <Route path="/balance" element={<RequireAuth><Balance /></RequireAuth>} />
-            <Route path="/updates" element={<RequireAuth><Updates /></RequireAuth>} />
-            <Route path="/subscription" element={<RequireAuth><Subscription /></RequireAuth>} />
-            <Route path="/activation" element={<RequireAuth><Activation status={{ status: "trial", daysLeft: 30 }} onActivated={() => void 0} /></RequireAuth>} />
-            <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
-            <Route path="*" element={<RequireAuth><NotFound /></RequireAuth>} />
-          </Routes>
-        </AuthSessionProvider>
-      </BrowserRouter>
-    );
-  }
 
   // Update info is available but no overlay is shown — user checks via Updates page
 
