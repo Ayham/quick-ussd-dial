@@ -24,23 +24,24 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
+    let userId: string | null = null;
+
+    const auth = req.headers.get("Authorization");
+    if (!auth?.startsWith("Bearer ")) return json({ error: "auth_required" }, 401);
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: auth } } },
+    );
+    const { data } = await userClient.auth.getUser(auth.replace("Bearer ", ""));
+    userId = data.user?.id ?? null;
+    if (!userId) return json({ error: "auth_required" }, 401);
+
     const body = await req.json();
     const deviceId = String(body.device_id || "").trim();
     const ussdNumbers = Array.isArray(body.ussd_numbers) ? body.ussd_numbers.map(String) : [];
     const contactPhone = body.contact_phone ? String(body.contact_phone) : null;
     const contactName = body.contact_name ? String(body.contact_name) : null;
-    let userId: string | null = null;
-
-    const auth = req.headers.get("Authorization");
-    if (auth?.startsWith("Bearer ")) {
-      const userClient = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
-        { global: { headers: { Authorization: auth } } },
-      );
-      const { data } = await userClient.auth.getUser(auth.replace("Bearer ", ""));
-      userId = data.user?.id ?? null;
-    }
 
     if (!deviceId || deviceId.length < 4) return json({ error: "device_id required" }, 400);
 
@@ -52,7 +53,15 @@ Deno.serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(1).maybeSingle();
 
-    if (existing) return json({ ok: true, token: existing.request_token, reused: true });
+    if (existing) {
+      await sb.from("activations").update({
+        user_id: userId,
+        contact_phone: contactPhone,
+        contact_name: contactName,
+        ussd_numbers: ussdNumbers,
+      }).eq("request_token", existing.request_token);
+      return json({ ok: true, token: existing.request_token, reused: true });
+    }
 
     const token = genToken(10);
     const { error } = await sb.from("activations").insert({
