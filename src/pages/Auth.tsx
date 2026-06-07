@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { signInWithEmail, signUpWithEmail, getCurrentUser, signOut, isAdminUser, signInWithGoogle, sendPasswordReset } from "@/lib/auth";
+import { signInWithEmail, signUpWithEmail, getCurrentUser, signOut, isAdminUser, sendPasswordReset } from "@/lib/auth";
+import { lovable } from "@/integrations/lovable";
 import { supabase } from "@/integrations/supabase/client";
 import { Shield, ArrowRight, Crown, LogOut, Mail, Lock, User, Phone } from "lucide-react";
 import { useAuthSession } from "@/lib/auth-session";
@@ -90,8 +91,14 @@ const Auth = () => {
   };
 
   const google = async () => {
-    const r = await signInWithGoogle(next);
+    const r = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: `${window.location.origin}/auth?next=${encodeURIComponent(next)}`,
+    });
     if (r.error) toast.error(r.error.message || "OAuth failed");
+    else if (!r.redirected) {
+      await refresh();
+      nav(next, { replace: true });
+    }
   };
 
   const resetPassword = async () => {
