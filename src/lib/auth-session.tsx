@@ -19,8 +19,27 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refresh = async () => {
-    const { data } = await supabase.auth.getSession();
-    const sessionUser = data.session?.user ?? null;
+    // Validate the session against the auth server. If the stored JWT is
+    // stale/corrupt (e.g. left over from a previous project or a deleted
+    // user), getUser() returns an error like "bad_jwt" / "missing sub
+    // claim". In that case we must clear it locally, otherwise every
+    // protected route bounces the user to /auth in a loop.
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      const msg = (error.message || "").toLowerCase();
+      if (
+        msg.includes("jwt") ||
+        msg.includes("sub claim") ||
+        msg.includes("session") ||
+        msg.includes("token")
+      ) {
+        try { await supabase.auth.signOut({ scope: "local" }); } catch {}
+      }
+      setUser(null);
+      setIsAdmin(false);
+      return;
+    }
+    const sessionUser = data.user ?? null;
     setUser(sessionUser);
     setIsAdmin(sessionUser ? await isAdminUser() : false);
   };
