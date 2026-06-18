@@ -1,70 +1,155 @@
-# Production Readiness Plan — Quick USSD Dial
 
-This is a large multi-domain audit. To avoid partial fixes and keep each step verifiable, work is split into 5 sequential batches. Each batch ends with an honest status report (what was fixed, what was tested, what is still open) before moving on.
+# Option C (v2) — Portable Supabase Bundle + In-Place Production Upgrade
 
-## Guiding rules
+Scope grew significantly. Same two-track delivery model: every change goes (1) into Lovable Cloud Supabase via the migration tool so the app keeps working today, AND (2) into `db/portable/**` as plain SQL + docs so you can apply the exact same schema to your own Supabase project later.
 
-- No partial fixes inside a batch — finish, verify, then report.
-- Every batch ends with: code changes, manual test results, remaining risks.
-- Admin notifications use **in-app notifications only** (no custom domain yet — Lovable default emails remain for auth: signup, password reset).
-- Final report at the end with `READY` / `NOT READY` verdict + evidence.
+Work is split into **8 sequential batches**. Each batch ends with a short status report (✅ done / ⚠️ needs manual step / ❌ open). Nothing is marked done without verification.
 
-## Batch 1 — Auth hardening & full auth QA
+**Reminder:** the Supabase Personal Access Token you pasted earlier is still live. Rotate it at https://supabase.com/dashboard/account/tokens. I do not need it.
 
-Goal: every auth flow works end-to-end on the live preview.
+## Batch 1 — Foundation schema (+ portable bundle skeleton)
 
-- Confirm the `bad_jwt` / "missing sub claim" fix in `auth-session.tsx` clears stale tokens automatically.
-- Verify on live preview: email signup, email login, Google login, logout, password reset, session persistence across refresh.
-- Confirm `handle_new_user` trigger creates a `profiles` row + `user_roles` row for every new signup (email and Google).
-- Confirm `ayham.seif@gmail.com` is admin and routes to `/sys-panel` correctly.
-- Confirm `RequireAuth` blocks all non-auth routes when logged out.
-- Fix any issue found before moving on.
+Goal: every table the app needs exists, with `client_id` for sync dedupe, indexes, `updated_at` triggers, GRANTs, RLS.
 
-## Batch 2 — Trial + Activation + in-app admin notifications
+New / extended tables (Cloud + bundle):
 
-Goal: trial → expiry → activation request → admin sees it → approve → device unlocked.
+- `contacts` — user phone book, deduped on `(user_id, phone_normalized)`
+- `amount_presets` — per-user packages per operator (price + label + order)
+- `sim_assignments` — per-device SIM slot → operator
+- `subscription_plans` — catalog: name, duration_days, price, **max_devices**, features
+- `payments` — manual + online activation records, admin-approval workflow
+- `daily_summaries` — per-user/per-day rollups (transfers, revenue, success, failure)
+- `audit_logs` — generic security/admin audit trail
+- `app_settings` — per-user settings (key/value)
+- `system_config` — global app config (USSD defaults, trial days, maintenance mode, min app version, feature flags, sheets URL, sync intervals)
+- `notifications` — in-app per-user + admin notifications, read/unread
+- `sync_conflicts` — duplicates / conflict / failed / retry attempts
+- `sync_metrics` — duration, volume, success rate, last successful sync
+- `failed_logins` — login attempt tracking
+- `account_lockouts` — temporary lockout state
+- `device_bans` — banned devices + reason + ban time
+- `sessions` — active user/device sessions for admin force-logout
 
-- Audit `trials` table + `getAppStatus()` for correct trial creation per user/device and correct expiry behavior online and offline.
-- Audit `Activation.tsx` request form: collects name, phone, email, device info, app version, trial/license status.
-- Replace email-based admin notification with an **in-app admin notifications panel** (new component in `/sys-panel`) backed by the existing `activations` table (status = `pending`). Add a badge with pending count.
-- Confirm Arabic confirmation message after request submission.
-- Manual test: expire trial → submit request → see in admin → approve → user device unlocked.
+Extended `devices` columns (Cloud + bundle):
+`android_id`, `device_fingerprint`, `app_instance_id`, `app_version`, `platform`, `last_ip`, `last_seen_at`, `is_banned`, `ban_reason`.
 
-## Batch 3 — License system + Admin panel CRUD
+Bundle layout:
 
-Goal: admin can fully manage users, devices, activations, licenses.
+```text
+db/portable/
+  README.md
+  MIGRATION.md          # full runbook
+  schema/
+    00_extensions.sql
+    01_enums_and_functions.sql
+    02_tables.sql
+    03_indexes.sql
+    04_triggers.sql
+    05_grants_and_rls.sql
+    06_seed.sql         # subscription_plans, default system_config, default ussd_codes
+  edge-functions/       # copies of supabase/functions/*
+  client.template.ts
+  .env.example
+```
 
-- Audit license generation, device binding, validation, revocation, expiry (`license-system.ts`, `licenses` table, `check-license` edge function).
-- Audit each admin tab: Dashboard, Users (Customers), Devices, Activations, Licenses, Transfers, Events, Sync, Trials. Fix broken queries, missing actions (block/unblock device, revoke license, approve/reject activation).
-- Verify admin-only RLS: non-admin user cannot read other users' data, cannot promote self, cannot mutate licenses/activations.
+## Batch 2 — RLS hardening, multi-device limits, anti-cloning
 
-## Batch 4 — Offline + Sync correctness + MTN/Syriatel workflows
+- Rewrite every policy with `auth.uid()=user_id` + admin override via `public.has_role(auth.uid(),'admin')`.
+- Explicit GRANTs on every table (authenticated + service_role; anon only where strictly needed).
+- **Server-side device-limit enforcement**: `enforce_device_limit()` trigger on `devices` inserts checks active count vs `user`'s active subscription `max_devices`; deny via RLS + trigger.
+- **Anti-cloning trigger**: detects duplicate `device_fingerprint` or `android_id` across users → flags device, writes `audit_logs` row + admin `notifications` row.
+- Force-logout via revoking session row + `device-sync` response signal.
+- Run `supabase--linter` + `security--run_security_scan` → fix all high/critical.
 
-Goal: app works fully offline; sync is lossless and deduped when back online.
+## Batch 3 — Offline-first sync correctness + monitoring
 
-- Audit IndexedDB / LocalStorage queue in `supabase-sync.ts` + `cloud-sync.ts`: dedupe via `client_id`, retry with backoff, conflict handling, no data loss.
-- Audit `device-sync` edge function for idempotency (already uses `onConflict: device_id,client_id` for transfers — verify for other event types).
-- Verify USSD workflows (MTN + Syriatel): prefix detection, presets, balance check, transfer history, reports — all work offline and reconcile when online.
-- Verify user-data isolation: user A never sees user B's transfers/distributors.
+- Extend local sync queue (`supabase-sync.ts`) to cover all entities; every event carries `client_id` UUID; edge function upserts on `(device_id, client_id)`.
+- Backoff/retry with cap; `sync_metrics` row per flush; conflicts written to `sync_conflicts`.
+- `useSyncStatus()` hook + persistent badge in `AppLayout` (Online / Syncing N / Offline N queued).
+- Playwright check: offline → create transfer/contact → online → row appears, queue empties, no dupes on re-sync.
 
-## Batch 5 — Security re-scan + UI/RTL polish + final report
+## Batch 4 — Auth, sessions, security hardening
 
-Goal: green security scan + production-ready UI + go/no-go verdict.
+- Confirm Google login via `lovable.auth.signInWithOAuth("google")` works on preview (Cloud managed creds). Email/password kept.
+- **Failed-login tracking** + **account lockout** (N failures in M minutes → temporary block; admin can clear).
+- **Session management**: write `sessions` row on login (user_id, device_id, ip, ua, last_seen); admin can force-logout from sys-panel.
+- **Audit logs** for every admin action and security event.
+- Edge-function-level basic protections on `request-activation`, `device-sync`, contacts import, login attempts. (Note: backend has no standard rate-limiting primitive — implementing per-IP counters in DB; flagged as ad-hoc not infrastructure.)
 
-- Run `security--run_security_scan`; fix every high/critical; document any accepted findings in security memory.
-- Run Supabase linter; fix flagged issues.
-- Quick UI/RTL pass on all major screens (Auth, Activation, Index, Admin tabs) — Arabic default, RTL, responsive.
-- Produce the full final report covering all 16 sections requested, with the explicit `READY FOR PRODUCTION LAUNCH` or `NOT READY` conclusion and supporting evidence (test results, scan results, remaining manual config: Google OAuth credentials if user wants own, custom domain for branded emails when available, publish step).
+## Batch 5 — Subscriptions, activation, multi-device licensing
 
-## Technical details
+- Seed `subscription_plans`: Trial 14d (1 device), Monthly (2 devices), Quarterly (3 devices), Yearly (5 devices), Lifetime (10 devices).
+- `payments` admin-approval workflow → on approve, create/extend `licenses`, set device active, emit notification.
+- Activation request → `activations` (pending) + admin `notifications` (badge in sys-panel) → approve/reject → push status via `device-sync` response.
+- License transfer between devices of same user (admin action, audit-logged).
 
-- Stack: React 18 + Vite + Capacitor + Supabase (Lovable Cloud).
-- Auth: email/password + Google via `lovable.auth.signInWithOAuth`. Auto-confirm email enabled.
-- Roles: `user_roles` table + `has_role()` SECURITY DEFINER function (already correct).
-- Admin notifications: in-app only this round; branded email notifications deferred until a sender domain is available.
-- Offline storage: IndexedDB (AES-GCM keys) + LocalStorage (obfuscated) + sync queue → `device-sync` edge function.
-- After every batch: short status block in chat — ✅ fixed / ⚠️ needs user QA / ❌ open.
+## Batch 6 — `/sys-panel` enterprise upgrade (no empty pages)
 
-## What I need from you to start
+Top-level tabs, each functional with search + pagination + row actions + CSV export + loading/empty/error states:
 
-Just say "go" and I'll execute Batch 1 immediately. Batches 2–5 follow automatically unless you stop me between them.
+Dashboard (live KPIs), Users, **User Detail page** (profile + devices + licenses + activations + counts + revenue + last login/sync + audit history), Devices, **Device Detail page** (info + owner + license + last activity + sync history + security events + transfers), Contacts, Activations (pending badge), Subscriptions & Licenses, Payments, Transfers, Reports, Sync Logs / Conflicts / Metrics, USSD Codes, Operator Prefixes, Amount Presets, SIM Assignments, **System Config** (trial days, plans, device limits, sheets URL, sync intervals, maintenance mode, min app version, feature flags), Notifications, Audit Logs, Device Bans.
+
+## Batch 7 — Contacts I/O + Advanced Reports + UI polish
+
+- **Contacts import/export**: CSV + XLSX both directions. Phone normalization (Syrian prefixes), operator detection, duplicate detection, **preview before commit**, merge / replace / skip modes, import-result report.
+- **Advanced Reports** built on `transfers` + `daily_summaries`:
+  - Transfers: daily / weekly / monthly / yearly
+  - Revenue: daily / monthly / by-user / by-device
+  - Operators: MTN vs Syriatel transfers + revenue
+  - Activity: most active users/devices, most used packages, failed transfers, failed syncs
+  - Licensing: active / expired / pending / trial / trial→paid conversion rate
+  - Sync: last sync status, devices offline > N days, queue health
+- **Google Sheets demoted to export-only**: writes go to Supabase first; existing Sheets script becomes an export pull from Supabase, never a primary write.
+- UI polish: modern mobile-first cards, RTL preserved, safe-area, loading/empty/error everywhere, sync badge, modernized Auth/Index/Transfer/Contacts.
+
+## Batch 8 — Deep check, security scan, final acceptance
+
+- Walk every route with Playwright; screenshot evidence; fix broken pages.
+- Run `supabase--linter` + `security--run_security_scan`; fix all high/critical; document accepted findings in security memory.
+- Verify each acceptance criterion below with evidence (screenshot / SQL result / scan output).
+- Produce final `READY` / `NOT READY` verdict.
+
+## Acceptance criteria (verdict gate)
+
+Each item requires evidence before READY:
+
+1. All admin pages functional, no empty/placeholder pages
+2. Reports use real DB data (sample queries + screenshots)
+3. Offline mode works (Playwright offline test)
+4. Sync works (Playwright online flush)
+5. Duplicate protection works (`client_id` upsert test)
+6. Multi-device licensing enforced (trigger denial test)
+7. Google login works (Playwright OAuth flow)
+8. Contacts import/export works (sample file round-trip)
+9. Subscriptions + activations work (admin approval flow test)
+10. Security audit passes (scan output)
+11. Playwright suite passes
+12. Portable bundle complete (`db/portable/**` exists and self-contained)
+13. Documentation complete (`MIGRATION.md` + this plan)
+
+## Portability matrix
+
+| Concern | Portable | Notes |
+|---|---|---|
+| All tables, indexes, triggers, functions, RLS, grants | ✅ | `db/portable/schema/*.sql` |
+| Seed data (plans, system_config, ussd_codes) | ✅ | `06_seed.sql` |
+| Edge function source | ✅ | `db/portable/edge-functions/` — deploy with `supabase functions deploy` |
+| Email/password auth | ✅ | Standard Supabase Auth |
+| Google OAuth | ⚠️ | On your project: add your own Google client ID/secret in Auth → Providers |
+| Email templates | ⚠️ | Re-upload in your project; custom domain optional |
+| `client.ts` / `types.ts` / `.env` | ⚠️ | Bundle ships `client.template.ts` + `.env.example`; regenerate types with `supabase gen types typescript` |
+| `supabase/config.toml` project_id | ❌ | Cloud-managed; replace in your fork |
+| `LOVABLE_API_KEY` (AI gateway) | ❌ | Lovable-only; if used, swap to your AI provider key |
+| Frontend code under `src/` | ✅ | Plain React/TS, portable as-is |
+
+## Technical notes
+
+- All new tables follow project convention: `id uuid pk`, `user_id uuid` where applicable, `device_id text` for device-scoped rows, `client_id uuid` for sync dedupe, `created_at`, `updated_at`, RLS on, GRANTs to authenticated + service_role.
+- `has_role(uuid, app_role)` SECURITY DEFINER stays the only privilege-check path.
+- Server-side device limit + anti-cloning via triggers + RLS — never client-side.
+- No Supabase Personal Access Token used or stored anywhere.
+- Rate limiting is ad-hoc (per-IP counters in DB) because the backend has no standard primitive — flagged in the final report as known infra gap.
+
+## Start
+
+Reply **"go"** and I execute Batch 1 immediately. Subsequent batches follow automatically with a status report between each — stop me at any boundary.
