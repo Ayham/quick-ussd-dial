@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_lockouts: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          locked_until: string
+          reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          locked_until: string
+          reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          locked_until?: string
+          reason?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       activations: {
         Row: {
           contact_name: string | null
@@ -103,6 +130,48 @@ export type Database = {
         }
         Relationships: []
       }
+      amount_presets: {
+        Row: {
+          amount: number
+          client_id: string
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          label: string
+          operator: string
+          price: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          client_id?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          label: string
+          operator: string
+          price?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          client_id?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          label?: string
+          operator?: string
+          price?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       app_events: {
         Row: {
           created_at: string
@@ -130,16 +199,209 @@ export type Database = {
         }
         Relationships: []
       }
-      devices: {
+      app_settings: {
         Row: {
-          app_version: string | null
+          created_at: string
+          id: string
+          key: string
+          updated_at: string
+          user_id: string
+          value: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key: string
+          updated_at?: string
+          user_id: string
+          value?: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+          updated_at?: string
+          user_id?: string
+          value?: Json
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          created_at: string
+          device_id: string | null
+          entity: string | null
+          entity_id: string | null
+          id: string
+          ip: string | null
+          metadata: Json
+          target_user_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          created_at?: string
+          device_id?: string | null
+          entity?: string | null
+          entity_id?: string | null
+          id?: string
+          ip?: string | null
+          metadata?: Json
+          target_user_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          created_at?: string
+          device_id?: string | null
+          entity?: string | null
+          entity_id?: string | null
+          id?: string
+          ip?: string | null
+          metadata?: Json
+          target_user_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      contacts: {
+        Row: {
+          client_id: string
+          created_at: string
+          device_id: string | null
+          id: string
+          name: string
+          notes: string | null
+          operator: string | null
+          phone: string
+          phone_normalized: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id?: string
+          created_at?: string
+          device_id?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          operator?: string | null
+          phone: string
+          phone_normalized: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          device_id?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          operator?: string | null
+          phone?: string
+          phone_normalized?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      daily_summaries: {
+        Row: {
+          amount_total: number
+          created_at: string
+          day: string
+          device_id: string | null
+          failure_count: number
+          id: string
+          operator: string | null
+          revenue: number
+          success_count: number
+          transfers_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_total?: number
+          created_at?: string
+          day: string
+          device_id?: string | null
+          failure_count?: number
+          id?: string
+          operator?: string | null
+          revenue?: number
+          success_count?: number
+          transfers_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_total?: number
+          created_at?: string
+          day?: string
+          device_id?: string | null
+          failure_count?: number
+          id?: string
+          operator?: string | null
+          revenue?: number
+          success_count?: number
+          transfers_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      device_bans: {
+        Row: {
+          banned_by: string | null
           created_at: string
           device_id: string
           id: string
+          lifted_at: string | null
+          reason: string | null
+          user_id: string | null
+        }
+        Insert: {
+          banned_by?: string | null
+          created_at?: string
+          device_id: string
+          id?: string
+          lifted_at?: string | null
+          reason?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          banned_by?: string | null
+          created_at?: string
+          device_id?: string
+          id?: string
+          lifted_at?: string | null
+          reason?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      devices: {
+        Row: {
+          android_id: string | null
+          app_instance_id: string | null
+          app_version: string | null
+          ban_reason: string | null
+          created_at: string
+          device_fingerprint: string | null
+          device_id: string
+          id: string
           is_active: boolean
+          is_banned: boolean
           is_blocked: boolean
           language: string | null
+          last_ip: string | null
           last_seen: string
+          last_seen_at: string | null
           metadata: Json
           model: string | null
           name: string | null
@@ -150,14 +412,21 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          android_id?: string | null
+          app_instance_id?: string | null
           app_version?: string | null
+          ban_reason?: string | null
           created_at?: string
+          device_fingerprint?: string | null
           device_id: string
           id?: string
           is_active?: boolean
+          is_banned?: boolean
           is_blocked?: boolean
           language?: string | null
+          last_ip?: string | null
           last_seen?: string
+          last_seen_at?: string | null
           metadata?: Json
           model?: string | null
           name?: string | null
@@ -168,14 +437,21 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          android_id?: string | null
+          app_instance_id?: string | null
           app_version?: string | null
+          ban_reason?: string | null
           created_at?: string
+          device_fingerprint?: string | null
           device_id?: string
           id?: string
           is_active?: boolean
+          is_banned?: boolean
           is_blocked?: boolean
           language?: string | null
+          last_ip?: string | null
           last_seen?: string
+          last_seen_at?: string | null
           metadata?: Json
           model?: string | null
           name?: string | null
@@ -264,6 +540,33 @@ export type Database = {
         }
         Relationships: []
       }
+      failed_logins: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          ip: string | null
+          reason: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          ip?: string | null
+          reason?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          ip?: string | null
+          reason?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       licenses: {
         Row: {
           activated_at: string | null
@@ -323,6 +626,101 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          is_admin_target: boolean
+          metadata: Json
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_admin_target?: boolean
+          metadata?: Json
+          read_at?: string | null
+          title: string
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_admin_target?: boolean
+          metadata?: Json
+          read_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          currency: string
+          device_id: string | null
+          id: string
+          method: string
+          notes: string | null
+          plan_id: string | null
+          reference: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          currency?: string
+          device_id?: string | null
+          id?: string
+          method?: string
+          notes?: string | null
+          plan_id?: string | null
+          reference?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          currency?: string
+          device_id?: string | null
+          id?: string
+          method?: string
+          notes?: string | null
+          plan_id?: string | null
+          reference?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -356,6 +754,162 @@ export type Database = {
         }
         Relationships: []
       }
+      sessions: {
+        Row: {
+          created_at: string
+          device_id: string | null
+          id: string
+          ip: string | null
+          last_seen_at: string
+          revoked_at: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_id?: string | null
+          id?: string
+          ip?: string | null
+          last_seen_at?: string
+          revoked_at?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_id?: string | null
+          id?: string
+          ip?: string | null
+          last_seen_at?: string
+          revoked_at?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sim_assignments: {
+        Row: {
+          created_at: string
+          device_id: string
+          id: string
+          msisdn: string | null
+          operator: string
+          slot: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_id: string
+          id?: string
+          msisdn?: string | null
+          operator: string
+          slot: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_id?: string
+          id?: string
+          msisdn?: string | null
+          operator?: string
+          slot?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      subscription_plans: {
+        Row: {
+          code: string
+          created_at: string
+          currency: string
+          description: string | null
+          display_order: number
+          duration_days: number
+          features: Json
+          id: string
+          is_active: boolean
+          max_devices: number
+          name: string
+          price: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          display_order?: number
+          duration_days: number
+          features?: Json
+          id?: string
+          is_active?: boolean
+          max_devices?: number
+          name: string
+          price?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          display_order?: number
+          duration_days?: number
+          features?: Json
+          id?: string
+          is_active?: boolean
+          max_devices?: number
+          name?: string
+          price?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sync_conflicts: {
+        Row: {
+          attempts: number
+          client_id: string | null
+          conflict_type: string
+          created_at: string
+          device_id: string | null
+          entity: string
+          error: string | null
+          id: string
+          payload: Json | null
+          resolved_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          attempts?: number
+          client_id?: string | null
+          conflict_type: string
+          created_at?: string
+          device_id?: string | null
+          entity: string
+          error?: string | null
+          id?: string
+          payload?: Json | null
+          resolved_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          attempts?: number
+          client_id?: string | null
+          conflict_type?: string
+          created_at?: string
+          device_id?: string | null
+          entity?: string
+          error?: string | null
+          id?: string
+          payload?: Json | null
+          resolved_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       sync_logs: {
         Row: {
           created_at: string
@@ -386,6 +940,69 @@ export type Database = {
           payload?: Json
           status?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      sync_metrics: {
+        Row: {
+          created_at: string
+          device_id: string | null
+          duration_ms: number | null
+          error: string | null
+          id: string
+          records_failed: number
+          records_sent: number
+          success: boolean
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          device_id?: string | null
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          records_failed?: number
+          records_sent?: number
+          success?: boolean
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          device_id?: string | null
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          records_failed?: number
+          records_sent?: number
+          success?: boolean
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      system_config: {
+        Row: {
+          created_at: string
+          description: string | null
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
         }
         Relationships: []
       }
