@@ -6,7 +6,7 @@ import {
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { getCurrentUser, signOut } from "@/lib/auth";
+import { getCurrentUser, signOut, isAdminUser } from "@/lib/auth";
 import { toast } from "sonner";
 
 function useMenuItems() {
@@ -37,11 +37,13 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children }: AppLayoutProps)
   const [menuOpen, setMenuOpen] = useState(false);
   const [showScrollHint, setShowScrollHint] = useState(true);
   const [user, setUser] = useState<{ email?: string } | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
     getCurrentUser().then((u) => setUser(u ? { email: u.email } : null));
+    isAdminUser().then(setIsAdmin).catch(() => setIsAdmin(false));
   }, [menuOpen]);
 
   const handleScroll = (e: React.UIEvent<HTMLElement>) => {
@@ -127,8 +129,27 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children }: AppLayoutProps)
                 );
               })}
 
+              {/* Admin link (only for admins) */}
+              {isAdmin && (
+                <button
+                  onClick={() => { setMenuOpen(false); navigate("/sys-panel"); }}
+                  className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-smooth flex-shrink-0 w-full ${
+                    location.pathname === "/sys-panel" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
+                  }`}
+                >
+                  <div className="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center bg-primary text-primary-foreground">
+                    <Shield className="w-4.5 h-4.5" />
+                  </div>
+                  <div className="text-right flex-1">
+                    <span className="text-sm font-semibold block">Administration</span>
+                    <span className="text-[11px] text-muted-foreground line-clamp-1">Licenses, devices, monitoring</span>
+                  </div>
+                </button>
+              )}
+
               {/* Sign In / Sign Out */}
               <div className="border-t border-border mt-2 pt-2">
+
                 {user ? (
                   <button
                     onClick={async () => { await signOut(); setUser(null); toast.success(t("common.success")); setMenuOpen(false); }}

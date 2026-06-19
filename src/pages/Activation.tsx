@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Copy, Key, Smartphone, CheckCircle, AlertTriangle, Clock, Shield, ShieldCheck, MessageCircle, PhoneCall, Send, LogIn, User } from "lucide-react";
+import { Copy, Key, Smartphone, CheckCircle, AlertTriangle, Clock, Shield, ShieldCheck, MessageCircle, PhoneCall, Send, LogIn, User, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -20,8 +20,6 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
   const { t, i18n } = useTranslation();
   const [licenseKey, setLicenseKey] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [adminPassword, setAdminPassword] = useState("");
   const [showActivationRequest, setShowActivationRequest] = useState(false);
   const [activationLink, setActivationLink] = useState("");
   const [activationToken, setActivationToken] = useState("");
@@ -76,51 +74,11 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
     return () => clearInterval(id);
   }, [activationToken]);
 
-  const titleTapCountRef = useRef(0);
-  const iconTapCountRef = useRef(0);
-  const tapTimerRef = useRef<ReturnType<typeof setTimeout>>();
-
   const isArabic = i18n.language === 'ar';
   const isExpired = status.status === 'trial_expired' || status.status === 'license_expired';
   const isTampered = status.status === 'clock_tampered';
   const isTrial = status.status === 'trial';
   const isLicensed = status.status === 'licensed';
-
-  // Hidden admin login - 7 taps on title
-  const handleTitleTap = () => {
-    titleTapCountRef.current++;
-    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
-    if (titleTapCountRef.current >= 7) {
-      titleTapCountRef.current = 0;
-      setShowAdminPanel(true);
-      toast.success("Admin panel unlocked");
-    } else {
-      tapTimerRef.current = setTimeout(() => { titleTapCountRef.current = 0; }, 2000);
-    }
-  };
-
-  // Hidden admin login - 7 taps on icon
-  const handleIconTap = () => {
-    iconTapCountRef.current++;
-    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
-    if (iconTapCountRef.current >= 7) {
-      iconTapCountRef.current = 0;
-      setShowAdminPanel(true);
-      toast.success("Admin panel unlocked");
-    } else {
-      tapTimerRef.current = setTimeout(() => { iconTapCountRef.current = 0; }, 2000);
-    }
-  };
-
-  const handleAdminLogin = () => {
-    // For demo: password is "admin" or any 4-character password
-    if (adminPassword.length < 4) {
-      toast.error("Password must be at least 4 characters");
-      return;
-    }
-    // In production, verify against actual admin password
-    navigate("/sys-panel");
-  };
 
   const copyDeviceId = async () => {
     try {
@@ -210,55 +168,26 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
 
       <header className="bg-primary px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] flex items-center justify-between shadow-md">
         <div className="flex items-center gap-3">
-          <div 
-            className="w-8 h-8 rounded-lg bg-primary-foreground/15 flex items-center justify-center backdrop-blur-sm cursor-pointer select-none"
-            onClick={handleIconTap}
-          >
+          <div className="w-8 h-8 rounded-lg bg-primary-foreground/15 flex items-center justify-center backdrop-blur-sm">
             <Shield className="w-4.5 h-4.5 text-primary-foreground" />
           </div>
-          <h1 
-            className="text-primary-foreground text-lg font-bold select-none cursor-pointer"
-            onClick={handleTitleTap}
-          >
+          <h1 className="text-primary-foreground text-lg font-bold select-none">
             {t('activation.title')}
           </h1>
         </div>
       </header>
 
       <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col justify-center gap-5">
-        {/* Admin Panel Login */}
-        {showAdminPanel && (
-          <div className="bg-card border border-border rounded-2xl p-4 space-y-3 fixed inset-0 z-50 flex items-center justify-center">
-            <div className="bg-background rounded-2xl p-6 w-full max-w-sm space-y-4">
-              <h2 className="text-lg font-bold text-center">{isArabic ? "لوحة المسؤول" : "Admin Panel"}</h2>
-              <Input
-                type="password"
-                placeholder={isArabic ? "كلمة المرور" : "Password"}
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                className="h-10"
-              />
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleAdminLogin}
-                  className="flex-1"
-                >
-                  {isArabic ? "دخول" : "Login"}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowAdminPanel(false);
-                    setAdminPassword("");
-                  }}
-                  className="flex-1"
-                >
-                  {isArabic ? "إلغاء" : "Cancel"}
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Device-bound notice */}
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 flex gap-2 items-start">
+          <Info className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+          <p className="text-[12px] text-muted-foreground leading-relaxed">
+            {isArabic
+              ? "الترخيص مرتبط بهذا الجهاز فقط. تغيير الجهاز يتطلب طلب تفعيل جديد. التراخيص لا تُنقل تلقائياً."
+              : "This license is bound to this device. Changing devices requires a new activation. Licenses are not transferred automatically."}
+          </p>
+        </div>
+
 
         {/* Activation Request Dialog */}
         {showActivationRequest && activationLink && (

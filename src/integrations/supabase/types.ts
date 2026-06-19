@@ -572,6 +572,7 @@ export type Database = {
           activated_at: string | null
           created_at: string
           created_by: string | null
+          device_fingerprint: string | null
           device_id: string | null
           expiry_date: string | null
           id: string
@@ -588,6 +589,7 @@ export type Database = {
           activated_at?: string | null
           created_at?: string
           created_by?: string | null
+          device_fingerprint?: string | null
           device_id?: string | null
           expiry_date?: string | null
           id?: string
@@ -604,6 +606,7 @@ export type Database = {
           activated_at?: string | null
           created_at?: string
           created_by?: string | null
+          device_fingerprint?: string | null
           device_id?: string | null
           expiry_date?: string | null
           id?: string
@@ -1173,6 +1176,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      activate_license: {
+        Args: {
+          _device_id: string
+          _fingerprint?: string
+          _license_key: string
+        }
+        Returns: Json
+      }
+      admin_set_role: {
+        Args: {
+          _grant: boolean
+          _role: Database["public"]["Enums"]["app_role"]
+          _target_user: string
+        }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
