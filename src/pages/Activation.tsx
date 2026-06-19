@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Copy, Key, Smartphone, CheckCircle, AlertTriangle, Clock, Shield, ShieldCheck, MessageCircle, PhoneCall, Send, LogIn, User } from "lucide-react";
+import { Copy, Key, Smartphone, CheckCircle, AlertTriangle, Clock, Shield, ShieldCheck, MessageCircle, PhoneCall, Send, LogIn, User, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -20,8 +20,6 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
   const { t, i18n } = useTranslation();
   const [licenseKey, setLicenseKey] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [adminPassword, setAdminPassword] = useState("");
   const [showActivationRequest, setShowActivationRequest] = useState(false);
   const [activationLink, setActivationLink] = useState("");
   const [activationToken, setActivationToken] = useState("");
@@ -76,51 +74,11 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
     return () => clearInterval(id);
   }, [activationToken]);
 
-  const titleTapCountRef = useRef(0);
-  const iconTapCountRef = useRef(0);
-  const tapTimerRef = useRef<ReturnType<typeof setTimeout>>();
-
   const isArabic = i18n.language === 'ar';
   const isExpired = status.status === 'trial_expired' || status.status === 'license_expired';
   const isTampered = status.status === 'clock_tampered';
   const isTrial = status.status === 'trial';
   const isLicensed = status.status === 'licensed';
-
-  // Hidden admin login - 7 taps on title
-  const handleTitleTap = () => {
-    titleTapCountRef.current++;
-    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
-    if (titleTapCountRef.current >= 7) {
-      titleTapCountRef.current = 0;
-      setShowAdminPanel(true);
-      toast.success("Admin panel unlocked");
-    } else {
-      tapTimerRef.current = setTimeout(() => { titleTapCountRef.current = 0; }, 2000);
-    }
-  };
-
-  // Hidden admin login - 7 taps on icon
-  const handleIconTap = () => {
-    iconTapCountRef.current++;
-    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
-    if (iconTapCountRef.current >= 7) {
-      iconTapCountRef.current = 0;
-      setShowAdminPanel(true);
-      toast.success("Admin panel unlocked");
-    } else {
-      tapTimerRef.current = setTimeout(() => { iconTapCountRef.current = 0; }, 2000);
-    }
-  };
-
-  const handleAdminLogin = () => {
-    // For demo: password is "admin" or any 4-character password
-    if (adminPassword.length < 4) {
-      toast.error("Password must be at least 4 characters");
-      return;
-    }
-    // In production, verify against actual admin password
-    navigate("/sys-panel");
-  };
 
   const copyDeviceId = async () => {
     try {
