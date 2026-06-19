@@ -96,4 +96,18 @@ describe("getAppStatus remote synced license", () => {
 
     await expect(getAppStatus()).resolves.toMatchObject({ status: "licensed", expiryDate: "permanent", permanent: true });
   });
+
+  it("allows trial only from synced server trial data", async () => {
+    const future = new Date(Date.now() + 4 * 86400000).toISOString();
+    localStorage.setItem("_sys_remote_trial_v1", JSON.stringify({
+      status: "active",
+      expires_at: future,
+    }));
+
+    await expect(getAppStatus()).resolves.toMatchObject({ status: "trial" });
+  });
+
+  it("blocks as trial expired when no server trial or license is cached", async () => {
+    await expect(getAppStatus()).resolves.toEqual({ status: "trial_expired" });
+  });
 });

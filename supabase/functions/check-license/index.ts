@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (dev?.is_blocked || dev?.is_banned) return json({ valid: false, reason: "blocked" });
 
-    // Bind/validate via RPC (rejects wrong device, enforces expiry)
+    // Bind via RPC first, then validate through the server-authoritative path.
     const { data: rpc, error: rpcErr } = await sb.rpc("activate_license", {
       _license_key: normalized,
       _device_id: String(device_id),
@@ -43,7 +43,16 @@ Deno.serve(async (req) => {
     const res = rpc as { ok: boolean; reason?: string; license?: Record<string, unknown> } | null;
     if (!res?.ok) return json({ valid: false, reason: res?.reason || "invalid" });
 
-    const lic = res.license!;
+    const { data: validation, error: validationErr } = await sb.rpc("validate_license", {
+      _license_key: normalized,
+      _device_id: String(device_id),
+      _fingerprint: fingerprint ? String(fingerprint) : null,
+    });
+    if (validationErr) return json({ valid: false, reason: validationErr.message }, 500);
+    const validated = validation as { ok: boolean; reason?: string; license?: Record<string, unknown> } | null;
+    if (!validated?.ok) return json({ valid: false, reason: validated?.reason || "invalid" });
+
+    const lic = validated.license!;
     return json({
       valid: true,
       license: {

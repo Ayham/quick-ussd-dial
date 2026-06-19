@@ -10,6 +10,9 @@ const corsHeaders = {
 
 interface DeviceMeta {
   device_id: string;
+  device_fingerprint?: string;
+  app_instance_id?: string;
+  android_id?: string;
   name?: string;
   model?: string;
   platform?: string;
@@ -55,9 +58,12 @@ Deno.serve(async (req) => {
       return json({ error: "device_id required" }, 400);
     }
 
-    // 1) upsert device row
-    await sb.from("devices").upsert({
+    // 1) upsert device row. Fail closed if registration cannot be stored.
+    const { data: savedDevice, error: deviceErr } = await sb.from("devices").upsert({
       device_id: deviceId,
+      device_fingerprint: device.device_fingerprint ?? null,
+      app_instance_id: device.app_instance_id ?? null,
+      android_id: device.android_id ?? null,
       name: device.name,
       model: device.model,
       platform: device.platform,
@@ -66,7 +72,21 @@ Deno.serve(async (req) => {
       timezone: device.timezone,
       user_id: userId,
       last_seen: new Date().toISOString(),
-    }, { onConflict: "device_id" });
+      last_seen_at: new Date().toISOString(),
+      last_ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+    }, { onConflict: "device_id" }).select("*").single();
+
+    if (deviceErr || !savedDevice) {
+      await sb.from("sync_logs").insert({
+        device_id: deviceId,
+        user_id: userId,
+        event: "device_registration",
+        status: "failed",
+        payload: { device },
+        error: deviceErr?.message || "device registration failed",
+      });
+      return json({ ok: false, error: deviceErr?.message || "device registration failed" }, 500);
+    }
 
     // 2) dispatch events
     let inserted = 0, errors = 0;
@@ -126,6 +146,25 @@ Deno.serve(async (req) => {
       error: errors > 0 ? `${errors} event(s) failed` : null,
     });
 
+    const now = new Date();
+    const trialExpiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { error: trialInsertErr } = await sb.from("trials").upsert({
+      device_id: deviceId,
+      expires_at: trialExpiresAt,
+      days_total: 30,
+      status: "active",
+    }, { onConflict: "device_id", ignoreDuplicates: true });
+
+    if (trialInsertErr) {
+      return json({ ok: false, error: trialInsertErr.message }, 500);
+    }
+
+    const { data: trial, error: trialFetchErr } = await sb.from("trials")
+      .select("*")
+      .eq("device_id", deviceId)
+      .maybeSingle();
+    if (trialFetchErr) return json({ ok: false, error: trialFetchErr.message }, 500);
+
     // 3) Return current license status for the device (for offline-first sync down)
     const { data: lic } = await sb.from("licenses")
       .select("license_key, status, level, expiry_date, permanent, ussd_numbers")
@@ -134,12 +173,7 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    const { data: dev } = await sb.from("devices")
-      .select("is_blocked, is_active, notes")
-      .eq("device_id", deviceId)
-      .maybeSingle();
-
-    return json({ ok: true, inserted, errors, license: lic, device: dev });
+    return json({ ok: true, inserted, errors, license: lic, device: savedDevice, trial });
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
   }

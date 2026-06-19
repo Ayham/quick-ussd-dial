@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import Reports from "./pages/Reports";
@@ -22,7 +22,7 @@ import { AuthSessionProvider, RequireAuth, RequireAdmin } from "./lib/auth-sessi
 import "./lib/i18n";
 import { getAppStatus, type AppLicenseStatus } from "./lib/license";
 import { startBackgroundSync, trackAppOpen, trackDeviceInfo, trackLicenseEvent } from "./lib/cloud-sync";
-import { startSupabaseSync } from "./lib/supabase-sync";
+import { flush, startSupabaseSync } from "./lib/supabase-sync";
 import { isWebBrowser } from "./lib/platform";
 import { initDeviceId } from "./lib/device-id";
 import { verifyLicenseOnline, getLicenseApiEndpoint } from "./lib/license-api";
@@ -71,6 +71,7 @@ const AppContent = () => {
   useEffect(() => {
     const init = async () => {
       await initDeviceId(); // Must run first — generates stable device ID
+      await flush({ force: true });
       await checkStatus();
       startSupabaseSync();
       if (!isWeb) {
@@ -83,6 +84,18 @@ const AppContent = () => {
       }
     };
     init();
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("app-license-sync", checkStatus);
+    window.addEventListener("online", checkStatus);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") checkStatus();
+    });
+    return () => {
+      window.removeEventListener("app-license-sync", checkStatus);
+      window.removeEventListener("online", checkStatus);
+    };
   }, []);
 
   // Update info is available but no overlay is shown — user checks via Updates page
@@ -118,7 +131,7 @@ const AppContent = () => {
           <Route path="/updates" element={<RequireAuth><Updates /></RequireAuth>} />
           <Route path="/subscription" element={<RequireAuth><Subscription /></RequireAuth>} />
           <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
-          <Route path="/activation" element={<RequireAuth><Activation status={status} onActivated={checkStatus} /></RequireAuth>} />
+          <Route path="/activation" element={<Navigate to="/" replace />} />
           <Route path="*" element={<RequireAuth><NotFound /></RequireAuth>} />
         </Routes>
       </AuthSessionProvider>

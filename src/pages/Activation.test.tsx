@@ -66,6 +66,10 @@ vi.mock("@/lib/license", async () => {
   };
 });
 
+vi.mock("@/lib/supabase-sync", () => ({
+  flush: vi.fn(() => Promise.resolve({ sent: 0, errors: 0 })),
+}));
+
 describe("Activation expired request flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -188,7 +192,7 @@ describe("Activation expired request flow", () => {
     );
 
     await waitFor(() => expect(navigate).toHaveBeenCalledWith("/", { replace: true }));
-    expect(onActivated).not.toHaveBeenCalled();
+    expect(onActivated).toHaveBeenCalledTimes(1);
     expect(toastSuccess).not.toHaveBeenCalled();
   });
 });

@@ -11,8 +11,10 @@ import { Capacitor } from "@capacitor/core";
 const QUEUE_KEY = "supabase_sync_queue_v1";
 const LAST_KEY = "supabase_sync_last_v1";
 const REMOTE_LICENSE_KEY = "_sys_remote_license_v1";
+const REMOTE_TRIAL_KEY = "_sys_remote_trial_v1";
 const DEVICE_BLOCKED_KEY = "_sys_device_blocked_v1";
 const SYNC_IN_PROGRESS_KEY = "supabase_sync_in_progress";
+const APP_INSTANCE_KEY = "app_instance_id_v1";
 const SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 export interface SbSyncEvent {
@@ -43,8 +45,16 @@ export function pushEvent(event: string, data: Record<string, unknown> = {}) {
 }
 
 async function getDeviceMeta() {
+  let appInstanceId = localStorage.getItem(APP_INSTANCE_KEY);
+  if (!appInstanceId) {
+    appInstanceId = crypto.randomUUID();
+    localStorage.setItem(APP_INSTANCE_KEY, appInstanceId);
+  }
+  const deviceId = getDeviceId();
   return {
-    device_id: getDeviceId(),
+    device_id: deviceId,
+    device_fingerprint: deviceId,
+    app_instance_id: appInstanceId,
     name: navigator.userAgent.slice(0, 64),
     model: navigator.platform,
     platform: Capacitor.getPlatform(),
@@ -58,13 +68,13 @@ export function isSyncing(): boolean {
   return localStorage.getItem(SYNC_IN_PROGRESS_KEY) === 'true';
 }
 
-export async function flush(): Promise<{ sent: number; errors: number }> {
+export async function flush(options: { force?: boolean } = {}): Promise<{ sent: number; errors: number }> {
   const queue = getQueue();
   const device = await getDeviceMeta();
   if (!device.device_id || device.device_id === "initializing...") return { sent: 0, errors: 0 };
 
   // Prevent concurrent syncs
-  if (isSyncing()) return { sent: 0, errors: 0 };
+  if (!options.force && isSyncing()) return { sent: 0, errors: 0 };
   
   localStorage.setItem(SYNC_IN_PROGRESS_KEY, 'true');
 
@@ -84,12 +94,30 @@ export async function flush(): Promise<{ sent: number; errors: number }> {
 
     // Save remote license if present
     if (data?.license) {
-      localStorage.setItem(REMOTE_LICENSE_KEY, JSON.stringify(data.license));
+      const previousLicense = localStorage.getItem(REMOTE_LICENSE_KEY);
+      const nextLicense = JSON.stringify(data.license);
+      localStorage.setItem(REMOTE_LICENSE_KEY, nextLicense);
+      if (previousLicense !== nextLicense) {
+        window.dispatchEvent(new CustomEvent("app-license-sync", { detail: data.license }));
+      }
     }
+    if (data?.trial) {
+      const previousTrial = localStorage.getItem(REMOTE_TRIAL_KEY);
+      const nextTrial = JSON.stringify(data.trial);
+      localStorage.setItem(REMOTE_TRIAL_KEY, nextTrial);
+      if (previousTrial !== nextTrial) {
+        window.dispatchEvent(new CustomEvent("app-license-sync", { detail: { trial: data.trial } }));
+      }
+    }
+    const wasBlocked = localStorage.getItem(DEVICE_BLOCKED_KEY) === "1";
     if (data?.device?.is_blocked) {
       localStorage.setItem(DEVICE_BLOCKED_KEY, "1");
     } else {
       localStorage.removeItem(DEVICE_BLOCKED_KEY);
+    }
+    const isBlocked = localStorage.getItem(DEVICE_BLOCKED_KEY) === "1";
+    if (wasBlocked !== isBlocked) {
+      window.dispatchEvent(new CustomEvent("app-license-sync", { detail: { device_blocked: isBlocked } }));
     }
 
     // Drop sent events

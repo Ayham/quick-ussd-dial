@@ -1,5 +1,4 @@
 import { getDeviceId } from './device-id';
-import { getProtectedTrial } from './trial-guard';
 
 // Obfuscated storage keys
 const _TS_KEY = '_sys_v1_ts';
@@ -90,6 +89,17 @@ function getCachedRemoteLicenseMeta(): {
 } | null {
   try {
     return JSON.parse(localStorage.getItem("_sys_remote_license_v1") || "null");
+  } catch {
+    return null;
+  }
+}
+
+function getCachedRemoteTrial(): {
+  status?: string;
+  expires_at?: string | null;
+} | null {
+  try {
+    return JSON.parse(localStorage.getItem("_sys_remote_trial_v1") || "null");
   } catch {
     return null;
   }
@@ -255,14 +265,16 @@ export async function getAppStatus(): Promise<AppLicenseStatus> {
     }
   }
 
-  // 2️⃣ If no valid license → check trial
-  const trial = await getProtectedTrial();
-
-  if (trial.status === "trial") {
-    return {
-      status: "trial",
-      daysLeft: trial.daysLeft
-    };
+  const remoteTrial = getCachedRemoteTrial();
+  if (remoteTrial?.status === "active" && remoteTrial.expires_at) {
+    const expiryDate = remoteTrial.expires_at.split("T")[0];
+    const daysLeft = daysBetween(today, expiryDate);
+    if (daysLeft >= 0) {
+      return {
+        status: "trial",
+        daysLeft
+      };
+    }
   }
 
   return { status: "trial_expired" };
