@@ -206,7 +206,7 @@ const Subscription = () => {
           })()}
 
           {/* Device ID */}
-          <div className="bg-card border border-border rounded-2xl p-4 space-y-2">
+          {/* <div className="bg-card border border-border rounded-2xl p-4 space-y-2">
             <label className="text-sm font-medium text-foreground flex items-center gap-2">
               <Smartphone className="w-4 h-4 text-muted-foreground" />
               معرف الجهاز
@@ -220,7 +220,7 @@ const Subscription = () => {
             <p className="text-[11px] text-muted-foreground">
               أرسل هذا المعرف للمسؤول للحصول على مفتاح الترخيص
             </p>
-          </div>
+          </div> */}
 
           {/* License Key Input */}
           <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
@@ -248,7 +248,7 @@ const Subscription = () => {
           </div>
 
           {/* Support Contact */}
-          <div className="flex items-center justify-center gap-3 py-2">
+          {/* <div className="flex items-center justify-center gap-3 py-2">
             <span className="text-xs text-muted-foreground">الدعم الفني:</span>
             <span className="text-sm font-mono text-foreground font-bold" dir="ltr">{supportPhone}</span>
             <a
@@ -265,114 +265,7 @@ const Subscription = () => {
             >
               <PhoneCall className="w-4 h-4" />
             </a>
-          </div>
-
-          {/* Payment Methods Section */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-primary" />
-              <h2 className="text-sm font-bold text-foreground">تجديد الاشتراك</h2>
-            </div>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              اختر وسيلة الدفع وأرسل المبلغ إلى الرقم المعروض. بعد التحقق من الدفع، سيتم تفعيل الترخيص تلقائياً.
-            </p>
-
-            {paymentMethods.map((method) => {
-              const isExpanded = expandedPayment === method.id;
-              return (
-                <div key={method.id} className="bg-card border border-border rounded-2xl overflow-hidden shadow-card">
-                  {/* Header */}
-                  <button
-                    onClick={() => {
-                      setExpandedPayment(isExpanded ? null : method.id);
-                      if (!isExpanded) logActivity('payment_info_viewed', { method: method.id });
-                    }}
-                    className="w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors"
-                  >
-                    <span className="text-2xl">{method.icon}</span>
-                    <div className="flex-1 text-right">
-                      <p className="text-sm font-bold text-foreground">{method.name}</p>
-                      <p className="text-[11px] text-muted-foreground">{method.nameEn}</p>
-                    </div>
-                    {isExpanded ? (
-                      <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                    )}
-                  </button>
-
-                  {/* Expanded Content */}
-                  {isExpanded && (
-                    <div className="border-t border-border p-4 space-y-4">
-                      {/* Phone Number */}
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium text-muted-foreground">رقم الدفع</label>
-                        <div className="flex gap-2">
-                          <div className="flex-1 bg-muted rounded-xl px-4 py-3 text-center">
-                            <span className="text-lg font-mono font-bold text-foreground tracking-wider" dir="ltr">
-                              {method.phone}
-                            </span>
-                          </div>
-                          <Button
-                            onClick={() => copyToClipboard(method.phone, 'رقم الدفع')}
-                            variant="outline"
-                            size="icon"
-                            className="shrink-0 h-12 w-12"
-                          >
-                            <Copy className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* QR Code */}
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="bg-card p-3 rounded-xl border border-border">
-                          <QRCodeCanvas
-                            value={method.phone}
-                            size={160}
-                            level="M"
-                            marginSize={2}
-                            ref={(el: any) => {
-                              if (el) {
-                                // QRCodeCanvas renders a canvas element
-                                const canvas = el instanceof HTMLCanvasElement ? el : el?.querySelector?.('canvas') || el;
-                                qrRefs.current[method.id] = canvas;
-                              }
-                            }}
-                          />
-                        </div>
-                        <Button
-                          onClick={() => shareQrCode(method)}
-                          variant="outline"
-                          size="sm"
-                          className="text-xs gap-1.5"
-                        >
-                          <Share2 className="w-3.5 h-3.5" />
-                          مشاركة QR عبر واتساب
-                        </Button>
-                      </div>
-
-                      {/* Instructions */}
-                      <div className="bg-muted/50 rounded-xl p-3 space-y-2">
-                        <p className="text-[11px] text-muted-foreground font-medium flex items-center gap-1.5">
-                          <CheckCircle className="w-3.5 h-3.5 text-primary" />
-                          طريقة الدفع:
-                        </p>
-                        <ol className="text-[11px] text-foreground space-y-1.5 pr-4 list-decimal list-inside">
-                          <li>أرسل المبلغ عبر {method.name} إلى الرقم أعلاه</li>
-                          <li>بعد إرسال المبلغ، انتظر تأكيد المسؤول</li>
-                          <li>سيتم تحديث الترخيص تلقائياً عند الاتصال بالإنترنت</li>
-                        </ol>
-                        <p className="text-[10px] text-muted-foreground italic mt-1">
-                          {method.instructions}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          </div> */}
 
           <div className="h-6" />
         </div>

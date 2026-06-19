@@ -212,12 +212,9 @@ const Auth = () => {
         <div className="text-center space-y-2">
           <Shield className="w-14 h-14 mx-auto text-primary" />
           <h1 className="text-2xl font-bold">{mode === "signup" ? (isArabic ? "إنشاء حساب" : "Create account") : (isArabic ? "تسجيل الدخول" : "Sign in")}</h1>
-          <p className="text-sm text-muted-foreground">
-            {isArabic ? "للوصول الكامل وحفظ بياناتك في السحابة" : "Full access and cloud-backed data"}
-          </p>
         </div>
 
-        <Button variant="outline" className="w-full h-11" onClick={google}>
+        {/* <Button variant="outline" className="w-full h-11" onClick={google}>
           {isArabic ? "متابعة بحساب Google" : "Continue with Google"}
         </Button>
 
@@ -226,7 +223,7 @@ const Auth = () => {
           <span className="relative bg-background px-2 text-xs text-muted-foreground">
             {isArabic ? "أو" : "or"}
           </span>
-        </div>
+        </div> */}
 
         <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
           {mode === "signup" && (
@@ -237,7 +234,7 @@ const Auth = () => {
               </div>
               <div className="relative">
                 <Phone className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder={isArabic ? "رقم الهاتف (اختياري)" : "Phone (optional)"} value={phone} onChange={(e) => setPhone(e.target.value)} className="h-11 ps-10" dir="ltr" />
+                <Input placeholder={isArabic ? "رقم الهاتف" : "Phone"} value={phone} onChange={(e) => setPhone(e.target.value)} className="h-11 ps-10" dir="ltr" />
               </div>
             </>
           )}
