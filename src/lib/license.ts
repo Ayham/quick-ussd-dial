@@ -82,6 +82,37 @@ function getSavedShortLicenseMeta(): {
   }
 }
 
+function getCachedRemoteLicenseMeta(): {
+  status?: string;
+  expiry_date?: string | null;
+  permanent?: boolean;
+} | null {
+  try {
+    return JSON.parse(localStorage.getItem("_sys_remote_license_v1") || "null");
+  } catch {
+    return null;
+  }
+}
+
+function statusFromShortMeta(
+  meta: { status?: string; expiry_date?: string | null; permanent?: boolean } | null,
+  today: string
+): AppLicenseStatus | null {
+  if (!meta) return null;
+  if (meta.status === "revoked") return { status: "license_expired" };
+  if (meta.permanent) {
+    return { status: "licensed", expiryDate: "permanent", daysLeft: Infinity, permanent: true };
+  }
+  if (meta.expiry_date) {
+    const daysLeft = daysBetween(today, meta.expiry_date);
+    if (daysLeft >= 0 && meta.status !== "expired") {
+      return { status: "licensed", expiryDate: meta.expiry_date, daysLeft };
+    }
+    return { status: "license_expired" };
+  }
+  return null;
+}
+
 function initTrial(): string {
   const today = getToday();
   localStorage.setItem(_TS_KEY, today);
@@ -180,20 +211,11 @@ export async function getAppStatus(): Promise<AppLicenseStatus> {
     return { status: "blocked" };
   }
 
-  const shortLicense = getSavedShortLicenseMeta();
-  if (shortLicense) {
-    if (shortLicense.status === "revoked") return { status: "license_expired" };
-    if (shortLicense.permanent) {
-      return { status: "licensed", expiryDate: "permanent", daysLeft: Infinity, permanent: true };
-    }
-    if (shortLicense.expiry_date) {
-      const daysLeft = daysBetween(today, shortLicense.expiry_date);
-      if (daysLeft >= 0 && shortLicense.status !== "expired") {
-        return { status: "licensed", expiryDate: shortLicense.expiry_date, daysLeft };
-      }
-      return { status: "license_expired" };
-    }
-  }
+  const syncedLicense = statusFromShortMeta(getCachedRemoteLicenseMeta(), today);
+  if (syncedLicense) return syncedLicense;
+
+  const shortLicense = statusFromShortMeta(getSavedShortLicenseMeta(), today);
+  if (shortLicense) return shortLicense;
 
   // 1️⃣ Check saved license FIRST
   const savedLicense = getSavedLicense();

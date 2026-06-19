@@ -1,28 +1,49 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Copy, Key, Smartphone, CheckCircle, AlertTriangle, Clock, Shield, ShieldCheck, MessageCircle, PhoneCall, Send, LogIn, User, Info } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Copy,
+  Info,
+  Key,
+  LogIn,
+  MessageCircle,
+  PhoneCall,
+  Send,
+  Shield,
+  ShieldCheck,
+  Smartphone,
+  User,
+} from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
-import { useTranslation } from "react-i18next";
+import { createActivationRequest, getLocalActivationRequest, checkActivationStatus } from "@/lib/activation-request";
+import { getCurrentUser, getProfile } from "@/lib/auth";
 import { getDeviceId } from "@/lib/device-id";
 import { saveLicense, type AppLicenseStatus } from "@/lib/license";
 import { activateLicenseKey, isShortFormat } from "@/lib/license-key";
-import { createActivationRequest, getActivationRequestLink, getLocalActivationRequest, checkActivationStatus } from "@/lib/activation-request";
-import { getCurrentUser, getProfile } from "@/lib/auth";
 
 interface ActivationProps {
   status: AppLicenseStatus;
   onActivated: () => void;
 }
 
+type RequestStatus = "idle" | "pending" | "approved" | "rejected";
+
 const Activation = ({ status, onActivated }: ActivationProps) => {
   const { t, i18n } = useTranslation();
+  const isArabic = i18n.language === "ar";
+  const navigate = useNavigate();
+  const deviceId = getDeviceId();
+
   const [licenseKey, setLicenseKey] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showActivationRequest, setShowActivationRequest] = useState(false);
-  const [activationLink, setActivationLink] = useState("");
   const [activationToken, setActivationToken] = useState("");
+  const [activationRequestStatus, setActivationRequestStatus] = useState<RequestStatus>("idle");
   const [supportPhone] = useState("0991214570");
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
@@ -30,10 +51,11 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const [requesting, setRequesting] = useState(false);
 
-  const deviceId = getDeviceId();
-  const navigate = useNavigate();
+  const isExpired = status.status === "trial_expired" || status.status === "license_expired";
+  const isTampered = status.status === "clock_tampered";
+  const isTrial = status.status === "trial";
+  const isLicensed = status.status === "licensed";
 
-  // Auto-fill from profile when signed in; check existing pending request.
   useEffect(() => {
     (async () => {
       const user = await getCurrentUser();
@@ -46,39 +68,46 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
           setContactEmail(p.email || "");
         }
       }
+
       const local = getLocalActivationRequest();
-      if (local && (status.status === "trial_expired" || status.status === "license_expired")) {
+      if (local && isExpired) {
         setActivationToken(local.requestToken);
-        setActivationLink(getActivationRequestLink(local.requestToken));
+        setActivationRequestStatus(local.status === "rejected" ? "rejected" : "pending");
       }
     })();
-  }, [status.status]);
+  }, [isExpired]);
 
-  // Poll status while awaiting admin approval — when approved, auto-activate.
   useEffect(() => {
-    if (!activationToken) return;
-    const id = setInterval(async () => {
-      const s = await checkActivationStatus(activationToken);
-      if (s === "approved") {
-        const cached = localStorage.getItem("trial_approved_license");
-        if (cached) {
-          const r = await activateLicenseKey(cached);
-          if (r.ok) {
-            toast.success(isArabic ? "تم تفعيل التطبيق" : "App activated");
-            onActivated();
-          }
-        }
-        clearInterval(id);
-      }
-    }, 8000);
-    return () => clearInterval(id);
-  }, [activationToken]);
+    if (!activationToken || !isExpired) return;
 
-  const isArabic = i18n.language === 'ar';
-  const isExpired = status.status === 'trial_expired' || status.status === 'license_expired';
-  const isTampered = status.status === 'clock_tampered';
-  const isTrial = status.status === 'trial';
-  const isLicensed = status.status === 'licensed';
+    let stopped = false;
+    let id: number | undefined;
+    const poll = async () => {
+      const s = await checkActivationStatus(activationToken);
+      if (stopped) return;
+
+      if (s === "approved") {
+        setActivationRequestStatus("approved");
+        toast.success(isArabic ? "تم تفعيل التطبيق تلقائياً" : "App activated automatically");
+        onActivated();
+        stopped = true;
+        if (id) window.clearInterval(id);
+      } else if (s === "rejected") {
+        setActivationRequestStatus("rejected");
+        stopped = true;
+        if (id) window.clearInterval(id);
+      } else if (s === "pending") {
+        setActivationRequestStatus("pending");
+      }
+    };
+
+    poll();
+    id = window.setInterval(poll, 8000);
+    return () => {
+      stopped = true;
+      window.clearInterval(id);
+    };
+  }, [activationToken, isExpired, isArabic, onActivated]);
 
   const copyDeviceId = async () => {
     try {
@@ -102,10 +131,8 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
     }
     setLoading(true);
     try {
-      // Try new short format first (cloud-validated, supports legacy fallback inside)
       const result = await activateLicenseKey(licenseKey.trim());
       if (result.ok) {
-        // For legacy keys, also save via legacy path
         if (!isShortFormat(licenseKey.trim())) saveLicense(licenseKey.trim());
         toast.success(isArabic ? "تم تفعيل التطبيق بنجاح!" : "App activated successfully!");
         onActivated();
@@ -131,100 +158,47 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
       toast.error(isArabic ? "الاسم ورقم الهاتف مطلوبان" : "Name and phone are required");
       return;
     }
+
     setRequesting(true);
     try {
       const request = await createActivationRequest(contactName.trim(), contactPhone.trim());
       if (request) {
-        const link = getActivationRequestLink(request.requestToken);
-        setActivationLink(link);
         setActivationToken(request.requestToken);
-        setShowActivationRequest(true);
-        toast.success(isArabic ? "تم إرسال طلب التفعيل" : "Activation request sent");
+        setActivationRequestStatus("pending");
+        toast.success(isArabic
+          ? "تم إرسال طلب التفعيل. سيتم تفعيل التطبيق تلقائياً بعد موافقة الإدارة."
+          : "Activation request sent. The app will activate automatically after admin approval.");
       } else {
-        toast.error(isArabic ? "تعذّر إنشاء الطلب — تحقق من الاتصال" : "Could not create request — check connection");
+        toast.error(isArabic ? "تعذر إنشاء الطلب. تحقق من الاتصال" : "Could not create request. Check connection");
       }
     } finally {
       setRequesting(false);
     }
   };
 
-  const copyActivationLink = async () => {
-    try {
-      await navigator.clipboard.writeText(activationLink);
-      toast.success(isArabic ? "تم نسخ رابط التفعيل" : "Link copied");
-    } catch {
-      const el = document.createElement("textarea");
-      el.value = activationLink;
-      document.body.appendChild(el);
-      el.select();
-      document.execCommand("copy");
-      document.body.removeChild(el);
-      toast.success(isArabic ? "تم نسخ رابط التفعيل" : "Link copied");
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background flex flex-col safe-area-insets" dir={isArabic ? "rtl" : "ltr"}>
-
       <header className="bg-primary px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] flex items-center justify-between shadow-md">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-primary-foreground/15 flex items-center justify-center backdrop-blur-sm">
             <Shield className="w-4.5 h-4.5 text-primary-foreground" />
           </div>
           <h1 className="text-primary-foreground text-lg font-bold select-none">
-            {t('activation.title')}
+            {t("activation.title")}
           </h1>
         </div>
       </header>
 
       <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col justify-center gap-5">
-        {/* Device-bound notice */}
         <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 flex gap-2 items-start">
           <Info className="w-4 h-4 text-primary mt-0.5 shrink-0" />
           <p className="text-[12px] text-muted-foreground leading-relaxed">
             {isArabic
-              ? "الترخيص مرتبط بهذا الجهاز فقط. تغيير الجهاز يتطلب طلب تفعيل جديد. التراخيص لا تُنقل تلقائياً."
+              ? "الترخيص مرتبط بهذا الجهاز فقط. تغيير الجهاز يتطلب طلب تفعيل جديد. التراخيص لا تنتقل تلقائياً."
               : "This license is bound to this device. Changing devices requires a new activation. Licenses are not transferred automatically."}
           </p>
         </div>
 
-
-        {/* Activation Request Dialog */}
-        {showActivationRequest && activationLink && (
-          <div className="bg-card border border-border rounded-2xl p-4 space-y-3 fixed inset-0 z-50 flex items-center justify-center">
-            <div className="bg-background rounded-2xl p-6 w-full max-w-sm space-y-4">
-              <h2 className="text-lg font-bold text-center">{isArabic ? "رابط التفعيل" : "Activation Link"}</h2>
-              <p className="text-sm text-muted-foreground text-center">
-                {t('activation.copyLink')}
-              </p>
-              <Input
-                value={activationLink}
-                readOnly
-                className="text-left text-xs h-10 font-mono bg-muted"
-                dir="ltr"
-              />
-              <Button
-                onClick={copyActivationLink}
-                className="w-full"
-              >
-                <Copy className="w-4 h-4 mr-2" />
-                {isArabic ? "نسخ الرابط" : "Copy Link"}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowActivationRequest(false);
-                  setActivationLink("");
-                }}
-                className="w-full"
-              >
-                {isArabic ? "إغلاق" : "Close"}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Status Card */}
         <div className={`rounded-2xl p-5 text-center shadow-sm ${
           isTampered
             ? "bg-destructive/10 border-2 border-destructive/30"
@@ -244,59 +218,27 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
                 {isArabic ? "يرجى ضبط تاريخ الجهاز بشكل صحيح وإعادة تشغيل التطبيق" : "Please set the correct date and restart the app"}
               </p>
             </>
-          ) : status.status === 'trial_expired' ? (
+          ) : status.status === "trial_expired" ? (
             <>
               <Clock className="w-14 h-14 mx-auto mb-3 text-destructive" />
-              <h2 className="text-lg font-bold text-foreground">
-                {t('activation.trialExpired')}
-              </h2>
+              <h2 className="text-lg font-bold text-foreground">{t("activation.trialExpired")}</h2>
               <p className="text-sm text-muted-foreground mt-2">
-                {isArabic ? "يرجى إدخال مفتاح الترخيص لمتابعة استخدام التطبيق" : "Enter a license key to continue using the app"}
+                {isArabic
+                  ? "أرسل طلب التفعيل وسيتم تفعيل التطبيق تلقائياً بعد موافقة الإدارة."
+                  : "Send an activation request. The app will activate automatically after admin approval."}
               </p>
-              <div className="flex items-center justify-center gap-3 mt-3">
-                <span className="text-sm font-mono text-foreground font-bold" dir="ltr">{supportPhone}</span>
-                <a
-                  href={`https://wa.me/${supportPhone.replace(/^0/, "963")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-success/15 text-success hover:bg-success/25 transition-colors"
-                >
-                  <MessageCircle className="w-4.5 h-4.5" />
-                </a>
-                <a
-                  href={`tel:${supportPhone}`}
-                  className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
-                >
-                  <PhoneCall className="w-4.5 h-4.5" />
-                </a>
-              </div>
+              <SupportActions supportPhone={supportPhone} />
             </>
-          ) : status.status === 'license_expired' ? (
+          ) : status.status === "license_expired" ? (
             <>
               <AlertTriangle className="w-14 h-14 mx-auto mb-3 text-destructive" />
-              <h2 className="text-lg font-bold text-foreground">
-                {t('activation.licenseExpired')}
-              </h2>
+              <h2 className="text-lg font-bold text-foreground">{t("activation.licenseExpired")}</h2>
               <p className="text-sm text-muted-foreground mt-2">
-                {isArabic ? "يرجى تجديد الترخيص لمتابعة استخدام التطبيق" : "Please renew your license to continue"}
+                {isArabic
+                  ? "أرسل طلب تجديد وسيتم تفعيل التطبيق تلقائياً بعد موافقة الإدارة."
+                  : "Send a renewal request. The app will activate automatically after admin approval."}
               </p>
-              <div className="flex items-center justify-center gap-3 mt-3">
-                <span className="text-sm font-mono text-foreground font-bold" dir="ltr">{supportPhone}</span>
-                <a
-                  href={`https://wa.me/${supportPhone.replace(/^0/, "963")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-success/15 text-success hover:bg-success/25 transition-colors"
-                >
-                  <MessageCircle className="w-4.5 h-4.5" />
-                </a>
-                <a
-                  href={`tel:${supportPhone}`}
-                  className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
-                >
-                  <PhoneCall className="w-4.5 h-4.5" />
-                </a>
-              </div>
+              <SupportActions supportPhone={supportPhone} />
             </>
           ) : isLicensed ? (
             <>
@@ -304,7 +246,7 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
               <h2 className="text-lg font-bold text-foreground">{isArabic ? "التطبيق مفعّل" : "App Activated"}</h2>
               <p className="text-sm text-muted-foreground mt-2">
                 {(status as { permanent?: boolean }).permanent ? (
-                  <span className="font-bold text-green-500">{isArabic ? "ترخيص دائم ✨" : "Permanent License ✨"}</span>
+                  <span className="font-bold text-green-500">{isArabic ? "ترخيص دائم" : "Permanent License"}</span>
                 ) : (
                   <>
                     {isArabic ? "ينتهي الترخيص بتاريخ" : "Expires on"} {(status as { expiryDate: string }).expiryDate}
@@ -333,40 +275,52 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
           ) : null}
         </div>
 
-        {/* Device ID */}
         <div className="bg-card border border-border rounded-2xl p-4 space-y-2">
           <label className="text-sm font-medium text-foreground flex items-center gap-2">
             <Smartphone className="w-4 h-4" />
-            {t('activation.deviceId')}
+            {t("activation.deviceId")}
           </label>
           <div className="flex gap-2">
-            <Input
-              value={deviceId}
-              readOnly
-              className="text-left text-xs h-10 font-mono flex-1 bg-muted"
-              dir="ltr"
-            />
-            <Button
-              onClick={copyDeviceId}
-              variant="outline"
-              size="icon"
-              className="shrink-0 h-10 w-10"
-            >
+            <Input value={deviceId} readOnly className="text-left text-xs h-10 font-mono flex-1 bg-muted" dir="ltr" />
+            <Button onClick={copyDeviceId} variant="outline" size="icon" className="shrink-0 h-10 w-10">
               <Copy className="w-4 h-4" />
             </Button>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            {isArabic ? "أرسل هذا المعرف للمسؤول للحصول على مفتاح الترخيص" : "Send this to the administrator to get a license key"}
+            {isArabic
+              ? "يُستخدم هذا المعرف لربط الترخيص بهذا الجهاز تلقائياً."
+              : "This ID is used to bind the license to this device automatically."}
           </p>
         </div>
 
-        {/* Activation Request (for expired trials) */}
-        {isExpired && !showActivationRequest && (
+        {isExpired && activationRequestStatus === "rejected" && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-2xl p-3 text-center">
+            <p className="text-sm font-semibold text-destructive">
+              {isArabic ? "تم رفض طلب التفعيل" : "Activation request rejected"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {isArabic ? "يمكنك مراجعة الإدارة ثم إرسال طلب جديد." : "Contact the administrator, then send a new request."}
+            </p>
+          </div>
+        )}
+
+        {isExpired && activationRequestStatus === "pending" && (
+          <div className="bg-primary/5 border border-primary/20 rounded-2xl p-3 text-center">
+            <p className="text-sm font-semibold text-foreground">
+              {isArabic ? "تم إرسال طلب التفعيل" : "Activation request sent"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {isArabic
+                ? "سيتم تفعيل التطبيق تلقائياً بعد موافقة الإدارة."
+                : "The app will activate automatically after admin approval."}
+            </p>
+          </div>
+        )}
+
+        {isExpired && activationRequestStatus !== "pending" && (
           <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-semibold text-foreground">
-                {t('activation.requestActivation')}
-              </label>
+              <label className="text-sm font-semibold text-foreground">{t("activation.requestActivation")}</label>
               {signedIn === false && (
                 <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
                   <LogIn className="w-3 h-3" />
@@ -376,43 +330,23 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
             </div>
 
             {signedIn === false ? (
-              <Button
-                onClick={() => navigate("/auth?next=/activation")}
-                className="w-full h-11"
-              >
+              <Button onClick={() => navigate("/auth?next=/activation")} className="w-full h-11">
                 <LogIn className="w-4 h-4 mr-2" />
                 {isArabic ? "تسجيل الدخول لإرسال الطلب" : "Sign in to request activation"}
               </Button>
             ) : (
               <>
                 <p className="text-[11px] text-muted-foreground">
-                  {isArabic
-                    ? "بياناتك مأخوذة من حسابك. عدّلها إذا لزم."
-                    : "Pre-filled from your account. Edit if needed."}
+                  {isArabic ? "بياناتك مأخوذة من حسابك. عدّلها إذا لزم." : "Pre-filled from your account. Edit if needed."}
                 </p>
-                <Input
-                  placeholder={isArabic ? "الاسم" : "Name"}
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  className="h-10"
-                />
-                <Input
-                  placeholder={isArabic ? "الهاتف" : "Phone"}
-                  value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
-                  className="h-10"
-                  dir="ltr"
-                />
+                <Input placeholder={isArabic ? "الاسم" : "Name"} value={contactName} onChange={(e) => setContactName(e.target.value)} className="h-10" />
+                <Input placeholder={isArabic ? "الهاتف" : "Phone"} value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} className="h-10" dir="ltr" />
                 {contactEmail && (
                   <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
                     <User className="w-3 h-3" /> {contactEmail}
                   </p>
                 )}
-                <Button
-                  onClick={handleRequestActivation}
-                  disabled={requesting}
-                  className="w-full h-11"
-                >
+                <Button onClick={handleRequestActivation} disabled={requesting} className="w-full h-11">
                   <Send className="w-4 h-4 mr-2" />
                   {requesting
                     ? (isArabic ? "جاري الإرسال..." : "Sending...")
@@ -423,41 +357,21 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
           </div>
         )}
 
-        {/* Pending request status */}
-        {isExpired && activationToken && !showActivationRequest && (
-          <div className="bg-primary/5 border border-primary/20 rounded-2xl p-3 text-center">
-            <p className="text-xs text-muted-foreground">
-              {isArabic
-                ? "طلبك قيد المراجعة — سيتم تفعيل التطبيق تلقائياً عند الموافقة"
-                : "Request pending — app will activate automatically once approved"}
-            </p>
-            <p className="text-[10px] font-mono text-muted-foreground mt-1" dir="ltr">
-              #{activationToken}
-            </p>
-          </div>
-        )}
-
-
-        {/* License Input */}
-        {!isTampered && (
+        {!isExpired && !isTampered && (
           <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
             <label className="text-sm font-medium text-foreground flex items-center gap-2">
               <Key className="w-4 h-4" />
-              {t('activation.enterKey')}
+              {t("activation.enterKey")}
             </label>
             <Input
-              placeholder={t('activation.keyPlaceholder')}
+              placeholder={t("activation.keyPlaceholder")}
               value={licenseKey}
               onChange={(e) => setLicenseKey(e.target.value.toUpperCase())}
               className="text-left text-sm h-12 font-mono"
               dir="ltr"
             />
-            <Button
-              onClick={handleActivate}
-              disabled={loading || !licenseKey.trim()}
-              className="w-full h-12 text-lg font-bold rounded-xl"
-            >
-              {loading ? t('activation.verifying') : t('activation.activate')}
+            <Button onClick={handleActivate} disabled={loading || !licenseKey.trim()} className="w-full h-12 text-lg font-bold rounded-xl">
+              {loading ? t("activation.verifying") : t("activation.activate")}
             </Button>
           </div>
         )}
@@ -465,5 +379,27 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
     </div>
   );
 };
+
+function SupportActions({ supportPhone }: { supportPhone: string }) {
+  return (
+    <div className="flex items-center justify-center gap-3 mt-3">
+      <span className="text-sm font-mono text-foreground font-bold" dir="ltr">{supportPhone}</span>
+      <a
+        href={`https://wa.me/${supportPhone.replace(/^0/, "963")}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-success/15 text-success hover:bg-success/25 transition-colors"
+      >
+        <MessageCircle className="w-4.5 h-4.5" />
+      </a>
+      <a
+        href={`tel:${supportPhone}`}
+        className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
+      >
+        <PhoneCall className="w-4.5 h-4.5" />
+      </a>
+    </div>
+  );
+}
 
 export default Activation;

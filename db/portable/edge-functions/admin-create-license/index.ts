@@ -46,8 +46,18 @@ Deno.serve(async (req) => {
     const permanent = !!body.permanent;
     const level = body.level || "standard";
     const notes = body.notes || null;
-    const deviceId = body.device_id || null;
+    const licenseUserId = (typeof body.user_id === "string" && body.user_id.trim()) ? body.user_id.trim() : null;
+    const deviceId = (typeof body.device_id === "string" && body.device_id.trim()) ? body.device_id.trim() : null;
     if (!permanent && !expiryDate) return json({ error: "expiry_date_required" }, 400);
+
+    if (deviceId) {
+      const { error: deviceErr } = await sb.from("devices").upsert({
+        device_id: deviceId,
+        user_id: licenseUserId,
+        last_seen: new Date().toISOString(),
+      }, { onConflict: "device_id" });
+      if (deviceErr) return json({ error: deviceErr.message }, 500);
+    }
 
     // Try a few times in case of UNIQUE collision
     for (let i = 0; i < 5; i++) {
@@ -60,6 +70,7 @@ Deno.serve(async (req) => {
         level,
         notes,
         device_id: deviceId,
+        user_id: licenseUserId,
         created_by: userId,
         status: deviceId ? "active" : "pending",
         activated_at: deviceId ? new Date().toISOString() : null,

@@ -3,9 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, CheckCircle, XCircle, Copy } from 'lucide-react';
+import { Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { adminApproveActivation, adminRejectActivation } from '@/lib/activation-request';
+import { Switch } from '@/components/ui/switch';
 
 export interface Activation {
   id: string;
@@ -27,7 +28,7 @@ export function ActivationsManager() {
   const [activations, setActivations] = useState<Activation[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [approveData, setApproveData] = useState<{ [key: string]: { expiryDate: string; } }>({});
+  const [approveData, setApproveData] = useState<{ [key: string]: { expiryDate: string; permanent: boolean } }>({});
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
   useEffect(() => {
@@ -54,9 +55,9 @@ export function ActivationsManager() {
   }
 
   async function handleApprove(activation: Activation) {
-    const expiryDate = approveData[activation.id]?.expiryDate;
+    const data = approveData[activation.id] || { expiryDate: '', permanent: false };
     
-    if (!expiryDate) {
+    if (!data.permanent && !data.expiryDate) {
       toast.error('Set expiry date');
       return;
     }
@@ -65,12 +66,13 @@ export function ActivationsManager() {
     try {
       const result = await adminApproveActivation(
         activation.request_token,
-        expiryDate,
-        activation.ussd_numbers
+        data.permanent ? null : data.expiryDate,
+        activation.ussd_numbers,
+        data.permanent
       );
 
       if (result.success) {
-        toast.success(`Approved! License: ${result.licenseKey}`);
+        toast.success(data.permanent ? 'Approved with permanent license' : 'Approved with expiry date');
         loadActivations();
       } else {
         toast.error(result.error || 'Failed to approve');
@@ -207,34 +209,58 @@ export function ActivationsManager() {
                 </td>
                 <td className="p-3">
                   {activation.status === 'pending' ? (
-                    <div className="flex gap-2 items-center">
-                      <Input
-                        type="date"
-                        value={approveData[activation.id]?.expiryDate || ''}
-                        onChange={(e) => setApproveData({
-                          ...approveData,
-                          [activation.id]: { expiryDate: e.target.value }
-                        })}
-                        className="h-8 text-xs"
-                      />
-                      <Button
-                        onClick={() => handleApprove(activation)}
-                        disabled={actionInProgress === activation.id || !approveData[activation.id]?.expiryDate}
-                        variant="outline"
-                        size="sm"
-                        className="h-8"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        onClick={() => handleReject(activation)}
-                        disabled={actionInProgress === activation.id}
-                        variant="outline"
-                        size="sm"
-                        className="h-8"
-                      >
-                        <XCircle className="w-4 h-4" />
-                      </Button>
+                    <div className="min-w-[260px] space-y-2">
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          type="date"
+                          value={approveData[activation.id]?.expiryDate || ''}
+                          disabled={approveData[activation.id]?.permanent}
+                          onChange={(e) => setApproveData({
+                            ...approveData,
+                            [activation.id]: {
+                              expiryDate: e.target.value,
+                              permanent: approveData[activation.id]?.permanent || false,
+                            }
+                          })}
+                          className="h-8 text-xs"
+                        />
+                        <Button
+                          onClick={() => handleApprove(activation)}
+                          disabled={
+                            actionInProgress === activation.id ||
+                            (!approveData[activation.id]?.permanent && !approveData[activation.id]?.expiryDate)
+                          }
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          title="Approve"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          onClick={() => handleReject(activation)}
+                          disabled={actionInProgress === activation.id}
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          title="Reject"
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Switch
+                          checked={approveData[activation.id]?.permanent || false}
+                          onCheckedChange={(checked) => setApproveData({
+                            ...approveData,
+                            [activation.id]: {
+                              expiryDate: checked ? '' : (approveData[activation.id]?.expiryDate || ''),
+                              permanent: checked,
+                            }
+                          })}
+                        />
+                        Mark as permanent
+                      </label>
                     </div>
                   ) : (
                     <Button

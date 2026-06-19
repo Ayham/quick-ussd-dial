@@ -6,6 +6,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { getDeviceId } from './device-id';
+import { flush } from './supabase-sync';
 
 const ACTIVATION_REQUEST_KEY = 'activation_request_v1';
 
@@ -100,15 +101,16 @@ export async function checkActivationStatus(
 
     if (error || !data) return 'error';
 
+    const local = getLocalActivationRequest();
+    if (local) {
+      localStorage.setItem(ACTIVATION_REQUEST_KEY, JSON.stringify({
+        ...local,
+        status: data.status,
+      }));
+    }
+
     if (data.status === 'approved' && data.license_id) {
-      const { data: license } = await supabase
-        .from('licenses')
-        .select('license_key')
-        .eq('id', data.license_id)
-        .maybeSingle();
-      if (license) {
-        localStorage.setItem('trial_approved_license', license.license_key);
-      }
+      await flush();
     }
     return data.status as 'pending' | 'approved' | 'rejected';
   } catch (e) {
@@ -145,6 +147,7 @@ export async function adminApproveActivation(
         device_id: activation.device_id,
         expiry_date: permanent ? null : expiryDate,
         permanent,
+        user_id: activation.user_id,
         ussd_numbers: ussdNumbers.length > 0 ? ussdNumbers : activation.ussd_numbers,
         notes: `From activation ${requestToken}`,
       },

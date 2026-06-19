@@ -45,6 +45,12 @@ Deno.serve(async (req) => {
 
     if (!deviceId || deviceId.length < 4) return json({ error: "device_id required" }, 400);
 
+    await sb.from("devices").upsert({
+      device_id: deviceId,
+      user_id: userId,
+      last_seen: new Date().toISOString(),
+    }, { onConflict: "device_id" });
+
     // Reuse latest pending request for this device (deduplicate)
     const { data: existing } = await sb.from("activations")
       .select("request_token, status")
