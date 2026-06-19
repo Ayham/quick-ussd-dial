@@ -46,8 +46,14 @@ Deno.serve(async (req) => {
     const permanent = !!body.permanent;
     const level = body.level || "standard";
     const notes = body.notes || null;
-    const deviceId = body.device_id || null;
+    let deviceId: string | null = (typeof body.device_id === "string" && body.device_id.trim()) ? body.device_id.trim() : null;
     if (!permanent && !expiryDate) return json({ error: "expiry_date_required" }, 400);
+
+    // Validate device_id exists in devices table; otherwise null it out to avoid FK violation
+    if (deviceId) {
+      const { data: dev } = await sb.from("devices").select("device_id").eq("device_id", deviceId).maybeSingle();
+      if (!dev) deviceId = null;
+    }
 
     // Try a few times in case of UNIQUE collision
     for (let i = 0; i < 5; i++) {
