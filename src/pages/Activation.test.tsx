@@ -7,6 +7,24 @@ import Activation from "./Activation";
 const createActivationRequest = vi.fn();
 const getLocalActivationRequest = vi.fn();
 const checkActivationStatus = vi.fn();
+const getAppStatus = vi.fn();
+const navigate = vi.fn();
+const toastSuccess = vi.fn();
+
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => navigate,
+  };
+});
+
+vi.mock("sonner", () => ({
+  toast: {
+    success: (...args: unknown[]) => toastSuccess(...args),
+    error: vi.fn(),
+  },
+}));
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -43,6 +61,7 @@ vi.mock("@/lib/license", async () => {
   const actual = await vi.importActual<typeof import("@/lib/license")>("@/lib/license");
   return {
     ...actual,
+    getAppStatus: (...args: unknown[]) => getAppStatus(...args),
     saveLicense: vi.fn(),
   };
 });
@@ -50,8 +69,10 @@ vi.mock("@/lib/license", async () => {
 describe("Activation expired request flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     getLocalActivationRequest.mockReturnValue(null);
     checkActivationStatus.mockResolvedValue("pending");
+    getAppStatus.mockResolvedValue({ status: "trial_expired" });
   });
 
   it("sends an activation request without showing manual link sharing", async () => {
@@ -100,7 +121,7 @@ describe("Activation expired request flow", () => {
     expect(await screen.findByText("Activation request rejected")).toBeInTheDocument();
   });
 
-  it("refreshes the app when approval is detected", async () => {
+  it("approved activation triggers one success toast and redirects home for an expiring license", async () => {
     getLocalActivationRequest.mockReturnValue({
       requestToken: "REQ123",
       deviceId: "device-1",
@@ -109,6 +130,7 @@ describe("Activation expired request flow", () => {
       ussdNumbers: [],
     });
     checkActivationStatus.mockResolvedValue("approved");
+    getAppStatus.mockResolvedValue({ status: "licensed", expiryDate: "2026-12-31", daysLeft: 195 });
     const onActivated = vi.fn();
 
     render(
@@ -118,5 +140,55 @@ describe("Activation expired request flow", () => {
     );
 
     await waitFor(() => expect(onActivated).toHaveBeenCalled());
+    expect(toastSuccess).toHaveBeenCalledTimes(1);
+    expect(navigate).toHaveBeenCalledWith("/", { replace: true });
+    expect(localStorage.getItem("handled_activation_request_id")).toBe("REQ123");
+  });
+
+  it("approved activation redirects for a permanent license", async () => {
+    getLocalActivationRequest.mockReturnValue({
+      requestToken: "REQPERM",
+      deviceId: "device-1",
+      createdAt: new Date().toISOString(),
+      status: "pending",
+      ussdNumbers: [],
+    });
+    checkActivationStatus.mockResolvedValue("approved");
+    getAppStatus.mockResolvedValue({ status: "licensed", expiryDate: "permanent", daysLeft: Infinity, permanent: true });
+    const onActivated = vi.fn();
+
+    render(
+      <MemoryRouter>
+        <Activation status={{ status: "trial_expired" }} onActivated={onActivated} />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(onActivated).toHaveBeenCalledTimes(1));
+    expect(toastSuccess).toHaveBeenCalledTimes(1);
+    expect(navigate).toHaveBeenCalledWith("/", { replace: true });
+  });
+
+  it("repeated approved sync responses do not repeat success handling", async () => {
+    localStorage.setItem("handled_activation_request_id", "REQ123");
+    getLocalActivationRequest.mockReturnValue({
+      requestToken: "REQ123",
+      deviceId: "device-1",
+      createdAt: new Date().toISOString(),
+      status: "pending",
+      ussdNumbers: [],
+    });
+    checkActivationStatus.mockResolvedValue("approved");
+    getAppStatus.mockResolvedValue({ status: "licensed", expiryDate: "2026-12-31", daysLeft: 195 });
+    const onActivated = vi.fn();
+
+    render(
+      <MemoryRouter>
+        <Activation status={{ status: "trial_expired" }} onActivated={onActivated} />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith("/", { replace: true }));
+    expect(onActivated).not.toHaveBeenCalled();
+    expect(toastSuccess).not.toHaveBeenCalled();
   });
 });

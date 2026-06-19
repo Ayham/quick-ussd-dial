@@ -43,7 +43,8 @@ export type AppLicenseStatus =
   | { status: 'trial_expired' }
   | { status: 'license_expired' }
   | { status: 'clock_tampered' }
-  | { status: 'blocked' };
+  | { status: 'blocked' }
+  | { status: 'suspended' };
 
 function getToday(): string {
   return new Date().toISOString().split('T')[0];
@@ -99,7 +100,9 @@ function statusFromShortMeta(
   today: string
 ): AppLicenseStatus | null {
   if (!meta) return null;
-  if (meta.status === "revoked") return { status: "license_expired" };
+  if (meta.status === "revoked") return { status: "blocked" };
+  if (meta.status === "suspended") return { status: "suspended" };
+  if (meta.status === "inactive") return { status: "license_expired" };
   if (meta.permanent) {
     return { status: "licensed", expiryDate: "permanent", daysLeft: Infinity, permanent: true };
   }

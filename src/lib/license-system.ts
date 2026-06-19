@@ -12,12 +12,97 @@ const LICENSE_CACHE_KEY = 'license_cache_v1';
 export interface LicenseInfo {
   key: string;
   deviceId: string;
-  status: 'active' | 'expired' | 'revoked' | 'pending';
+  status: 'active' | 'expired' | 'revoked' | 'pending' | 'inactive' | 'suspended';
   expiryDate: string | null;
   permanent: boolean;
   ussdNumbers: string[];
   createdAt: string;
   activatedAt?: string;
+}
+
+export type AdminLicenseAction =
+  | 'license_activated'
+  | 'license_deactivated'
+  | 'license_suspended'
+  | 'license_reactivated'
+  | 'license_revoked'
+  | 'license_extended'
+  | 'license_expiry_changed'
+  | 'license_converted_to_permanent'
+  | 'license_converted_to_temporary'
+  | 'license_type_changed'
+  | 'license_reassigned';
+
+type LicenseRow = {
+  id: string;
+  license_key: string;
+  device_id: string | null;
+  user_id: string | null;
+  status: string;
+  level: string;
+  expiry_date: string | null;
+  permanent: boolean;
+};
+
+export async function adminUpdateLicense(
+  licenseId: string,
+  patch: Partial<Pick<LicenseRow, 'device_id' | 'status' | 'level' | 'expiry_date' | 'permanent'>>,
+  action: AdminLicenseAction
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { data: oldLicense, error: fetchError } = await supabase
+      .from('licenses')
+      .select('id, license_key, device_id, user_id, status, level, expiry_date, permanent')
+      .eq('id', licenseId)
+      .maybeSingle();
+
+    if (fetchError || !oldLicense) {
+      return { success: false, error: fetchError?.message || 'License not found' };
+    }
+
+    if (action === 'license_reassigned' && oldLicense.status === 'revoked') {
+      return { success: false, error: 'Revoked licenses cannot be reassigned' };
+    }
+
+    const normalizedPatch = {
+      ...patch,
+      updated_at: new Date().toISOString(),
+      ...(patch.status === 'active' ? { activated_at: new Date().toISOString() } : {}),
+    };
+
+    const { data: newLicense, error: updateError } = await supabase
+      .from('licenses')
+      .update(normalizedPatch)
+      .eq('id', licenseId)
+      .select('id, license_key, device_id, user_id, status, level, expiry_date, permanent')
+      .single();
+
+    if (updateError || !newLicense) {
+      return { success: false, error: updateError?.message || 'License update failed' };
+    }
+
+    const { data: auth } = await supabase.auth.getUser();
+    const { error: auditError } = await supabase.from('audit_logs').insert({
+      actor_user_id: auth.user?.id ?? null,
+      target_user_id: newLicense.user_id,
+      device_id: newLicense.device_id,
+      action,
+      entity: 'license',
+      entity_id: newLicense.id,
+      metadata: {
+        old_values: oldLicense,
+        new_values: newLicense,
+      },
+    });
+
+    if (auditError) {
+      return { success: false, error: auditError.message };
+    }
+
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: String(e) };
+  }
 }
 
 /**

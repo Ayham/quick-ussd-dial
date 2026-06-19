@@ -3,15 +3,17 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, Copy, Plus, Calendar } from 'lucide-react';
+import { Trash2, Copy, Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import { generateLicenseKey, adminGenerateLicenses } from '@/lib/license-system';
+import { adminGenerateLicenses, adminUpdateLicense, type AdminLicenseAction } from '@/lib/license-system';
 
 export interface License {
   id: string;
   license_key: string;
   device_id?: string;
-  status: 'active' | 'expired' | 'revoked' | 'pending';
+  user_id?: string;
+  status: 'active' | 'expired' | 'revoked' | 'pending' | 'inactive' | 'suspended';
+  level: string;
   expiry_date?: string;
   permanent: boolean;
   ussd_numbers: string[];
@@ -30,6 +32,7 @@ export function LicensesManager() {
   const [generatePermanent, setGeneratePermanent] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  const [edits, setEdits] = useState<Record<string, { expiryDate: string; level: string; deviceId: string }>>({});
 
   useEffect(() => {
     loadLicenses();
@@ -100,25 +103,24 @@ export function LicensesManager() {
     }
   }
 
-  async function revokeLicense(licenseId: string) {
-    if (!confirm('Revoke this license?')) return;
-
+  async function updateLicense(
+    license: License,
+    patch: Parameters<typeof adminUpdateLicense>[1],
+    action: AdminLicenseAction,
+    confirmMessage?: string
+  ) {
+    if (confirmMessage && !confirm(confirmMessage)) return;
+    
+    const licenseId = license.id;
     setActionInProgress(licenseId);
     try {
-      const { error } = await supabase
-        .from('licenses')
-        .update({ status: 'revoked' })
-        .eq('id', licenseId);
-
-      if (error) throw error;
-
-      setLicenses(prev => prev.map(l => 
-        l.id === licenseId ? { ...l, status: 'revoked' } : l
-      ));
-      toast.success('License revoked');
+      const result = await adminUpdateLicense(licenseId, patch, action);
+      if (!result.success) throw new Error(result.error || 'License update failed');
+      toast.success('License updated');
+      loadLicenses();
     } catch (error) {
-      console.error('Error revoking license:', error);
-      toast.error('Failed to revoke license');
+      console.error('Error updating license:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to update license');
     } finally {
       setActionInProgress(null);
     }
@@ -157,6 +159,7 @@ export function LicensesManager() {
     pending: licenses.filter(l => l.status === 'pending').length,
     expired: licenses.filter(l => l.status === 'expired').length,
     revoked: licenses.filter(l => l.status === 'revoked').length,
+    suspended: licenses.filter(l => l.status === 'suspended').length,
   };
 
   if (loading) {
@@ -236,7 +239,7 @@ export function LicensesManager() {
         </div>
       )}
 
-      <div className="grid grid-cols-5 gap-2 mb-4">
+      <div className="grid grid-cols-6 gap-2 mb-4">
         <div className="bg-card rounded p-2 text-center">
           <div className="text-sm font-semibold">{stats.total}</div>
           <div className="text-xs text-muted-foreground">Total</div>
@@ -257,6 +260,10 @@ export function LicensesManager() {
           <div className="text-sm font-semibold text-red-600">{stats.revoked}</div>
           <div className="text-xs text-muted-foreground">Revoked</div>
         </div>
+        <div className="bg-orange-500/10 rounded p-2 text-center">
+          <div className="text-sm font-semibold text-orange-600">{stats.suspended}</div>
+          <div className="text-xs text-muted-foreground">Suspended</div>
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -267,6 +274,7 @@ export function LicensesManager() {
               <th className="text-left p-3 font-semibold">Status</th>
               <th className="text-left p-3 font-semibold">Expiry</th>
               <th className="text-left p-3 font-semibold">Device</th>
+              <th className="text-left p-3 font-semibold">Type</th>
               <th className="text-left p-3 font-semibold">Created</th>
               <th className="text-left p-3 font-semibold">Actions</th>
             </tr>
@@ -280,6 +288,8 @@ export function LicensesManager() {
                     license.status === 'active' ? 'bg-green-500/20 text-green-700' :
                     license.status === 'pending' ? 'bg-blue-500/20 text-blue-700' :
                     license.status === 'expired' ? 'bg-yellow-500/20 text-yellow-700' :
+                    license.status === 'suspended' ? 'bg-orange-500/20 text-orange-700' :
+                    license.status === 'inactive' ? 'bg-slate-500/20 text-slate-700' :
                     'bg-red-500/20 text-red-700'
                   }`}>
                     {license.status}
@@ -293,11 +303,60 @@ export function LicensesManager() {
                   ) : '-'}
                 </td>
                 <td className="p-3 text-xs font-mono">{license.device_id?.substring(0, 8) || '-'}</td>
+                <td className="p-3 text-xs">{license.level || 'standard'}</td>
                 <td className="p-3 text-xs">
                   {new Date(license.created_at).toLocaleDateString()}
                 </td>
                 <td className="p-3">
-                  <div className="flex gap-2">
+                  <div className="min-w-[520px] space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        onClick={() => updateLicense(license, { status: 'active' }, 'license_activated')}
+                        disabled={actionInProgress === license.id || license.status === 'active'}
+                        variant="outline"
+                        size="sm"
+                        className="h-8"
+                      >
+                        Activate
+                      </Button>
+                      <Button
+                        onClick={() => updateLicense(license, { status: 'inactive' }, 'license_deactivated')}
+                        disabled={actionInProgress === license.id || license.status === 'inactive' || license.status === 'revoked'}
+                        variant="outline"
+                        size="sm"
+                        className="h-8"
+                      >
+                        Deactivate
+                      </Button>
+                      <Button
+                        onClick={() => updateLicense(license, { status: 'suspended' }, 'license_suspended')}
+                        disabled={actionInProgress === license.id || license.status === 'suspended' || license.status === 'revoked'}
+                        variant="outline"
+                        size="sm"
+                        className="h-8"
+                      >
+                        Suspend
+                      </Button>
+                      <Button
+                        onClick={() => updateLicense(license, { status: 'active' }, 'license_reactivated')}
+                        disabled={actionInProgress === license.id || license.status !== 'suspended'}
+                        variant="outline"
+                        size="sm"
+                        className="h-8"
+                      >
+                        Reactivate
+                      </Button>
+                      <Button
+                        onClick={() => updateLicense(license, { status: 'revoked' }, 'license_revoked', 'Revoke this license permanently?')}
+                        disabled={actionInProgress === license.id || license.status === 'revoked'}
+                        variant="outline"
+                        size="sm"
+                        className="h-8"
+                      >
+                        Revoke
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
                     <Button
                       onClick={() => copyLicenseKey(license.license_key)}
                       variant="outline"
@@ -306,17 +365,108 @@ export function LicensesManager() {
                     >
                       <Copy className="w-4 h-4" />
                     </Button>
-                    {license.status !== 'revoked' && (
+                    <Input
+                      type="date"
+                      value={edits[license.id]?.expiryDate ?? license.expiry_date ?? ''}
+                      onChange={(e) => setEdits(prev => ({
+                        ...prev,
+                        [license.id]: {
+                          expiryDate: e.target.value,
+                          level: prev[license.id]?.level ?? license.level ?? 'standard',
+                          deviceId: prev[license.id]?.deviceId ?? license.device_id ?? '',
+                        }
+                      }))}
+                      disabled={license.permanent}
+                      className="h-8 w-36 text-xs"
+                    />
+                    <Button
+                      onClick={() => updateLicense(
+                        license,
+                        { expiry_date: edits[license.id]?.expiryDate || license.expiry_date || null, permanent: false },
+                        edits[license.id]?.expiryDate && edits[license.id]?.expiryDate !== license.expiry_date
+                          ? 'license_expiry_changed'
+                          : 'license_extended'
+                      )}
+                      disabled={actionInProgress === license.id || license.permanent || !(edits[license.id]?.expiryDate || license.expiry_date)}
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                    >
+                      Save expiry
+                    </Button>
+                    {license.permanent ? (
                       <Button
-                        onClick={() => revokeLicense(license.id)}
+                        onClick={() => updateLicense(
+                          license,
+                          { permanent: false, expiry_date: edits[license.id]?.expiryDate || new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10) },
+                          'license_converted_to_temporary'
+                        )}
                         disabled={actionInProgress === license.id}
                         variant="outline"
                         size="sm"
                         className="h-8"
                       >
-                        Revoke
+                        Temporary
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={() => updateLicense(license, { permanent: true, expiry_date: null }, 'license_converted_to_permanent')}
+                        disabled={actionInProgress === license.id}
+                        variant="outline"
+                        size="sm"
+                        className="h-8"
+                      >
+                        Permanent
                       </Button>
                     )}
+                    <Input
+                      value={edits[license.id]?.level ?? license.level ?? 'standard'}
+                      onChange={(e) => setEdits(prev => ({
+                        ...prev,
+                        [license.id]: {
+                          expiryDate: prev[license.id]?.expiryDate ?? license.expiry_date ?? '',
+                          level: e.target.value,
+                          deviceId: prev[license.id]?.deviceId ?? license.device_id ?? '',
+                        }
+                      }))}
+                      className="h-8 w-28 text-xs"
+                    />
+                    <Button
+                      onClick={() => updateLicense(license, { level: edits[license.id]?.level || license.level || 'standard' }, 'license_type_changed')}
+                      disabled={actionInProgress === license.id}
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                    >
+                      Save type
+                    </Button>
+                    <Input
+                      value={edits[license.id]?.deviceId ?? license.device_id ?? ''}
+                      onChange={(e) => setEdits(prev => ({
+                        ...prev,
+                        [license.id]: {
+                          expiryDate: prev[license.id]?.expiryDate ?? license.expiry_date ?? '',
+                          level: prev[license.id]?.level ?? license.level ?? 'standard',
+                          deviceId: e.target.value,
+                        }
+                      }))}
+                      className="h-8 w-40 text-xs font-mono"
+                      placeholder="Device ID"
+                    />
+                    <Button
+                      onClick={() => updateLicense(
+                        license,
+                        { device_id: edits[license.id]?.deviceId || null },
+                        'license_reassigned',
+                        'Reassign this license to another device?'
+                      )}
+                      disabled={actionInProgress === license.id || license.status === 'revoked'}
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                    >
+                      Reassign
+                    </Button>
                     <Button
                       onClick={() => deleteLicense(license.id)}
                       disabled={actionInProgress === license.id}
@@ -326,6 +476,7 @@ export function LicensesManager() {
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
+                    </div>
                   </div>
                 </td>
               </tr>

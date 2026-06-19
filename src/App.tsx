@@ -54,7 +54,7 @@ const AppContent = () => {
     if (getLicenseApiEndpoint() && (s.status === 'licensed' || s.status === 'trial')) {
       verifyLicenseOnline().then(onlineResult => {
         if (onlineResult.status === 'revoked') {
-          setStatus({ status: 'license_expired' } as AppLicenseStatus);
+          setStatus({ status: 'blocked' } as AppLicenseStatus);
         }
       });
     }
@@ -64,6 +64,8 @@ const AppContent = () => {
     else if (s.status === 'trial_expired') trackLicenseEvent('trial_expired');
     else if (s.status === 'licensed') trackLicenseEvent('license_activated', { expiryDate: s.expiryDate });
     else if (s.status === 'license_expired') trackLicenseEvent('license_expired');
+    else if (s.status === 'blocked') trackLicenseEvent('license_blocked');
+    else if (s.status === 'suspended') trackLicenseEvent('license_suspended');
   };
 
   useEffect(() => {
@@ -87,7 +89,7 @@ const AppContent = () => {
 
   if (!status) return null;
 
-  if (status.status === 'trial_expired' || status.status === 'license_expired' || status.status === 'clock_tampered' || status.status === 'blocked') {
+  if (status.status === 'trial_expired' || status.status === 'license_expired' || status.status === 'clock_tampered' || status.status === 'blocked' || status.status === 'suspended') {
     return (
       <BrowserRouter>
         <AuthSessionProvider>
