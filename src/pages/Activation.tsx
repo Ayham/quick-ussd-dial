@@ -168,55 +168,26 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
 
       <header className="bg-primary px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] flex items-center justify-between shadow-md">
         <div className="flex items-center gap-3">
-          <div 
-            className="w-8 h-8 rounded-lg bg-primary-foreground/15 flex items-center justify-center backdrop-blur-sm cursor-pointer select-none"
-            onClick={handleIconTap}
-          >
+          <div className="w-8 h-8 rounded-lg bg-primary-foreground/15 flex items-center justify-center backdrop-blur-sm">
             <Shield className="w-4.5 h-4.5 text-primary-foreground" />
           </div>
-          <h1 
-            className="text-primary-foreground text-lg font-bold select-none cursor-pointer"
-            onClick={handleTitleTap}
-          >
+          <h1 className="text-primary-foreground text-lg font-bold select-none">
             {t('activation.title')}
           </h1>
         </div>
       </header>
 
       <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col justify-center gap-5">
-        {/* Admin Panel Login */}
-        {showAdminPanel && (
-          <div className="bg-card border border-border rounded-2xl p-4 space-y-3 fixed inset-0 z-50 flex items-center justify-center">
-            <div className="bg-background rounded-2xl p-6 w-full max-w-sm space-y-4">
-              <h2 className="text-lg font-bold text-center">{isArabic ? "لوحة المسؤول" : "Admin Panel"}</h2>
-              <Input
-                type="password"
-                placeholder={isArabic ? "كلمة المرور" : "Password"}
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                className="h-10"
-              />
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleAdminLogin}
-                  className="flex-1"
-                >
-                  {isArabic ? "دخول" : "Login"}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowAdminPanel(false);
-                    setAdminPassword("");
-                  }}
-                  className="flex-1"
-                >
-                  {isArabic ? "إلغاء" : "Cancel"}
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Device-bound notice */}
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 flex gap-2 items-start">
+          <Info className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+          <p className="text-[12px] text-muted-foreground leading-relaxed">
+            {isArabic
+              ? "الترخيص مرتبط بهذا الجهاز فقط. تغيير الجهاز يتطلب طلب تفعيل جديد. التراخيص لا تُنقل تلقائياً."
+              : "This license is bound to this device. Changing devices requires a new activation. Licenses are not transferred automatically."}
+          </p>
+        </div>
+
 
         {/* Activation Request Dialog */}
         {showActivationRequest && activationLink && (
