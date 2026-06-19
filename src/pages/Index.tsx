@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
-import { Phone, Clock, CheckCircle, Loader2, Send, TrendingUp, BookUser, UserPlus, Contact, AlertTriangle } from "lucide-react";
+import { Phone, Clock, CheckCircle, Loader2, Send, TrendingUp, BookUser, UserPlus, Contact, AlertTriangle, Search } from "lucide-react";
 import {
   detectOperator,
   buildUssdCode,
@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
+import AppContactsSearchDialog from "@/components/contacts/AppContactsSearchDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,6 +46,7 @@ const Index = () => {
   const [presets, setPresets] = useState(() => getPresets());
   const [credentials, setCredentials] = useState<OperatorCredentials>(() => getCredentials());
   const [showContacts, setShowContacts] = useState(false);
+  const [showAppContactsSearch, setShowAppContactsSearch] = useState(false);
   const [history, setHistory] = useState<TransferRecord[]>(() => getHistory());
   const [dialing, setDialing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -183,6 +185,25 @@ const Index = () => {
     setShowContacts(false);
   };
 
+  const pickNativeContact = async () => {
+    try {
+      const picked = await pickPhoneContact();
+      if (picked) {
+        selectContact(picked);
+        setShowAppContactsSearch(false);
+      }
+    } catch (err: any) {
+      const msg = err?.message;
+      toast.error(
+        msg === 'WEB_ONLY'
+          ? "Ù‡Ø°Ù‡ Ø§Ù„Ù…ÙŠØ²Ø© ØªØ¹Ù…Ù„ ÙÙ‚Ø· Ø¹Ù„Ù‰ Ø§Ù„Ø¬Ù‡Ø§Ø²"
+          : msg === 'CONTACTS_PERMISSION_DENIED'
+          ? "ØªÙ… Ø±ÙØ¶ ØµÙ„Ø§Ø­ÙŠØ© Ø¬Ù‡Ø§Øª Ø§Ù„Ø§ØªØµØ§Ù„. ÙØ¹Ù‘Ù„Ù‡Ø§ Ù…Ù† Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„ØªØ·Ø¨ÙŠÙ‚"
+          : `ØªØ¹Ø°Ø± ÙØªØ­ Ø³Ø¬Ù„ Ø§Ù„Ø§ØªØµØ§Ù„: ${msg || err}`
+      );
+    }
+  };
+
   const phoneHistory = useMemo(
     () => (phone.trim().length >= 3 ? history.filter((r) => r.phone.includes(phone.trim()) && r.status === "success") : []),
     [history, phone]
@@ -257,7 +278,7 @@ const Index = () => {
               value={phone}
               onChange={(e) => { setPhone(e.target.value); setContactName(''); setShowSaveName(false); setNameInput(''); }}
               onFocus={() => setShowContacts(true)}
-              className="text-left text-base h-12 tracking-wider rounded-xl border-2 border-border focus:border-primary transition-smooth pl-11"
+              className="text-left text-base h-12 tracking-wider rounded-xl border-2 border-border focus:border-primary transition-smooth pl-20"
               dir="ltr"
               inputMode="tel"
             />
@@ -284,6 +305,19 @@ const Index = () => {
               title="اختيار من سجل الهاتف"
             >
               <Contact className="w-5 h-5" />
+            </button>
+            <button
+              type="button"
+              data-testid="app-contacts-search-button"
+              onClick={() => {
+                setShowContacts(false);
+                setShowAppContactsSearch(true);
+              }}
+              className="absolute left-10 top-1/2 -translate-y-1/2 p-1.5 rounded-lg hover:bg-muted transition-smooth text-muted-foreground hover:text-primary"
+              title="البحث في جهات التطبيق"
+              aria-label="البحث في جهات التطبيق"
+            >
+              <Search className="w-5 h-5" />
             </button>
             {showContacts && matchingContacts.length > 0 && (
               <div className="absolute z-10 top-full mt-1.5 w-full bg-card border border-border rounded-xl shadow-elevated max-h-48 overflow-y-auto">
@@ -375,6 +409,13 @@ const Index = () => {
             </div>
           )}
         </div>
+
+        <AppContactsSearchDialog
+          open={showAppContactsSearch}
+          onOpenChange={setShowAppContactsSearch}
+          onSelect={selectContact}
+          onPickNative={pickNativeContact}
+        />
 
         {/* Preset Amounts with gradient coloring */}
         {operator && currentPresets.length > 0 && (
