@@ -1,155 +1,317 @@
+# Admin & Licensing Redesign
 
-# Option C (v2) — Portable Supabase Bundle + In-Place Production Upgrade
+Goal: replace the local-password "sys-admin" with a single Supabase-Auth login, make licenses device-bound, and reduce the admin area to the features that actually matter (licenses, devices, activation requests, trials, monitoring, roles).
 
-Scope grew significantly. Same two-track delivery model: every change goes (1) into Lovable Cloud Supabase via the migration tool so the app keeps working today, AND (2) into `db/portable/**` as plain SQL + docs so you can apply the exact same schema to your own Supabase project later.
+## 1. Authentication — one login for everyone
 
-Work is split into **8 sequential batches**. Each batch ends with a short status report (✅ done / ⚠️ needs manual step / ❌ open). Nothing is marked done without verification.
+- Delete local admin password system: `src/lib/admin-auth.ts`, all references in `Admin.tsx`, `Activation.tsx`, settings, etc. Remove storage keys `_internal_v1_sys_dat`, `_sys_rt_ct_v1`, `_sys_rt_lk_v1`, the "7-click header" gesture, and hardcoded `Password@5@164`.
+- Single login: `/auth` (Supabase email/password + Google).
+- `/sys-panel` becomes admin-only via `RequireAdmin` (already exists) — uses `has_role(auth.uid(),'admin')` server-side. No client-side bypass.
+- `useAuthSession` already validates JWT; keep it.
 
-**Reminder:** the Supabase Personal Access Token you pasted earlier is still live. Rotate it at https://supabase.com/dashboard/account/tokens. I do not need it.
+## 2. Device-bound licenses
 
-## Batch 1 — Foundation schema (+ portable bundle skeleton)
+Schema changes (migration):
 
-Goal: every table the app needs exists, with `client_id` for sync dedupe, indexes, `updated_at` triggers, GRANTs, RLS.
+- `licenses`: enforce one active license per device. Add unique partial index `(device_id) WHERE status='active'`. Make `device_id` required for `status='active'` (trigger).
+- Add `device_fingerprint TEXT` to `licenses` (snapshot at activation).
+- Activation RPC `activate_license(license_key, device_id, fingerprint)`:
+  - locks the row, rejects if already bound to a different device, sets `activated_at`, `device_id`, `device_fingerprint`, `status='active'`.
+- Validation RPC `validate_license(device_id, fingerprint)` returns status used by `check-license` edge function.
+- Edge function `admin-create-license` already device-aware; keep but allow `device_id=null` (pending) — activation binds later.
 
-New / extended tables (Cloud + bundle):
+## 3. Admin area — keep only these pages
 
-- `contacts` — user phone book, deduped on `(user_id, phone_normalized)`
-- `amount_presets` — per-user packages per operator (price + label + order)
-- `sim_assignments` — per-device SIM slot → operator
-- `subscription_plans` — catalog: name, duration_days, price, **max_devices**, features
-- `payments` — manual + online activation records, admin-approval workflow
-- `daily_summaries` — per-user/per-day rollups (transfers, revenue, success, failure)
-- `audit_logs` — generic security/admin audit trail
-- `app_settings` — per-user settings (key/value)
-- `system_config` — global app config (USSD defaults, trial days, maintenance mode, min app version, feature flags, sheets URL, sync intervals)
-- `notifications` — in-app per-user + admin notifications, read/unread
-- `sync_conflicts` — duplicates / conflict / failed / retry attempts
-- `sync_metrics` — duration, volume, success rate, last successful sync
-- `failed_logins` — login attempt tracking
-- `account_lockouts` — temporary lockout state
-- `device_bans` — banned devices + reason + ban time
-- `sessions` — active user/device sessions for admin force-logout
+Under `/sys-panel` tabs:
 
-Extended `devices` columns (Cloud + bundle):
-`android_id`, `device_fingerprint`, `app_instance_id`, `app_version`, `platform`, `last_ip`, `last_seen_at`, `is_banned`, `ban_reason`.
+1. **Dashboard** — overview counters + today's activity + alerts (queries below).
+2. **Licenses** — list, generate, revoke, extend, history.
+3. **Devices** — list, activate, deactivate, block, unblock, view activity.
+4. **Activation Requests** — list pending, approve (creates+binds license), reject.
+5. **Trials** — list, extend, cancel, disable.
+6. **Monitoring** — transfers / sync / events feed (read-only).
+7. **Users & Roles** — list users, grant/revoke admin (via edge function using service role + `has_role` check).
 
-Bundle layout:
+Remove/retire: `CustomersManager` placeholder, `SyncStatusMonitor` duplicate, any unfinished tabs, the 7-click gesture and admin login dialog.
 
-```text
-db/portable/
-  README.md
-  MIGRATION.md          # full runbook
-  schema/
-    00_extensions.sql
-    01_enums_and_functions.sql
-    02_tables.sql
-    03_indexes.sql
-    04_triggers.sql
-    05_grants_and_rls.sql
-    06_seed.sql         # subscription_plans, default system_config, default ussd_codes
-  edge-functions/       # copies of supabase/functions/*
-  client.template.ts
-  .env.example
-```
+## 4. Dashboard queries (real data)
 
-## Batch 2 — RLS hardening, multi-device limits, anti-cloning
+- Total users: `count(profiles)`
+- Active users: distinct `user_id` in `sessions` last 30d
+- Trial users: `count(trials where ends_at>now())`
+- Active/blocked devices: `devices where is_active`, `where is_banned`
+- Active/expired licenses: `licenses` grouped by status
+- Pending activations: `activations where status='pending'`
+- Today's transfers/activations/syncs: counts on `transfers`, `activations`, `sync_metrics` for `created_at::date = today`
+- Failed syncs: `sync_metrics where status='error'` today
+- Alerts: expired licenses, devices awaiting activation, trials expiring in 3d, recent sync errors
 
-- Rewrite every policy with `auth.uid()=user_id` + admin override via `public.has_role(auth.uid(),'admin')`.
-- Explicit GRANTs on every table (authenticated + service_role; anon only where strictly needed).
-- **Server-side device-limit enforcement**: `enforce_device_limit()` trigger on `devices` inserts checks active count vs `user`'s active subscription `max_devices`; deny via RLS + trigger.
-- **Anti-cloning trigger**: detects duplicate `device_fingerprint` or `android_id` across users → flags device, writes `audit_logs` row + admin `notifications` row.
-- Force-logout via revoking session row + `device-sync` response signal.
-- Run `supabase--linter` + `security--run_security_scan` → fix all high/critical.
+## 5. Offline + sync
 
-## Batch 3 — Offline-first sync correctness + monitoring
+- Keep `supabase-sync.ts` queue. Add license/device push: on each `device-sync` response, update local cache of license + device flags (already partly done).
+- When admin revokes/blocks/extends, device picks it up on next `device-sync` (idempotent — server is source of truth).
+- Activation requests created offline get queued and posted via `request-activation` edge function on reconnect.
 
-- Extend local sync queue (`supabase-sync.ts`) to cover all entities; every event carries `client_id` UUID; edge function upserts on `(device_id, client_id)`.
-- Backoff/retry with cap; `sync_metrics` row per flush; conflicts written to `sync_conflicts`.
-- `useSyncStatus()` hook + persistent badge in `AppLayout` (Online / Syncing N / Offline N queued).
-- Playwright check: offline → create transfer/contact → online → row appears, queue empties, no dupes on re-sync.
+## 6. Audit logging
 
-## Batch 4 — Auth, sessions, security hardening
+- Edge functions write to `audit_logs` (actor, target, action, entity, metadata) for: license create/revoke/extend, device activate/deactivate/block/unblock, activation approve/reject, role grant/revoke, trial extend/cancel.
+- Client logs login/logout/transfer/sync events to `app_events` (already partly wired).
 
-- Confirm Google login via `lovable.auth.signInWithOAuth("google")` works on preview (Cloud managed creds). Email/password kept.
-- **Failed-login tracking** + **account lockout** (N failures in M minutes → temporary block; admin can clear).
-- **Session management**: write `sessions` row on login (user_id, device_id, ip, ua, last_seen); admin can force-logout from sys-panel.
-- **Audit logs** for every admin action and security event.
-- Edge-function-level basic protections on `request-activation`, `device-sync`, contacts import, login attempts. (Note: backend has no standard rate-limiting primitive — implementing per-IP counters in DB; flagged as ad-hoc not infrastructure.)
+## 7. User communication
 
-## Batch 5 — Subscriptions, activation, multi-device licensing
+Activation page + Subscription page + Profile show a clear notice:
+"This license is bound to this device. Changing devices requires a new activation. Licenses are not transferred automatically."
 
-- Seed `subscription_plans`: Trial 14d (1 device), Monthly (2 devices), Quarterly (3 devices), Yearly (5 devices), Lifetime (10 devices).
-- `payments` admin-approval workflow → on approve, create/extend `licenses`, set device active, emit notification.
-- Activation request → `activations` (pending) + admin `notifications` (badge in sys-panel) → approve/reject → push status via `device-sync` response.
-- License transfer between devices of same user (admin action, audit-logged).
+## 8. Security cleanup
 
-## Batch 6 — `/sys-panel` enterprise upgrade (no empty pages)
+- Remove all `localStorage` admin keys and the PBKDF2 admin module.
+- Remove client-only "isAdminAuthenticated" checks; rely on RLS + `RequireAdmin`.
+- Keep encryption helpers only if used elsewhere (audit).
+- Ensure RLS on every admin-touched table requires `has_role(auth.uid(),'admin')` for cross-user reads/writes.
 
-Top-level tabs, each functional with search + pagination + row actions + CSV export + loading/empty/error states:
+## Technical details
 
-Dashboard (live KPIs), Users, **User Detail page** (profile + devices + licenses + activations + counts + revenue + last login/sync + audit history), Devices, **Device Detail page** (info + owner + license + last activity + sync history + security events + transfers), Contacts, Activations (pending badge), Subscriptions & Licenses, Payments, Transfers, Reports, Sync Logs / Conflicts / Metrics, USSD Codes, Operator Prefixes, Amount Presets, SIM Assignments, **System Config** (trial days, plans, device limits, sheets URL, sync intervals, maintenance mode, min app version, feature flags), Notifications, Audit Logs, Device Bans.
+Files to modify:
 
-## Batch 7 — Contacts I/O + Advanced Reports + UI polish
+- `src/App.tsx` — `/sys-panel` already wrapped with `RequireAuth`; switch to `RequireAdmin`.
+- `src/pages/Admin.tsx` — rebuild as 7-tab shell.
+- `src/components/admin/*` — keep `DashboardOverview`, `LicensesManager`, `DevicesManager`, `ActivationsManager`, `TrialsManager`, `EventsViewer`, `TransfersViewer`; replace with real queries. Remove `CustomersManager`, `SyncStatusMonitor` (folded into Monitoring).
+- New: `src/components/admin/UsersRolesManager.tsx`.
+- `src/pages/Activation.tsx` — remove admin-credential gesture; show device-bound notice.
+- `src/pages/Settings.tsx`, `src/components/AppLayout.tsx` — remove 7-click admin trigger; admin link only visible when `isAdmin`.
+- Delete: `src/lib/admin-auth.ts` (and all imports).
+- New edge function: `admin-grant-role` (admin-only, service role).
+- New edge function or RPC: `activate_license` enforcing device binding.
+- New migration:
+  - `ALTER TABLE licenses ADD COLUMN device_fingerprint text`
+  - `CREATE UNIQUE INDEX licenses_one_active_per_device ON licenses(device_id) WHERE status='active' AND device_id IS NOT NULL`
+  - RPC `public.activate_license(...)` SECURITY DEFINER
+  - RPC `public.admin_grant_role(target uuid, role app_role)` SECURITY DEFINER, checks `has_role(auth.uid(),'admin')`
 
-- **Contacts import/export**: CSV + XLSX both directions. Phone normalization (Syrian prefixes), operator detection, duplicate detection, **preview before commit**, merge / replace / skip modes, import-result report.
-- **Advanced Reports** built on `transfers` + `daily_summaries`:
-  - Transfers: daily / weekly / monthly / yearly
-  - Revenue: daily / monthly / by-user / by-device
-  - Operators: MTN vs Syriatel transfers + revenue
-  - Activity: most active users/devices, most used packages, failed transfers, failed syncs
-  - Licensing: active / expired / pending / trial / trial→paid conversion rate
-  - Sync: last sync status, devices offline > N days, queue health
-- **Google Sheets demoted to export-only**: writes go to Supabase first; existing Sheets script becomes an export pull from Supabase, never a primary write.
-- UI polish: modern mobile-first cards, RTL preserved, safe-area, loading/empty/error everywhere, sync badge, modernized Auth/Index/Transfer/Contacts.
+## Out of scope
 
-## Batch 8 — Deep check, security scan, final acceptance
+- Visual redesign of non-admin pages.
+- Payments/Stripe flows.
+- Multi-language audit of new strings (use existing i18n keys; add English-only fallback for new strings).
 
-- Walk every route with Playwright; screenshot evidence; fix broken pages.
-- Run `supabase--linter` + `security--run_security_scan`; fix all high/critical; document accepted findings in security memory.
-- Verify each acceptance criterion below with evidence (screenshot / SQL result / scan output).
-- Produce final `READY` / `NOT READY` verdict.
+## Rollout
 
-## Acceptance criteria (verdict gate)
+1. Migration (schema + RPCs).
+2. Edge function updates (`activate_license` consumer, `admin-grant-role`).
+3. Remove `admin-auth.ts` + all references; gate `/sys-panel` with `RequireAdmin`.
+4. Rebuild Admin shell + wire each tab to real queries.
+5. Activation page: device-bound notice + new activate flow.
+6. Smoke test offline queue → online flush → admin sees event.
 
-Each item requires evidence before READY:
+Reply **go** to apply, or tell me what to change.  
+  
+-Additional Requirement: Active User Monitoring
 
-1. All admin pages functional, no empty/placeholder pages
-2. Reports use real DB data (sample queries + screenshots)
-3. Offline mode works (Playwright offline test)
-4. Sync works (Playwright online flush)
-5. Duplicate protection works (`client_id` upsert test)
-6. Multi-device licensing enforced (trigger denial test)
-7. Google login works (Playwright OAuth flow)
-8. Contacts import/export works (sample file round-trip)
-9. Subscriptions + activations work (admin approval flow test)
-10. Security audit passes (scan output)
-11. Playwright suite passes
-12. Portable bundle complete (`db/portable/**` exists and self-contained)
-13. Documentation complete (`MIGRATION.md` + this plan)
+Please add an Active Users Monitoring section.
 
-## Portability matrix
+The administrator must be able to see in real time:
 
-| Concern | Portable | Notes |
-|---|---|---|
-| All tables, indexes, triggers, functions, RLS, grants | ✅ | `db/portable/schema/*.sql` |
-| Seed data (plans, system_config, ussd_codes) | ✅ | `06_seed.sql` |
-| Edge function source | ✅ | `db/portable/edge-functions/` — deploy with `supabase functions deploy` |
-| Email/password auth | ✅ | Standard Supabase Auth |
-| Google OAuth | ⚠️ | On your project: add your own Google client ID/secret in Auth → Providers |
-| Email templates | ⚠️ | Re-upload in your project; custom domain optional |
-| `client.ts` / `types.ts` / `.env` | ⚠️ | Bundle ships `client.template.ts` + `.env.example`; regenerate types with `supabase gen types typescript` |
-| `supabase/config.toml` project_id | ❌ | Cloud-managed; replace in your fork |
-| `LOVABLE_API_KEY` (AI gateway) | ❌ | Lovable-only; if used, swap to your AI provider key |
-| Frontend code under `src/` | ✅ | Plain React/TS, portable as-is |
+- Currently active users
+- Last activity time
+- Last login time
+- Last synchronization time
+- Current device
+- Device ID
+- Device status
+- License status
+- Trial status
+- Number of transfers today
+- Number of transfers this month
 
-## Technical notes
+The administrator should be able to:
 
-- All new tables follow project convention: `id uuid pk`, `user_id uuid` where applicable, `device_id text` for device-scoped rows, `client_id uuid` for sync dedupe, `created_at`, `updated_at`, RLS on, GRANTs to authenticated + service_role.
-- `has_role(uuid, app_role)` SECURITY DEFINER stays the only privilege-check path.
-- Server-side device limit + anti-cloning via triggers + RLS — never client-side.
-- No Supabase Personal Access Token used or stored anywhere.
-- Rate limiting is ad-hoc (per-IP counters in DB) because the backend has no standard primitive — flagged in the final report as known infra gap.
+- View user details
+- View device details
+- View transfer history
+- Block a user
+- Unblock a user
+- Disable a device
+- Force logout a user
+- End a trial immediately
+- Activate or deactivate a license
 
-## Start
+Dashboard should display:
 
-Reply **"go"** and I execute Batch 1 immediately. Subsequent batches follow automatically with a status report between each — stop me at any boundary.
+- Online users now
+- Active users today
+- Active users this week
+- Users with expired licenses
+- Users with trial ending soon
+- Users not synchronized for more than X days
+
+A user is considered active if:
+
+- Logged in recently, or
+- Performed a transfer recently, or
+- Successfully synchronized recently.
+
+Store activity information in the database and make it available through the Monitoring section and Dashboard.  
+  
+Other Notes:  
+The following situations must be tested:
+
+### Scenario A
+
+User clears application data.
+
+Expected result:
+
+- License must still be validated from Supabase.
+- Device must not become activated again automatically.
+
+### Scenario B
+
+User reinstalls application.
+
+Expected result:
+
+- Device must revalidate against cloud.
+- Existing activation rules must still apply.
+
+### Scenario C
+
+User copies local files to another device.
+
+Expected result:
+
+- Activation rejected.
+- Device mismatch logged.  
+
+
+Admin must be able to:
+
+- View all trial users.
+- View trial devices.
+- End trial immediately.
+- Extend trial.
+- Convert trial to licensed device.
+
+Show:
+
+- Trial start date.
+- Trial end date.
+- Remaining days.
+- Device information.  
+  
+
+
+## Monitoring Must Be Unified
+
+Do not split monitoring into multiple pages.
+
+Create one Monitoring Center.
+
+Show:
+
+### Transfers
+
+- Live transfer feed
+- Daily totals
+- Weekly totals
+- Monthly totals
+
+### Devices
+
+- Online devices
+- Offline devices
+- Blocked devices
+
+### Sync
+
+- Successful syncs
+- Failed syncs
+- Queue status
+
+### Security
+
+- Activation failures
+- Device mismatch attempts
+- License violations
+
+## 9. Dashboard Improvements
+
+Dashboard must show:
+
+### Overview
+
+- Users
+- Devices
+- Active licenses
+- Expired licenses
+- Pending activations
+- Trial users
+
+### Activity
+
+- Today's transfers
+- Today's activations
+- Today's syncs
+
+### Alerts
+
+- Expired licenses
+- Devices awaiting activation
+- Trials expiring soon
+- Sync failures
+- Security alerts
+
+## 10. Offline First Requirements
+
+The application must continue working offline.
+
+When internet returns:
+
+- Sync transfers
+- Sync contacts
+- Sync activation requests
+- Sync device status
+- Sync license status
+
+Server remains the source of truth.
+
+Client must never override:
+
+- License state
+- Device state
+- Trial state
+- User roles
+
+## 11. Security Requirements
+
+Remove completely:
+
+- local admin passwords
+- local admin storage
+- hidden admin credentials
+- PBKDF2 admin login system
+- tap-to-open admin authentication
+
+Keep only:
+
+- Supabase Auth
+- has_role()
+- RLS
+- Edge Functions
+
+No client-side security decisions.
+
+## 12. Final Acceptance Requirements
+
+Before marking complete, provide proof that:
+
+- Non-admin users cannot access sys-panel.
+- Device licenses cannot be copied.
+- Trial restrictions work.
+- Activation requests work.
+- Device block/unblock works.
+- Role management works.
+- Offline sync works.
+- Sync does not create duplicates.
+- Audit logs are generated correctly.
+- All admin pages display real data.
+- No placeholder pages remain.
