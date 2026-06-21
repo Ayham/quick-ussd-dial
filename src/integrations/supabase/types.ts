@@ -237,6 +237,8 @@ export type Database = {
           id: string
           ip: string | null
           metadata: Json
+          new_values: Json | null
+          old_values: Json | null
           target_user_id: string | null
           user_agent: string | null
         }
@@ -250,6 +252,8 @@ export type Database = {
           id?: string
           ip?: string | null
           metadata?: Json
+          new_values?: Json | null
+          old_values?: Json | null
           target_user_id?: string | null
           user_agent?: string | null
         }
@@ -263,6 +267,8 @@ export type Database = {
           id?: string
           ip?: string | null
           metadata?: Json
+          new_values?: Json | null
+          old_values?: Json | null
           target_user_id?: string | null
           user_agent?: string | null
         }
@@ -391,17 +397,22 @@ export type Database = {
           app_instance_id: string | null
           app_version: string | null
           ban_reason: string | null
+          block_reason: string | null
           created_at: string
           device_fingerprint: string | null
           device_id: string
+          first_seen_at: string | null
           id: string
           is_active: boolean
           is_banned: boolean
           is_blocked: boolean
           language: string | null
+          last_activity_at: string | null
           last_ip: string | null
           last_seen: string
           last_seen_at: string | null
+          last_sync_at: string | null
+          lifecycle_state: string | null
           metadata: Json
           model: string | null
           name: string | null
@@ -416,17 +427,22 @@ export type Database = {
           app_instance_id?: string | null
           app_version?: string | null
           ban_reason?: string | null
+          block_reason?: string | null
           created_at?: string
           device_fingerprint?: string | null
           device_id: string
+          first_seen_at?: string | null
           id?: string
           is_active?: boolean
           is_banned?: boolean
           is_blocked?: boolean
           language?: string | null
+          last_activity_at?: string | null
           last_ip?: string | null
           last_seen?: string
           last_seen_at?: string | null
+          last_sync_at?: string | null
+          lifecycle_state?: string | null
           metadata?: Json
           model?: string | null
           name?: string | null
@@ -441,17 +457,22 @@ export type Database = {
           app_instance_id?: string | null
           app_version?: string | null
           ban_reason?: string | null
+          block_reason?: string | null
           created_at?: string
           device_fingerprint?: string | null
           device_id?: string
+          first_seen_at?: string | null
           id?: string
           is_active?: boolean
           is_banned?: boolean
           is_blocked?: boolean
           language?: string | null
+          last_activity_at?: string | null
           last_ip?: string | null
           last_seen?: string
           last_seen_at?: string | null
+          last_sync_at?: string | null
+          lifecycle_state?: string | null
           metadata?: Json
           model?: string | null
           name?: string | null
@@ -1050,37 +1071,49 @@ export type Database = {
       }
       trials: {
         Row: {
+          cancelled_at: string | null
+          converted_license_id: string | null
           created_at: string
           days_total: number
           device_id: string
           expires_at: string
           extended_by_admin: boolean
+          extended_by_days: number
           id: string
           started_at: string
           status: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
+          cancelled_at?: string | null
+          converted_license_id?: string | null
           created_at?: string
           days_total?: number
           device_id: string
           expires_at: string
           extended_by_admin?: boolean
+          extended_by_days?: number
           id?: string
           started_at?: string
           status?: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
+          cancelled_at?: string | null
+          converted_license_id?: string | null
           created_at?: string
           days_total?: number
           device_id?: string
           expires_at?: string
           extended_by_admin?: boolean
+          extended_by_days?: number
           id?: string
           started_at?: string
           status?: string
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1176,12 +1209,47 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _require_admin: { Args: never; Returns: string }
       activate_license: {
         Args: {
           _device_id: string
           _fingerprint?: string
           _license_key: string
         }
+        Returns: Json
+      }
+      admin_block_device: {
+        Args: { _device_id: string; _reason?: string }
+        Returns: Json
+      }
+      admin_convert_license: {
+        Args: { _expiry?: string; _license_id: string; _permanent: boolean }
+        Returns: Json
+      }
+      admin_convert_trial: {
+        Args: { _device_id: string; _license_id: string }
+        Returns: Json
+      }
+      admin_decide_activation: {
+        Args: {
+          _decision: string
+          _license_id?: string
+          _notes?: string
+          _request_id: string
+        }
+        Returns: Json
+      }
+      admin_end_trial: { Args: { _device_id: string }; Returns: Json }
+      admin_extend_license: {
+        Args: { _license_id: string; _new_expiry: string }
+        Returns: Json
+      }
+      admin_extend_trial: {
+        Args: { _days: number; _device_id: string }
+        Returns: Json
+      }
+      admin_set_license_status: {
+        Args: { _license_id: string; _reason?: string; _status: string }
         Returns: Json
       }
       admin_set_role: {
@@ -1192,6 +1260,16 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_unblock_device: { Args: { _device_id: string }; Returns: Json }
+      device_heartbeat: {
+        Args: {
+          _app_version?: string
+          _device_id: string
+          _fingerprint?: string
+          _platform?: string
+        }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1199,11 +1277,19 @@ export type Database = {
         }
         Returns: boolean
       }
+      validate_license: {
+        Args: {
+          _device_id: string
+          _fingerprint?: string
+          _license_key: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       activation_status: "pending" | "approved" | "rejected"
       app_role: "admin" | "user"
-      license_status: "active" | "expired" | "revoked" | "pending"
+      license_status: "active" | "expired" | "revoked" | "pending" | "suspended"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1333,7 +1419,7 @@ export const Constants = {
     Enums: {
       activation_status: ["pending", "approved", "rejected"],
       app_role: ["admin", "user"],
-      license_status: ["active", "expired", "revoked", "pending"],
+      license_status: ["active", "expired", "revoked", "pending", "suspended"],
     },
   },
 } as const
