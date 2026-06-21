@@ -205,6 +205,14 @@ export function trackTransfer(phone: string, amount: string, operator: string, s
   trackEvent('transfer', { phone, amount, operator, status });
 }
 
-export function trackLicenseEvent(event: 'license_activated' | 'license_expired' | 'trial_started' | 'trial_expired', extra: Record<string, unknown> = {}) {
-  trackEvent(event, extra);
+export type LicenseEventType =
+  | 'license_activated'
+  | 'license_expired'
+  | 'license_blocked'
+  | 'license_suspended'
+  | 'trial_started'
+  | 'trial_expired';
+
+export function trackLicenseEvent(event: LicenseEventType, extra: Record<string, unknown> = {}) {
+  trackEvent(event as SyncEventType, extra);
 }

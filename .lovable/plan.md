@@ -1,317 +1,174 @@
-# Admin & Licensing Redesign
+# Final Licensing, Activation, Device & Admin Audit — Implementation Plan
 
-Goal: replace the local-password "sys-admin" with a single Supabase-Auth login, make licenses device-bound, and reduce the admin area to the features that actually matter (licenses, devices, activation requests, trials, monitoring, roles).
+This is a large, multi-batch effort. Below is the proposed execution plan. I will work in sequenced batches; each batch ends with verification before the next begins.
 
-## 1. Authentication — one login for everyone
+Before starting Batch 0, please add the following requirements.
 
-- Delete local admin password system: `src/lib/admin-auth.ts`, all references in `Admin.tsx`, `Activation.tsx`, settings, etc. Remove storage keys `_internal_v1_sys_dat`, `_sys_rt_ct_v1`, `_sys_rt_lk_v1`, the "7-click header" gesture, and hardcoded `Password@5@164`.
-- Single login: `/auth` (Supabase email/password + Google).
-- `/sys-panel` becomes admin-only via `RequireAdmin` (already exists) — uses `has_role(auth.uid(),'admin')` server-side. No client-side bypass.
-- `useAuthSession` already validates JWT; keep it.
+### 1. Device Registration Enforcement
 
-## 2. Device-bound licenses
+Every device must be registered in the database before using the application.
 
-Schema changes (migration):
+A device that does not exist in the devices table must never receive access.
 
-- `licenses`: enforce one active license per device. Add unique partial index `(device_id) WHERE status='active'`. Make `device_id` required for `status='active'` (trigger).
-- Add `device_fingerprint TEXT` to `licenses` (snapshot at activation).
-- Activation RPC `activate_license(license_key, device_id, fingerprint)`:
-  - locks the row, rejects if already bound to a different device, sets `activated_at`, `device_id`, `device_fingerprint`, `status='active'`.
-- Validation RPC `validate_license(device_id, fingerprint)` returns status used by `check-license` edge function.
-- Edge function `admin-create-license` already device-aware; keep but allow `device_id=null` (pending) — activation binds later.
+Device registration should happen automatically on first launch.
 
-## 3. Admin area — keep only these pages
+Store:
 
-Under `/sys-panel` tabs:
+- device_id
+- fingerprint
+- app_instance_id
+- first_seen_at
+- last_seen_at
+- app_version
+- platform
 
-1. **Dashboard** — overview counters + today's activity + alerts (queries below).
-2. **Licenses** — list, generate, revoke, extend, history.
-3. **Devices** — list, activate, deactivate, block, unblock, view activity.
-4. **Activation Requests** — list pending, approve (creates+binds license), reject.
-5. **Trials** — list, extend, cancel, disable.
-6. **Monitoring** — transfers / sync / events feed (read-only).
-7. **Users & Roles** — list users, grant/revoke admin (via edge function using service role + `has_role` check).
+### 2. Real Device Lifecycle
 
-Remove/retire: `CustomersManager` placeholder, `SyncStatusMonitor` duplicate, any unfinished tabs, the 7-click gesture and admin login dialog.
+Each device must always be in one of the following states:
 
-## 4. Dashboard queries (real data)
+- trial
+- pending_activation
+- active
+- suspended
+- revoked
+- blocked
 
-- Total users: `count(profiles)`
-- Active users: distinct `user_id` in `sessions` last 30d
-- Trial users: `count(trials where ends_at>now())`
-- Active/blocked devices: `devices where is_active`, `where is_banned`
-- Active/expired licenses: `licenses` grouped by status
-- Pending activations: `activations where status='pending'`
-- Today's transfers/activations/syncs: counts on `transfers`, `activations`, `sync_metrics` for `created_at::date = today`
-- Failed syncs: `sync_metrics where status='error'` today
-- Alerts: expired licenses, devices awaiting activation, trials expiring in 3d, recent sync errors
+The admin must be able to see the current lifecycle state for every device.
 
-## 5. Offline + sync
+The device must never exist without a state.
 
-- Keep `supabase-sync.ts` queue. Add license/device push: on each `device-sync` response, update local cache of license + device flags (already partly done).
-- When admin revokes/blocks/extends, device picks it up on next `device-sync` (idempotent — server is source of truth).
-- Activation requests created offline get queued and posted via `request-activation` edge function on reconnect.
+### 3. Full Device Ownership Tracking
 
-## 6. Audit logging
+For every device show:
 
-- Edge functions write to `audit_logs` (actor, target, action, entity, metadata) for: license create/revoke/extend, device activate/deactivate/block/unblock, activation approve/reject, role grant/revoke, trial extend/cancel.
-- Client logs login/logout/transfer/sync events to `app_events` (already partly wired).
+- Device ID
+- User
+- Registration date
+- First activation date
+- Current license
+- Current trial
+- Last sync
+- Last activity
+- Current status
 
-## 7. User communication
+I want complete visibility over every device using the application.
 
-Activation page + Subscription page + Profile show a clear notice:
-"This license is bound to this device. Changing devices requires a new activation. Licenses are not transferred automatically."
+### 4. Scalability Validation
 
-## 8. Security cleanup
+This application may eventually serve thousands of devices.
 
-- Remove all `localStorage` admin keys and the PBKDF2 admin module.
-- Remove client-only "isAdminAuthenticated" checks; rely on RLS + `RequireAdmin`.
-- Keep encryption helpers only if used elsewhere (audit).
-- Ensure RLS on every admin-touched table requires `has_role(auth.uid(),'admin')` for cross-user reads/writes.
+Please verify:
 
-## Technical details
+- indexes exist on all lookup columns
+- heartbeat queries remain efficient
+- device-sync remains efficient
+- admin dashboard queries remain efficient
+- monitoring queries remain efficient
 
-Files to modify:
+Include recommendations if any table may become a bottleneck when scaling.
 
-- `src/App.tsx` — `/sys-panel` already wrapped with `RequireAuth`; switch to `RequireAdmin`.
-- `src/pages/Admin.tsx` — rebuild as 7-tab shell.
-- `src/components/admin/*` — keep `DashboardOverview`, `LicensesManager`, `DevicesManager`, `ActivationsManager`, `TrialsManager`, `EventsViewer`, `TransfersViewer`; replace with real queries. Remove `CustomersManager`, `SyncStatusMonitor` (folded into Monitoring).
-- New: `src/components/admin/UsersRolesManager.tsx`.
-- `src/pages/Activation.tsx` — remove admin-credential gesture; show device-bound notice.
-- `src/pages/Settings.tsx`, `src/components/AppLayout.tsx` — remove 7-click admin trigger; admin link only visible when `isAdmin`.
-- Delete: `src/lib/admin-auth.ts` (and all imports).
-- New edge function: `admin-grant-role` (admin-only, service role).
-- New edge function or RPC: `activate_license` enforcing device binding.
-- New migration:
-  - `ALTER TABLE licenses ADD COLUMN device_fingerprint text`
-  - `CREATE UNIQUE INDEX licenses_one_active_per_device ON licenses(device_id) WHERE status='active' AND device_id IS NOT NULL`
-  - RPC `public.activate_license(...)` SECURITY DEFINER
-  - RPC `public.admin_grant_role(target uuid, role app_role)` SECURITY DEFINER, checks `has_role(auth.uid(),'admin')`
+Add this review to the final PRODUCTION_READINESS report.
 
-## Out of scope
+## Batch 0 — Audit & Inventory (read-only, no code changes)
+
+Produce a written audit report covering:
+
+- Every entry point that can grant app access (Index, Activation, Auth, Trial guard, License hooks).
+- Every place the client makes a licensing/trial/role decision locally.
+- Current Supabase tables, RPCs, edge functions, RLS policies relevant to license/device/trial/activation/audit.
+- Gaps vs. the 14 requirements you listed.
+
+Deliverable: `docs/AUDIT_REPORT.md` with a checklist mapping each requirement → current state → required change.
+
+## Batch 1 — Database hardening (one migration)
+
+- Add missing columns/indexes:
+  - `licenses`: ensure `device_id` is NOT NULL for `status='active'` (partial constraint), already-existing unique index kept.
+  - `activations`: ensure `device_id`, `user_id`, `status`, `decided_by`, `decided_at`, `decision_reason`.
+  - `trials`: ensure `device_id`, `user_id`, `started_at`, `expires_at`, `status` (`active|expired|cancelled|converted`), `extended_by_days`.
+  - `devices`: ensure `is_blocked`, `is_banned`, `block_reason`, `last_sync_at`, `last_activity_at`, `app_version`, `platform`, `fingerprint`.
+  - `audit_logs`: ensure `old_values`, `new_values` jsonb.
+- New RPCs (SECURITY DEFINER, admin-gated via `has_role`):
+  - `admin_set_license_status(license_id, status, reason)`
+  - `admin_extend_license(license_id, new_expiry)`
+  - `admin_convert_license(license_id, permanent boolean, expiry)`
+  - `admin_block_device(device_id, reason)` / `admin_unblock_device(device_id)`
+  - `admin_extend_trial(device_id, days)` / `admin_end_trial(device_id)` / `admin_convert_trial(device_id, license_id)`
+  - `admin_decide_activation(request_id, decision, license_id?, expiry?, reason?)`
+  - `device_heartbeat(device_id, fingerprint, app_version, platform)` — updates `last_sync_at`/`last_activity_at` and returns authoritative state (trial, license, device, blocks).
+- Audit triggers on `licenses`, `devices`, `trials`, `activations`, `user_roles` writing to `audit_logs` with `old_values`/`new_values`.
+- Force Update System
+
+- minimum_supported_version
+- latest_version
+- force_update_enabled
+- maintenance_mode
+
+Devices running versions below the minimum supported version must be blocked and redirected to update.
+
+## Batch 2 — Edge functions (server is source of truth)
+
+- Rewrite `device-sync` to return authoritative `{trial, license, device, blocked, reason}` payload using `device_heartbeat`.
+- Rewrite `check-license` to require `device_id` + `fingerprint`, return same shape.
+- New `request-activation` (or update existing) to create `activations` row + audit log; idempotent per device.
+- New `admin-decide-activation` calling the RPC.
+- `admin-create-license` already validated; tighten to **require** `device_id` (no pending licenses unless explicitly flagged) per your rule "Every license must belong to a specific device."
+
+## Batch 3 — Client gating (no bypass path)
+
+- Create `src/lib/access-guard.ts`: single async resolver that:
+  1. Reads cached server state from IndexedDB.
+  2. If online, calls `device-sync` heartbeat; updates cache.
+  3. Returns one of: `trial_active | license_active | trial_expired | license_expired | revoked | blocked | not_registered | mismatch | pending_activation`.
+- `App.tsx` wraps protected routes with `<RequireAccess>` that uses the guard. Only `trial_active`/`license_active` reach the app; everything else routes to `/activation` with a clear reason.
+- Remove any client-side override of license/trial/role (audit `trial-guard.ts`, `license.ts`, `license-system.ts`, `license-sync.ts`).
+- `/activation` simplified to two actions: **Request activation** | **Enter license key**. No copy-link/manual share flows. Auto-polls heartbeat every 20s while open; enters app on approval.
+
+## Batch 4 — Unified Admin Console
+
+Single page `/sys-panel` with left rail + detail pane (not 7 disconnected tabs):
+
+- **Overview**: live counts, alerts (mismatch attempts, unsynced >X days, failed activations).
+- **Users**: list → detail showing devices, trial, licenses, activation requests, transfers, last activity, last sync, audit history. Actions: block/unblock, force logout, end trial, activate/deactivate license.
+- **Devices**: list → detail showing user, trial, license, activations, syncs, security events. Full untruncated IDs with copy button, search, filters. Actions: block/unblock, revoke license.
+- **Licenses**: list → detail showing user, device, activations, expiry, audit. Actions: activate, deactivate, suspend, reactivate, revoke, extend, change expiry, convert permanent↔temporary, block/unblock device.
+- **Activations**: queue with approve/reject/extend trial/activate-until-date/suspend/block-device in one panel.
+- **Trials**: list → detail. Extend/reduce/end/convert/block.
+- **Monitoring**: live active users + security feed.
+- **Users & Roles**: existing manager, linked from user detail.
+
+Cross-linking: clicking a user/device/license anywhere navigates to its detail pane.
+
+## Batch 5 — Offline-first sync
+
+- Audit `supabase-sync.ts` queue: transfers, contacts, activation requests, trial events queued offline; flushed on reconnect.
+- Client never writes authoritative license/trial/device state — only mirrors server.
+- Add connectivity listener that triggers heartbeat on reconnect.
+
+## Batch 6 — Arabic encoding audit
+
+- Grep source for mojibake patterns (`Ã`, `Ø`, replacement char `\uFFFD`).
+- Verify `i18n.ts` strings, build output, Android string resources.
+- Fix any corruption found.
+
+## Batch 7 — Verification & report
+
+- Run vitest suite; add tests for access-guard state machine and admin RPCs.
+- Playwright run against localhost: trial → expiry → request activation → admin approve → enter app; revoke → blocked; mismatch attempt → denied + audit.
+- Supabase linter; RLS check on every touched table.
+- Produce `docs/PRODUCTION_READINESS.md` with: fixed issues, remaining issues, DB/RPC/edge-function/RLS verification tables, test report, final **READY / NOT READY** verdict with evidence.
+
+---
+
+## Out of scope (call out explicitly)
 
 - Visual redesign of non-admin pages.
-- Payments/Stripe flows.
-- Multi-language audit of new strings (use existing i18n keys; add English-only fallback for new strings).
+- Payment flow / Stripe.
+- Reworking Capacitor native trial plugin internals (only its server reconciliation).
+- New translation languages.
 
-## Rollout
+## How I will proceed
 
-1. Migration (schema + RPCs).
-2. Edge function updates (`activate_license` consumer, `admin-grant-role`).
-3. Remove `admin-auth.ts` + all references; gate `/sys-panel` with `RequireAdmin`.
-4. Rebuild Admin shell + wire each tab to real queries.
-5. Activation page: device-bound notice + new activate flow.
-6. Smoke test offline queue → online flush → admin sees event.
+I'll execute batches in order. Each batch ends with a short status note and the next batch starts automatically — I won't stop between batches unless something needs your decision. Batches 1, 2 involve a DB migration (you'll approve it inline) and edge-function deploys (automatic).
 
-Reply **go** to apply, or tell me what to change.  
-  
--Additional Requirement: Active User Monitoring
-
-Please add an Active Users Monitoring section.
-
-The administrator must be able to see in real time:
-
-- Currently active users
-- Last activity time
-- Last login time
-- Last synchronization time
-- Current device
-- Device ID
-- Device status
-- License status
-- Trial status
-- Number of transfers today
-- Number of transfers this month
-
-The administrator should be able to:
-
-- View user details
-- View device details
-- View transfer history
-- Block a user
-- Unblock a user
-- Disable a device
-- Force logout a user
-- End a trial immediately
-- Activate or deactivate a license
-
-Dashboard should display:
-
-- Online users now
-- Active users today
-- Active users this week
-- Users with expired licenses
-- Users with trial ending soon
-- Users not synchronized for more than X days
-
-A user is considered active if:
-
-- Logged in recently, or
-- Performed a transfer recently, or
-- Successfully synchronized recently.
-
-Store activity information in the database and make it available through the Monitoring section and Dashboard.  
-  
-Other Notes:  
-The following situations must be tested:
-
-### Scenario A
-
-User clears application data.
-
-Expected result:
-
-- License must still be validated from Supabase.
-- Device must not become activated again automatically.
-
-### Scenario B
-
-User reinstalls application.
-
-Expected result:
-
-- Device must revalidate against cloud.
-- Existing activation rules must still apply.
-
-### Scenario C
-
-User copies local files to another device.
-
-Expected result:
-
-- Activation rejected.
-- Device mismatch logged.  
-
-
-Admin must be able to:
-
-- View all trial users.
-- View trial devices.
-- End trial immediately.
-- Extend trial.
-- Convert trial to licensed device.
-
-Show:
-
-- Trial start date.
-- Trial end date.
-- Remaining days.
-- Device information.  
-  
-
-
-## Monitoring Must Be Unified
-
-Do not split monitoring into multiple pages.
-
-Create one Monitoring Center.
-
-Show:
-
-### Transfers
-
-- Live transfer feed
-- Daily totals
-- Weekly totals
-- Monthly totals
-
-### Devices
-
-- Online devices
-- Offline devices
-- Blocked devices
-
-### Sync
-
-- Successful syncs
-- Failed syncs
-- Queue status
-
-### Security
-
-- Activation failures
-- Device mismatch attempts
-- License violations
-
-## 9. Dashboard Improvements
-
-Dashboard must show:
-
-### Overview
-
-- Users
-- Devices
-- Active licenses
-- Expired licenses
-- Pending activations
-- Trial users
-
-### Activity
-
-- Today's transfers
-- Today's activations
-- Today's syncs
-
-### Alerts
-
-- Expired licenses
-- Devices awaiting activation
-- Trials expiring soon
-- Sync failures
-- Security alerts
-
-## 10. Offline First Requirements
-
-The application must continue working offline.
-
-When internet returns:
-
-- Sync transfers
-- Sync contacts
-- Sync activation requests
-- Sync device status
-- Sync license status
-
-Server remains the source of truth.
-
-Client must never override:
-
-- License state
-- Device state
-- Trial state
-- User roles
-
-## 11. Security Requirements
-
-Remove completely:
-
-- local admin passwords
-- local admin storage
-- hidden admin credentials
-- PBKDF2 admin login system
-- tap-to-open admin authentication
-
-Keep only:
-
-- Supabase Auth
-- has_role()
-- RLS
-- Edge Functions
-
-No client-side security decisions.
-
-## 12. Final Acceptance Requirements
-
-Before marking complete, provide proof that:
-
-- Non-admin users cannot access sys-panel.
-- Device licenses cannot be copied.
-- Trial restrictions work.
-- Activation requests work.
-- Device block/unblock works.
-- Role management works.
-- Offline sync works.
-- Sync does not create duplicates.
-- Audit logs are generated correctly.
-- All admin pages display real data.
-- No placeholder pages remain.
+Reply **go** to start at Batch 0, or tell me which batches to skip/reorder.

@@ -72,7 +72,7 @@ export async function adminUpdateLicense(
 
     const { data: newLicense, error: updateError } = await supabase
       .from('licenses')
-      .update(normalizedPatch)
+      .update(normalizedPatch as never)
       .eq('id', licenseId)
       .select('id, license_key, device_id, user_id, status, level, expiry_date, permanent')
       .single();
