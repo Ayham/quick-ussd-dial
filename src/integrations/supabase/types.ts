@@ -1260,6 +1260,10 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_transfer_license: {
+        Args: { _license_id: string; _new_device_id: string; _reason?: string }
+        Returns: Json
+      }
       admin_unblock_device: { Args: { _device_id: string }; Returns: Json }
       device_heartbeat: {
         Args: {
