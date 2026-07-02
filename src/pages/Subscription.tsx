@@ -9,10 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { getDeviceId } from "@/lib/device-id";
-import {
-  getAppStatus, getSavedLicense, saveLicense, validateLicense,
-  type AppLicenseStatus,
-} from "@/lib/license";
+import { getAppStatus, type AppLicenseStatus } from "@/lib/license";
+import { activateLicenseKey } from "@/lib/license-key";
+import { flush } from "@/lib/supabase-sync";
 import { getPaymentMethods, type PaymentMethod } from "@/lib/payment-config";
 import { logActivity } from "@/lib/activity-logger";
 import { QRCodeCanvas } from "qrcode.react";
@@ -66,15 +65,15 @@ const Subscription = () => {
     }
     setLicenseLoading(true);
     try {
-      const result = await validateLicense(newLicenseKey.trim());
-      if (result.valid) {
-        saveLicense(newLicenseKey.trim());
+      const result = await activateLicenseKey(newLicenseKey.trim());
+      if (result.ok) {
+        await flush({ force: true });
         toast.success("تم تفعيل الترخيص بنجاح!");
         setNewLicenseKey("");
         const s = await getAppStatus();
         setLicenseStatus(s);
       } else {
-        toast.error(result.error || "مفتاح غير صالح");
+        toast.error(result.reason || "مفتاح غير صالح");
       }
     } catch {
       toast.error("حدث خطأ أثناء التحقق");
@@ -158,12 +157,16 @@ const Subscription = () => {
           title: 'انتهى الترخيص',
           subtitle: 'يرجى تجديد الترخيص',
         };
-      case 'clock_tampered':
+      case 'blocked':
+      case 'suspended':
+      case 'maintenance':
+      case 'force_update':
+      case 'offline_expired':
         return {
           icon: <AlertTriangle className="w-6 h-6 text-destructive" />,
           bg: 'bg-destructive/10 border-destructive/30',
-          title: 'تلاعب بالتاريخ',
-          subtitle: 'يرجى ضبط تاريخ الجهاز',
+          title: 'الوصول غير متاح',
+          subtitle: 'اتصل بالإنترنت أو راجع الإدارة',
         };
     }
   };
@@ -226,7 +229,7 @@ const Subscription = () => {
           <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
             <label className="text-sm font-medium text-foreground flex items-center gap-2">
               <Key className="w-4 h-4 text-muted-foreground" />
-              {getSavedLicense() ? "تجديد الترخيص" : "تفعيل الترخيص"}
+              {licenseStatus?.status === "licensed" ? "تجديد الترخيص" : "تفعيل الترخيص"}
             </label>
             <div className="flex gap-2">
               <Input

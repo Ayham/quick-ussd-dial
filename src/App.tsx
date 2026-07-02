@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { lazy, Suspense, useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,7 +6,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Settings from "./pages/Settings";
-import Reports from "./pages/Reports";
 import Balance from "./pages/Balance";
 import Admin from "./pages/Admin";
 import Distributor from "./pages/Distributor";
@@ -21,15 +20,14 @@ import { AuthSessionProvider, RequireAuth, RequireAdmin } from "./lib/auth-sessi
 
 import "./lib/i18n";
 import { getAppStatus, type AppLicenseStatus } from "./lib/license";
-import { startBackgroundSync, trackAppOpen, trackDeviceInfo, trackLicenseEvent } from "./lib/cloud-sync";
+import { startBackgroundSync, trackAppOpen, trackDeviceInfo } from "./lib/cloud-sync";
 import { flush, startSupabaseSync } from "./lib/supabase-sync";
 import { isWebBrowser } from "./lib/platform";
 import { initDeviceId } from "./lib/device-id";
-import { verifyLicenseOnline, getLicenseApiEndpoint } from "./lib/license-api";
 import { checkForUpdate, type UpdateInfo } from "./lib/update-checker";
-import { syncLicense, startLicenseSyncListeners } from "./lib/license-sync";
 
 const queryClient = new QueryClient();
+const Reports = lazy(() => import("./pages/Reports"));
 
 const AppContent = () => {
   const [status, setStatus] = useState<AppLicenseStatus | null>(null);
@@ -50,22 +48,6 @@ const AppContent = () => {
     const s = await getAppStatus();
     setStatus(s);
 
-    // Online verification in background (if API is configured)
-    if (getLicenseApiEndpoint() && (s.status === 'licensed' || s.status === 'trial')) {
-      verifyLicenseOnline().then(onlineResult => {
-        if (onlineResult.status === 'revoked') {
-          setStatus({ status: 'blocked' } as AppLicenseStatus);
-        }
-      });
-    }
-
-    // Track license status changes
-    if (s.status === 'trial') trackLicenseEvent('trial_started', { daysLeft: s.daysLeft });
-    else if (s.status === 'trial_expired') trackLicenseEvent('trial_expired');
-    else if (s.status === 'licensed') trackLicenseEvent('license_activated', { expiryDate: s.expiryDate });
-    else if (s.status === 'license_expired') trackLicenseEvent('license_expired');
-    else if (s.status === 'blocked') trackLicenseEvent('license_blocked');
-    else if (s.status === 'suspended') trackLicenseEvent('license_suspended');
   };
 
   useEffect(() => {
@@ -77,8 +59,6 @@ const AppContent = () => {
       if (!isWeb) {
         doUpdateCheck();
         startBackgroundSync();
-        startLicenseSyncListeners();
-        syncLicense().catch(() => {});
         trackDeviceInfo();
         trackAppOpen();
       }
@@ -88,13 +68,19 @@ const AppContent = () => {
 
   useEffect(() => {
     window.addEventListener("app-license-sync", checkStatus);
-    window.addEventListener("online", checkStatus);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") checkStatus();
-    });
+    const refreshFromServer = async () => {
+      await flush({ force: true });
+      await checkStatus();
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") refreshFromServer();
+    };
+    window.addEventListener("online", refreshFromServer);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       window.removeEventListener("app-license-sync", checkStatus);
-      window.removeEventListener("online", checkStatus);
+      window.removeEventListener("online", refreshFromServer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
 
@@ -102,7 +88,19 @@ const AppContent = () => {
 
   if (!status) return null;
 
-  if (status.status === 'trial_expired' || status.status === 'license_expired' || status.status === 'clock_tampered' || status.status === 'blocked' || status.status === 'suspended') {
+  if (status.status === 'maintenance') {
+    return <AccessBlock title="Maintenance in progress" message="The service is temporarily unavailable. Access will resume automatically." />;
+  }
+
+  if (status.status === 'force_update') {
+    return <AccessBlock title="Update required" message={`Install version ${status.minimumVersion || "required by the administrator"} or newer to continue.`} />;
+  }
+
+  if (status.status === 'offline_expired') {
+    return <AccessBlock title="Connection required" message="Connect to the internet so this device can renew its server authorization." />;
+  }
+
+  if (status.status === 'trial_expired' || status.status === 'license_expired' || status.status === 'blocked' || status.status === 'suspended') {
     return (
       <BrowserRouter>
         <AuthSessionProvider>
@@ -125,7 +123,13 @@ const AppContent = () => {
           <Route path="/distributor" element={<RequireAuth><Distributor /></RequireAuth>} />
           <Route path="/contacts" element={<RequireAuth><Contacts /></RequireAuth>} />
           <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
-          <Route path="/reports" element={<RequireAuth><Reports /></RequireAuth>} />
+          <Route path="/reports" element={
+            <RequireAuth>
+              <Suspense fallback={<div className="min-h-dvh grid place-items-center text-sm text-muted-foreground">Loading reports...</div>}>
+                <Reports />
+              </Suspense>
+            </RequireAuth>
+          } />
           <Route path="/balance" element={<RequireAuth><Balance /></RequireAuth>} />
           <Route path="/sys-panel" element={<RequireAdmin><Admin /></RequireAdmin>} />
           <Route path="/updates" element={<RequireAuth><Updates /></RequireAuth>} />
@@ -138,6 +142,15 @@ const AppContent = () => {
     </BrowserRouter>
   );
 };
+
+const AccessBlock = ({ title, message }: { title: string; message: string }) => (
+  <div className="min-h-dvh bg-background p-6 flex items-center justify-center safe-area-insets">
+    <div className="w-full max-w-sm border border-border bg-card p-6 text-center space-y-3">
+      <h1 className="text-xl font-bold">{title}</h1>
+      <p className="text-sm text-muted-foreground">{message}</p>
+    </div>
+  </div>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

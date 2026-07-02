@@ -3,11 +3,10 @@
  * - 12 chars (A-Z, 2-9, no confusing chars)
  * - Validated server-side via check-license edge function
  * - Cached locally for offline use
- * - Falls back to legacy RSA-signed license validation if format doesn't match
+ * - No local or legacy key can grant access
  */
 import { supabase } from "@/integrations/supabase/client";
 import { getDeviceId } from "./device-id";
-import { validateLicense as validateLegacy } from "./license";
 
 const KEY_STORE = "_sys_v2_lk";
 const META_STORE = "_sys_v2_lk_meta";
@@ -47,14 +46,8 @@ export function clearShortLicense() {
 
 export async function activateLicenseKey(rawKey: string): Promise<{ ok: boolean; reason?: string; meta?: LicenseMeta }> {
   const trimmed = rawKey.trim();
-  // Legacy long key support
   if (!isShortFormat(trimmed)) {
-    const r = await validateLegacy(trimmed);
-    if (r.valid) {
-      // legacy stores its key separately via saveLicense; nothing to do here
-      return { ok: true };
-    }
-    return { ok: false, reason: r.error || "invalid" };
+    return { ok: false, reason: "format" };
   }
 
   const normalized = normalizeLicenseKey(trimmed);
@@ -62,7 +55,7 @@ export async function activateLicenseKey(rawKey: string): Promise<{ ok: boolean;
 
   try {
     const { data, error } = await supabase.functions.invoke("check-license", {
-      body: { license_key: normalized, device_id: deviceId },
+      body: { license_key: normalized, device_id: deviceId, fingerprint: deviceId },
     });
     if (error) return { ok: false, reason: "network" };
     if (!data?.valid) return { ok: false, reason: data?.reason || "invalid" };
@@ -77,10 +70,4 @@ export async function activateLicenseKey(rawKey: string): Promise<{ ok: boolean;
   } catch {
     return { ok: false, reason: "network" };
   }
-}
-
-/** Build the activation request URL the user shares with the admin. */
-export function buildActivationLink(token: string): string {
-  const base = window.location.origin;
-  return `${base}/sys-panel?activation=${token}`;
 }

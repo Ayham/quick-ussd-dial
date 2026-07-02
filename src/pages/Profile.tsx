@@ -90,7 +90,6 @@ const Profile = () => {
       licensed: { text: isArabic ? "مفعّل" : "Licensed", cls: "bg-success/10 text-success border-success/30" },
       trial_expired: { text: isArabic ? "انتهت التجربة" : "Trial expired", cls: "bg-destructive/10 text-destructive border-destructive/30" },
       license_expired: { text: isArabic ? "انتهى الترخيص" : "License expired", cls: "bg-destructive/10 text-destructive border-destructive/30" },
-      clock_tampered: { text: isArabic ? "تلاعب بالوقت" : "Clock tampered", cls: "bg-destructive/10 text-destructive border-destructive/30" },
     };
     const m = map[status.status];
     return m ? <span className={`inline-block text-xs px-3 py-1 rounded-full border ${m.cls}`}>{m.text}</span> : null;

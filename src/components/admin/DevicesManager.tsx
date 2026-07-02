@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, Ban, CheckCircle, Search, Copy } from 'lucide-react';
+import { Ban, CheckCircle, Search, Copy } from 'lucide-react';
 import { toast } from 'sonner';
+import { adminSetDeviceBlocked } from '@/lib/activation-request';
 
 export interface Device {
   id: string;
@@ -17,6 +18,10 @@ export interface Device {
   device_fingerprint?: string;
   app_instance_id?: string;
   last_seen_at?: string;
+  last_sync_at?: string;
+  last_activity_at?: string;
+  first_seen_at?: string;
+  lifecycle_state?: string;
   last_seen: string;
   is_active: boolean;
   is_blocked: boolean;
@@ -108,12 +113,8 @@ export function DevicesManager() {
   async function toggleBlock(deviceId: string, currentlyBlocked: boolean) {
     setActionInProgress(deviceId);
     try {
-      const { error } = await supabase
-        .from('devices')
-        .update({ is_blocked: !currentlyBlocked })
-        .eq('device_id', deviceId);
-
-      if (error) throw error;
+      const result = await adminSetDeviceBlocked(deviceId, !currentlyBlocked);
+      if (!result.success) throw new Error(result.error || 'Device update failed');
 
       setDevices(prev => prev.map(d => 
         d.device_id === deviceId ? { ...d, is_blocked: !currentlyBlocked } : d
@@ -133,29 +134,8 @@ export function DevicesManager() {
     toast.success('Device ID copied');
   }
 
-  async function deleteDevice(deviceId: string) {
-    if (!confirm('Are you sure you want to delete this device?')) return;
-
-    setActionInProgress(deviceId);
-    try {
-      const { error } = await supabase
-        .from('devices')
-        .delete()
-        .eq('device_id', deviceId);
-
-      if (error) throw error;
-
-      setDevices(prev => prev.filter(d => d.device_id !== deviceId));
-      toast.success('Device deleted');
-    } catch (error) {
-      console.error('Error deleting device:', error);
-      toast.error('Failed to delete device');
-    } finally {
-      setActionInProgress(null);
-    }
-  }
-
   const getDeviceStatus = (device: Device) => {
+    if (device.lifecycle_state) return device.lifecycle_state;
     if (device.is_blocked) return 'blocked';
     if (!device.is_active) return 'inactive';
     const license = licenses[device.device_id];
@@ -281,9 +261,9 @@ export function DevicesManager() {
                   </div>
                 </td>
                 <td className="p-3 text-xs">
-                  <div>Last sync: {new Date(device.last_seen).toLocaleString()}</div>
-                  <div>Last activity: {device.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : '-'}</div>
-                  <div>Last login: -</div>
+                  <div>Registered: {device.first_seen_at ? new Date(device.first_seen_at).toLocaleString() : '-'}</div>
+                  <div>Last sync: {device.last_sync_at ? new Date(device.last_sync_at).toLocaleString() : '-'}</div>
+                  <div>Last activity: {device.last_activity_at ? new Date(device.last_activity_at).toLocaleString() : '-'}</div>
                   <div className={new Date(device.last_seen).getTime() > Date.now() - 5 * 60 * 1000 ? 'text-green-600' : 'text-muted-foreground'}>
                     {new Date(device.last_seen).getTime() > Date.now() - 5 * 60 * 1000 ? 'Online' : 'Offline'}
                   </div>
@@ -302,15 +282,6 @@ export function DevicesManager() {
                       ) : (
                         <><Ban className="w-4 h-4 mr-1" />Block</>
                       )}
-                    </Button>
-                    <Button
-                      onClick={() => deleteDevice(device.device_id)}
-                      disabled={actionInProgress === device.device_id}
-                      variant="destructive"
-                      size="sm"
-                      className="h-8"
-                    >
-                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
                 </td>

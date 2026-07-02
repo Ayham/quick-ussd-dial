@@ -12,6 +12,8 @@ import {
   saveContact,
   updateContactName,
   deleteContact,
+  normalizePhone,
+  queueContactsForSync,
   type SavedContact,
 } from "@/lib/contacts";
 
@@ -70,31 +72,79 @@ const Contacts = () => {
     setPhoneBookOpen(true);
   };
 
-  const handleExport = () => {
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExport = async (format: "vcf" | "csv" | "xls") => {
     const data = getSavedContacts();
     if (data.length === 0) {
       toast.error("لا توجد جهات اتصال للتصدير");
       return;
     }
-    // Export as VCF (vCard) format for universal phone compatibility
+    const date = new Date().toISOString().slice(0, 10);
+    if (format === "csv") {
+      const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
+      const csv = ["name,phone,operator", ...data.map((contact) =>
+        [escape(contact.name || ""), escape(contact.phone), escape(detectOperator(contact.phone) || "")].join(",")
+      )].join("\r\n");
+      downloadBlob(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }), `contacts-${date}.csv`);
+      toast.success(`تم تصدير ${data.length} جهة اتصال بصيغة CSV`);
+      return;
+    }
+    if (format === "xls") {
+      const escapeXml = (value: string) => value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+      const rows = data.map((contact) =>
+        `<Row><Cell><Data ss:Type="String">${escapeXml(contact.name || "")}</Data></Cell>` +
+        `<Cell><Data ss:Type="String">${escapeXml(contact.phone)}</Data></Cell>` +
+        `<Cell><Data ss:Type="String">${escapeXml(detectOperator(contact.phone) || "")}</Data></Cell></Row>`
+      ).join("");
+      const xml = `<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?>` +
+        `<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" ` +
+        `xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Contacts"><Table>` +
+        `<Row><Cell><Data ss:Type="String">name</Data></Cell><Cell><Data ss:Type="String">phone</Data></Cell>` +
+        `<Cell><Data ss:Type="String">operator</Data></Cell></Row>${rows}</Table></Worksheet></Workbook>`;
+      downloadBlob(new Blob(["\uFEFF", xml], { type: "application/vnd.ms-excel;charset=utf-8" }), `contacts-${date}.xls`);
+      toast.success(`تم تصدير ${data.length} جهة اتصال بصيغة Excel`);
+      return;
+    }
+
     const vcards = data.map(c => {
       const name = c.name || c.phone;
       return `BEGIN:VCARD\nVERSION:3.0\nFN:${name}\nTEL;TYPE=CELL:${c.phone}\nEND:VCARD`;
     }).join('\n');
     const blob = new Blob([vcards], { type: 'text/vcard;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `contacts-${new Date().toISOString().slice(0, 10)}.vcf`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, `contacts-${date}.vcf`);
     toast.success(`تم تصدير ${data.length} جهة اتصال بصيغة VCF`);
+  };
+
+  const mergeImportedContacts = (imported: SavedContact[]) => {
+    const normalized = imported
+      .map((contact) => ({ phone: normalizePhone(String(contact.phone || "")), name: String(contact.name || "").trim() }))
+      .filter((contact) => contact.phone.length >= 10);
+    if (!normalized.length) throw new Error("no_contacts");
+    const existing = getSavedContacts();
+    const existingPhones = new Set(existing.map((contact) => contact.phone));
+    const newContacts = normalized.filter((contact) => !existingPhones.has(contact.phone));
+    saveSavedContacts([...existing, ...normalized]);
+    queueContactsForSync(normalized);
+    reload();
+    toast.success(`تم استيراد ${newContacts.length} جهة اتصال جديدة وتحديث ${normalized.length - newContacts.length}`);
   };
 
   const handleImportFile = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.vcf,.json';
+    input.accept = '.vcf,.json,.csv,.xls';
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
@@ -118,26 +168,31 @@ const Contacts = () => {
             toast.error("لم يتم العثور على جهات اتصال في الملف");
             return;
           }
-          const existing = getSavedContacts();
-          const existingPhones = new Set(existing.map(c => c.phone));
-          const newContacts = imported.filter(c => !existingPhones.has(c.phone));
-          if (newContacts.length > 0) {
-            saveSavedContacts([...existing, ...newContacts]);
-          }
-          // Update names for existing contacts
-          imported.filter(c => existingPhones.has(c.phone) && c.name).forEach(c => updateContactName(c.phone, c.name));
-          reload();
-          toast.success(`تم استيراد ${newContacts.length} جهة اتصال جديدة`);
-        } else {
+          mergeImportedContacts(imported);
+        } else if (file.name.endsWith('.json')) {
           // Parse JSON
           const data: SavedContact[] = JSON.parse(text);
           if (!Array.isArray(data)) throw new Error('invalid');
-          const existing = getSavedContacts();
-          const existingPhones = new Set(existing.map(c => c.phone));
-          const newContacts = data.filter(c => c.phone && !existingPhones.has(c.phone));
-          saveSavedContacts([...existing, ...newContacts]);
-          reload();
-          toast.success(`تم استيراد ${newContacts.length} جهة اتصال جديدة`);
+          mergeImportedContacts(data);
+        } else if (file.name.endsWith(".csv")) {
+          const rows = text.split(/\r?\n/).filter(Boolean);
+          const headers = rows.shift()?.split(",").map((value) => value.replace(/^"|"$/g, "").trim().toLowerCase()) || [];
+          const nameIndex = headers.findIndex((value) => ["name", "الاسم"].includes(value));
+          const phoneIndex = headers.findIndex((value) => ["phone", "mobile", "الهاتف", "الرقم"].includes(value));
+          mergeImportedContacts(rows.map((row) => {
+            const values = row.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g)?.map((value) =>
+              value.replace(/^"|"$/g, "").replace(/""/g, '"').trim()
+            ) || [];
+            return { name: values[nameIndex] || "", phone: values[phoneIndex] || "" };
+          }));
+        } else {
+          const doc = new DOMParser().parseFromString(text, "application/xml");
+          if (doc.querySelector("parsererror")) throw new Error("invalid_excel_xml");
+          const rows = Array.from(doc.getElementsByTagName("Row")).slice(1);
+          mergeImportedContacts(rows.map((row) => {
+            const cells = Array.from(row.getElementsByTagName("Data")).map((cell) => cell.textContent || "");
+            return { name: cells[0] || "", phone: cells[1] || "" };
+          }));
         }
       } catch {
         toast.error("فشل قراءة الملف");
@@ -240,11 +295,25 @@ const Contacts = () => {
             </button>
             <span className="text-muted-foreground text-[10px]">|</span>
             <button
-              onClick={handleExport}
+              onClick={() => handleExport("csv")}
               className="text-[11px] text-primary flex items-center gap-1 hover:underline"
             >
               <Download className="w-3.5 h-3.5" />
-              تصدير VCF
+              CSV
+            </button>
+            <button
+              onClick={() => handleExport("xls")}
+              className="text-[11px] text-primary flex items-center gap-1 hover:underline"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Excel
+            </button>
+            <button
+              onClick={() => handleExport("vcf")}
+              className="text-[11px] text-primary flex items-center gap-1 hover:underline"
+            >
+              <Download className="w-3.5 h-3.5" />
+              VCF
             </button>
           </div>
         </div>

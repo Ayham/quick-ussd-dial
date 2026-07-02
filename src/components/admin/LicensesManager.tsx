@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, Copy, Plus } from 'lucide-react';
+import { Copy, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { adminGenerateLicenses, adminUpdateLicense, type AdminLicenseAction } from '@/lib/license-system';
 
@@ -30,9 +30,10 @@ export function LicensesManager() {
   const [generateCount, setGenerateCount] = useState(1);
   const [generateExpiry, setGenerateExpiry] = useState('');
   const [generatePermanent, setGeneratePermanent] = useState(false);
+  const [generateDeviceId, setGenerateDeviceId] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
-  const [edits, setEdits] = useState<Record<string, { expiryDate: string; level: string; deviceId: string }>>({});
+  const [edits, setEdits] = useState<Record<string, { expiryDate: string; deviceId: string }>>({});
 
   useEffect(() => {
     loadLicenses();
@@ -58,8 +59,8 @@ export function LicensesManager() {
   }
 
   async function handleGenerateLicenses() {
-    if (generateCount < 1 || generateCount > 100) {
-      toast.error('Generate 1-100 licenses at a time');
+    if (generateCount !== 1) {
+      toast.error('Device-bound licenses are generated one at a time');
       return;
     }
 
@@ -68,12 +69,19 @@ export function LicensesManager() {
       return;
     }
 
+    if (!generateDeviceId.trim()) {
+      toast.error('Enter the target device ID');
+      return;
+    }
+
     setIsGenerating(true);
     try {
       const result = await adminGenerateLicenses(
         generateCount,
         generatePermanent ? null : generateExpiry,
-        generatePermanent
+        generatePermanent,
+        [],
+        generateDeviceId
       );
 
       if (result.success) {
@@ -81,6 +89,7 @@ export function LicensesManager() {
         setGenerateCount(1);
         setGenerateExpiry('');
         setGeneratePermanent(false);
+        setGenerateDeviceId('');
         setShowGenerate(false);
         loadLicenses();
       } else {
@@ -126,28 +135,6 @@ export function LicensesManager() {
     }
   }
 
-  async function deleteLicense(licenseId: string) {
-    if (!confirm('Delete this license?')) return;
-
-    setActionInProgress(licenseId);
-    try {
-      const { error } = await supabase
-        .from('licenses')
-        .delete()
-        .eq('id', licenseId);
-
-      if (error) throw error;
-
-      setLicenses(prev => prev.filter(l => l.id !== licenseId));
-      toast.success('License deleted');
-    } catch (error) {
-      console.error('Error deleting license:', error);
-      toast.error('Failed to delete license');
-    } finally {
-      setActionInProgress(null);
-    }
-  }
-
   const filteredLicenses = licenses.filter(l => 
     l.license_key.includes(search) || 
     l.device_id?.includes(search)
@@ -187,16 +174,25 @@ export function LicensesManager() {
 
       {showGenerate && (
         <div className="bg-card border border-border rounded-lg p-4 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="text-sm font-medium">Count</label>
               <Input
                 type="number"
                 min="1"
-                max="100"
+                max="1"
                 value={generateCount}
                 onChange={(e) => setGenerateCount(Number(e.target.value))}
                 className="h-9"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Device ID</label>
+              <Input
+                value={generateDeviceId}
+                onChange={(e) => setGenerateDeviceId(e.target.value)}
+                className="h-9 font-mono"
+                placeholder="Full device ID"
               />
             </div>
             <div>
@@ -302,7 +298,7 @@ export function LicensesManager() {
                     new Date(license.expiry_date).toLocaleDateString()
                   ) : '-'}
                 </td>
-                <td className="p-3 text-xs font-mono">{license.device_id?.substring(0, 8) || '-'}</td>
+                <td className="p-3 text-xs font-mono whitespace-nowrap">{license.device_id || '-'}</td>
                 <td className="p-3 text-xs">{license.level || 'standard'}</td>
                 <td className="p-3 text-xs">
                   {new Date(license.created_at).toLocaleDateString()}
@@ -372,7 +368,6 @@ export function LicensesManager() {
                         ...prev,
                         [license.id]: {
                           expiryDate: e.target.value,
-                          level: prev[license.id]?.level ?? license.level ?? 'standard',
                           deviceId: prev[license.id]?.deviceId ?? license.device_id ?? '',
                         }
                       }))}
@@ -420,33 +415,11 @@ export function LicensesManager() {
                       </Button>
                     )}
                     <Input
-                      value={edits[license.id]?.level ?? license.level ?? 'standard'}
-                      onChange={(e) => setEdits(prev => ({
-                        ...prev,
-                        [license.id]: {
-                          expiryDate: prev[license.id]?.expiryDate ?? license.expiry_date ?? '',
-                          level: e.target.value,
-                          deviceId: prev[license.id]?.deviceId ?? license.device_id ?? '',
-                        }
-                      }))}
-                      className="h-8 w-28 text-xs"
-                    />
-                    <Button
-                      onClick={() => updateLicense(license, { level: edits[license.id]?.level || license.level || 'standard' }, 'license_type_changed')}
-                      disabled={actionInProgress === license.id}
-                      variant="outline"
-                      size="sm"
-                      className="h-8"
-                    >
-                      Save type
-                    </Button>
-                    <Input
                       value={edits[license.id]?.deviceId ?? license.device_id ?? ''}
                       onChange={(e) => setEdits(prev => ({
                         ...prev,
                         [license.id]: {
                           expiryDate: prev[license.id]?.expiryDate ?? license.expiry_date ?? '',
-                          level: prev[license.id]?.level ?? license.level ?? 'standard',
                           deviceId: e.target.value,
                         }
                       }))}
@@ -466,15 +439,6 @@ export function LicensesManager() {
                       className="h-8"
                     >
                       Reassign
-                    </Button>
-                    <Button
-                      onClick={() => deleteLicense(license.id)}
-                      disabled={actionInProgress === license.id}
-                      variant="destructive"
-                      size="sm"
-                      className="h-8"
-                    >
-                      <Trash2 className="w-4 h-4" />
                     </Button>
                     </div>
                   </div>

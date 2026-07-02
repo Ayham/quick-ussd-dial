@@ -45,11 +45,46 @@ Deno.serve(async (req) => {
 
     if (!deviceId || deviceId.length < 4) return json({ error: "device_id required" }, 400);
 
-    await sb.from("devices").upsert({
-      device_id: deviceId,
-      user_id: userId,
-      last_seen: new Date().toISOString(),
-    }, { onConflict: "device_id" });
+    const { data: device, error: deviceLookupError } = await sb.from("devices")
+      .select("id, user_id, is_blocked, is_banned")
+      .eq("device_id", deviceId)
+      .maybeSingle();
+    if (deviceLookupError) return json({ error: deviceLookupError.message }, 500);
+    if (device?.user_id && device.user_id !== userId) {
+      await sb.from("audit_logs").insert({
+        target_user_id: device.user_id,
+        device_id: deviceId,
+        action: "activation_owner_mismatch",
+        entity: "devices",
+        entity_id: device.id,
+        metadata: { attempted_user_id: userId },
+      });
+      return json({ error: "device_owner_mismatch" }, 403);
+    }
+    if (device?.is_blocked || device?.is_banned) return json({ error: "device_blocked" }, 403);
+    if (!device) {
+      const { error: insertDeviceError } = await sb.from("devices").insert({
+        device_id: deviceId,
+        user_id: userId,
+        lifecycle_state: "pending_activation",
+        first_seen_at: new Date().toISOString(),
+        last_seen: new Date().toISOString(),
+      });
+      if (insertDeviceError) return json({ error: insertDeviceError.message }, 500);
+    } else {
+      await sb.from("devices").update({
+        user_id: device.user_id ?? userId,
+        last_seen: new Date().toISOString(),
+      }).eq("device_id", deviceId);
+    }
+
+    const { data: activeLicense } = await sb.from("licenses")
+      .select("id")
+      .eq("device_id", deviceId)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+    if (activeLicense) return json({ error: "already_active" }, 409);
 
     // Reuse latest pending request for this device (deduplicate)
     const { data: existing } = await sb.from("activations")
@@ -79,6 +114,15 @@ Deno.serve(async (req) => {
       contact_name: contactName,
     });
     if (error) return json({ error: error.message }, 500);
+
+    await sb.from("audit_logs").insert({
+      target_user_id: userId,
+      device_id: deviceId,
+      action: "activation_requested",
+      entity: "activations",
+      entity_id: token,
+      metadata: { contact_phone: contactPhone },
+    });
 
     return json({ ok: true, token });
   } catch (e) {

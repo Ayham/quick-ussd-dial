@@ -1,344 +1,363 @@
-import { useState, useMemo } from "react";
-import { BarChart3, Calendar, Smartphone, TrendingUp, CheckCircle, XCircle, Loader2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Activity,
+  BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  Database,
+  Filter,
+  Loader2,
+  RefreshCw,
+  WifiOff,
+} from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import AppLayout from "@/components/AppLayout";
-import { getHistory, type TransferRecord } from "@/lib/transfer-history";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  fetchTransferReport,
+  type ReportDimension,
+  type ReportFilters,
+  type ReportPeriod,
+  type TransferReport,
+} from "@/lib/reports";
 
-type TabType = "all" | "daily" | "weekly" | "monthly" | "cards";
-type Operator = "mtn" | "syriatel";
+type Range = "7" | "30" | "90" | "all";
+type Dimension = "operator" | "status" | "access" | "user" | "device" | "sync";
+
+const PAGE_SIZE = 50;
 
 const Reports = () => {
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabType>("all");
-  const [selectedOperator, setSelectedOperator] = useState<Operator | "all">("all");
-  const history = useMemo(() => getHistory(), []);
+  const [period, setPeriod] = useState<ReportPeriod>("day");
+  const [range, setRange] = useState<Range>("30");
+  const [operator, setOperator] = useState("");
+  const [status, setStatus] = useState("");
+  const [accessSource, setAccessSource] = useState("");
+  const [userId, setUserId] = useState("");
+  const [deviceId, setDeviceId] = useState("");
+  const [trialId, setTrialId] = useState("");
+  const [licenseId, setLicenseId] = useState("");
+  const [dimension, setDimension] = useState<Dimension>("operator");
+  const [page, setPage] = useState(1);
+  const [report, setReport] = useState<TransferReport | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const filteredHistory = useMemo(() => {
-    const successful = history.filter((r) => r.status === "success");
-    if (selectedOperator === "all") return successful;
-    return successful.filter((r) => r.operator === selectedOperator);
-  }, [history, selectedOperator]);
-
-  const getWeekLabel = (ts: number) => {
-    const d = new Date(ts);
-    const startOfYear = new Date(d.getFullYear(), 0, 1);
-    const weekNum = Math.ceil(((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
-    return `الأسبوع ${weekNum} - ${d.getFullYear()}`;
-  };
-
-  const dailyTotals = useMemo(() => {
-    const map = new Map<string, { count: number; sum: number; mtn: number; syriatel: number; mtnCount: number; syrCount: number }>();
-    filteredHistory.forEach((r) => {
-      const day = new Date(r.timestamp).toLocaleDateString("ar-SY", { year: "numeric", month: "short", day: "numeric" });
-      const prev = map.get(day) || { count: 0, sum: 0, mtn: 0, syriatel: 0, mtnCount: 0, syrCount: 0 };
-      map.set(day, {
-        count: prev.count + 1,
-        sum: prev.sum + Number(r.amount),
-        mtn: prev.mtn + (r.operator === "mtn" ? Number(r.amount) : 0),
-        syriatel: prev.syriatel + (r.operator === "syriatel" ? Number(r.amount) : 0),
-        mtnCount: prev.mtnCount + (r.operator === "mtn" ? 1 : 0),
-        syrCount: prev.syrCount + (r.operator === "syriatel" ? 1 : 0),
-      });
-    });
-    return Array.from(map.entries());
-  }, [filteredHistory]);
-
-  const weeklyTotals = useMemo(() => {
-    const map = new Map<string, { count: number; sum: number; mtn: number; syriatel: number; mtnCount: number; syrCount: number }>();
-    filteredHistory.forEach((r) => {
-      const week = getWeekLabel(r.timestamp);
-      const prev = map.get(week) || { count: 0, sum: 0, mtn: 0, syriatel: 0, mtnCount: 0, syrCount: 0 };
-      map.set(week, {
-        count: prev.count + 1,
-        sum: prev.sum + Number(r.amount),
-        mtn: prev.mtn + (r.operator === "mtn" ? Number(r.amount) : 0),
-        syriatel: prev.syriatel + (r.operator === "syriatel" ? Number(r.amount) : 0),
-        mtnCount: prev.mtnCount + (r.operator === "mtn" ? 1 : 0),
-        syrCount: prev.syrCount + (r.operator === "syriatel" ? 1 : 0),
-      });
-    });
-    return Array.from(map.entries());
-  }, [filteredHistory]);
-
-  const monthlyTotals = useMemo(() => {
-    const map = new Map<string, { count: number; sum: number; mtn: number; syriatel: number; mtnCount: number; syrCount: number }>();
-    filteredHistory.forEach((r) => {
-      const month = new Date(r.timestamp).toLocaleDateString("ar-SY", { year: "numeric", month: "long" });
-      const prev = map.get(month) || { count: 0, sum: 0, mtn: 0, syriatel: 0, mtnCount: 0, syrCount: 0 };
-      map.set(month, {
-        count: prev.count + 1,
-        sum: prev.sum + Number(r.amount),
-        mtn: prev.mtn + (r.operator === "mtn" ? Number(r.amount) : 0),
-        syriatel: prev.syriatel + (r.operator === "syriatel" ? Number(r.amount) : 0),
-        mtnCount: prev.mtnCount + (r.operator === "mtn" ? 1 : 0),
-        syrCount: prev.syrCount + (r.operator === "syriatel" ? 1 : 0),
-      });
-    });
-    return Array.from(map.entries());
-  }, [filteredHistory]);
-
-  const cardStats = useMemo(() => {
-    const buildStats = (records: TransferRecord[]) => {
-      const amountMap = new Map<number, { count: number; today: number; week: number; month: number }>();
-      const now = new Date();
-      const todayStr = now.toDateString();
-      const weekAgo = now.getTime() - 7 * 86400000;
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-
-      records.forEach((r) => {
-        const amt = Number(r.amount);
-        const prev = amountMap.get(amt) || { count: 0, today: 0, week: 0, month: 0 };
-        prev.count++;
-        if (new Date(r.timestamp).toDateString() === todayStr) prev.today++;
-        if (r.timestamp >= weekAgo) prev.week++;
-        if (r.timestamp >= monthStart) prev.month++;
-        amountMap.set(amt, prev);
-      });
-
-      return Array.from(amountMap.entries()).sort((a, b) => a[0] - b[0]);
-    };
-
-    const mtnRecords = filteredHistory.filter((r) => r.operator === "mtn");
-    const syrRecords = filteredHistory.filter((r) => r.operator === "syriatel");
-
+  const filters = useMemo<ReportFilters>(() => {
+    const from = range === "all"
+      ? null
+      : new Date(Date.now() - Number(range) * 24 * 60 * 60 * 1000).toISOString();
     return {
-      mtn: buildStats(selectedOperator === "syriatel" ? [] : mtnRecords),
-      syriatel: buildStats(selectedOperator === "mtn" ? [] : syrRecords),
-      mtnTotal: mtnRecords.reduce((s, r) => s + Number(r.amount), 0),
-      syrTotal: syrRecords.reduce((s, r) => s + Number(r.amount), 0),
-      mtnCount: mtnRecords.length,
-      syrCount: syrRecords.length,
+      date_from: from,
+      operator: operator || null,
+      status: status || null,
+      user_id: userId || null,
+      device_id: deviceId || null,
+      trial_id: trialId || null,
+      license_id: licenseId || null,
+      access_source: accessSource || null,
+      period,
+      page,
+      page_size: PAGE_SIZE,
     };
-  }, [filteredHistory, selectedOperator]);
+  }, [accessSource, deviceId, licenseId, operator, page, period, range, status, trialId, userId]);
 
-  const tabs: { id: TabType; label: string }[] = [
-    { id: "all", label: "الكل" },
-    { id: "daily", label: "يومي" },
-    { id: "weekly", label: "أسبوعي" },
-    { id: "monthly", label: "شهري" },
-    { id: "cards", label: "البطاقات" },
-  ];
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    fetchTransferReport(filters)
+      .then((next) => {
+        if (active) setReport(next);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, [filters, reloadKey]);
 
-  const StatusIcon = ({ status }: { status: string }) => {
-    if (status === "success") return <CheckCircle className="w-4 h-4 text-success" />;
-    if (status === "failed") return <XCircle className="w-4 h-4 text-destructive" />;
-    return <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />;
-  };
+  const dimensions = useMemo(() => {
+    if (!report) return [];
+    const map: Record<Dimension, ReportDimension[]> = {
+      operator: report.by_operator,
+      status: report.by_status,
+      access: report.by_access,
+      user: report.by_user,
+      device: report.by_device,
+      sync: report.by_sync_status,
+    };
+    return map[dimension];
+  }, [dimension, report]);
 
-  const PeriodRow = ({ label, data }: { label: string; data: { count: number; sum: number; mtn: number; syriatel: number; mtnCount: number; syrCount: number } }) => (
-    <div className="bg-card border border-border rounded-xl px-4 py-3 space-y-2 shadow-card">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-primary" />
-          <span className="text-sm text-foreground font-medium">{label}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] text-muted-foreground">{data.count} عملية</span>
-          <span className="text-sm font-bold text-foreground">{data.sum.toLocaleString()}</span>
-        </div>
-      </div>
-      {selectedOperator === "all" && (data.mtn > 0 || data.syriatel > 0) && (
-        <div className="flex gap-2 text-[11px]">
-          {data.mtn > 0 && (
-            <span className="bg-operator-mtn/15 text-operator-mtn-foreground px-2 py-0.5 rounded-lg font-medium">
-              MTN: {data.mtnCount}× — {data.mtn.toLocaleString()}
-            </span>
-          )}
-          {data.syriatel > 0 && (
-            <span className="bg-operator-syriatel/15 text-operator-syriatel-foreground px-2 py-0.5 rounded-lg font-medium">
-              SYR: {data.syrCount}× — {data.syriatel.toLocaleString()}
-            </span>
-          )}
-        </div>
-      )}
-    </div>
-  );
+  const chartData = useMemo(() => (report?.periods ?? []).map((point) => ({
+    period: new Date(point.period_start).toLocaleDateString("ar-SY", period === "month"
+      ? { month: "short", year: "2-digit" }
+      : { day: "numeric", month: "short" }),
+    amount: point.amount_total,
+    success: point.success_count,
+    failed: point.failure_count,
+  })), [period, report]);
 
-  const CardSection = ({ operator, cards, total, count }: { operator: Operator; cards: [number, { count: number; today: number; week: number; month: number }][]; total: number; count: number }) => {
-    if (cards.length === 0) return null;
-    const isMtn = operator === "mtn";
-    return (
-      <div className="space-y-2">
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-              isMtn ? "bg-operator-mtn/15" : "bg-operator-syriatel/15"
-            }`}>
-              <Smartphone className={`w-4 h-4 ${isMtn ? "text-operator-mtn" : "text-operator-syriatel"}`} />
-            </div>
-            <span className="font-bold text-sm text-foreground">{isMtn ? "MTN" : "Syriatel"}</span>
-          </div>
-          <div className="text-[11px] text-muted-foreground">
-            {count} عملية — {total.toLocaleString()}
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          {cards.map(([amount, stats]) => (
-            <div key={amount} className="bg-card border border-border rounded-xl px-4 py-3 shadow-card">
-              <div className="flex items-center justify-between mb-2">
-                <span className={`text-sm font-bold ${isMtn ? "text-operator-mtn" : "text-operator-syriatel"}`}>
-                  بطاقة {amount}
-                </span>
-                <span className="text-xs font-bold text-foreground bg-muted px-2 py-0.5 rounded-lg">{stats.count} عملية</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { label: "اليوم", value: stats.today },
-                  { label: "الأسبوع", value: stats.week },
-                  { label: "الشهر", value: stats.month },
-                ].map((item) => (
-                  <div key={item.label} className="bg-muted rounded-lg px-2 py-1.5 text-center">
-                    <p className="text-[10px] text-muted-foreground">{item.label}</p>
-                    <p className="text-sm font-bold text-foreground">{item.value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+  const totalPages = Math.max(1, Math.ceil((report?.total ?? 0) / PAGE_SIZE));
+  const resetPage = (action: () => void) => {
+    setPage(1);
+    action();
   };
 
   return (
-    <AppLayout title="التقارير">
-
-      {/* Tabs */}
-      <div className="flex gap-1 p-2 bg-card border-b border-border">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-smooth ${
-              activeTab === tab.id
-                ? "bg-primary text-primary-foreground shadow-card"
-                : "text-muted-foreground hover:bg-muted"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Operator Filter */}
-      <div className="flex gap-1.5 px-3 pt-3">
-        {(["all", "mtn", "syriatel"] as const).map((op) => (
-          <button
-            key={op}
-            onClick={() => setSelectedOperator(op)}
-            className={`px-4 py-1.5 rounded-full text-[11px] font-bold transition-smooth ${
-              selectedOperator === op
-                ? op === "mtn" ? "bg-operator-mtn text-operator-mtn-foreground"
-                : op === "syriatel" ? "bg-operator-syriatel text-operator-syriatel-foreground"
-                : "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-secondary"
-            }`}
-          >
-            {op === "all" ? "الكل" : op === "mtn" ? "MTN" : "Syriatel"}
-          </button>
-        ))}
-      </div>
-
-      <main className="flex-1 p-3 w-full overflow-y-auto pb-safe" dir="rtl">
-        {/* Summary */}
-        <div className="flex gap-2 mb-3">
-          <div className="flex-1 bg-card border border-border rounded-xl p-3 text-center shadow-card">
-            <p className="text-[11px] text-muted-foreground">العمليات</p>
-            <p className="text-lg font-bold text-foreground">{filteredHistory.length}</p>
+    <AppLayout title="التقارير" titleIcon={<BarChart3 className="w-5 h-5 text-primary-foreground" />}>
+      <div className="mx-auto w-full max-w-6xl space-y-4 p-3 pb-[calc(env(safe-area-inset-bottom,0px)+16px)]" dir="rtl">
+        <section className="border-b border-border pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-base font-bold">تقارير التحويل</h2>
+              <p className="text-xs text-muted-foreground">ملخصات مجمعة وصفحات محدودة للأداء مع البيانات الكبيرة</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs ${
+                report?.source === "offline" ? "border-amber-300 text-amber-700" : "border-emerald-300 text-emerald-700"
+              }`}>
+                {report?.source === "offline" ? <WifiOff className="h-3.5 w-3.5" /> : <Database className="h-3.5 w-3.5" />}
+                {report?.source === "offline" ? "بيانات الجهاز" : "بيانات الخادم"}
+              </span>
+              <Button size="icon" variant="outline" onClick={() => setReloadKey((value) => value + 1)} title="تحديث">
+                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
           </div>
-          <div className="flex-1 bg-card border border-border rounded-xl p-3 text-center shadow-card">
-            <p className="text-[11px] text-muted-foreground">الإجمالي</p>
-            <p className="text-lg font-bold text-foreground">
-              {filteredHistory.reduce((s, r) => s + Number(r.amount), 0).toLocaleString()}
-            </p>
-          </div>
-          {selectedOperator === "all" && (
-            <>
-              <div className="flex-1 bg-card border border-border rounded-xl p-3 text-center shadow-card">
-                <p className="text-[11px] text-operator-mtn font-bold">MTN</p>
-                <p className="text-lg font-bold text-foreground">{cardStats.mtnCount}</p>
-              </div>
-              <div className="flex-1 bg-card border border-border rounded-xl p-3 text-center shadow-card">
-                <p className="text-[11px] text-operator-syriatel font-bold">SYR</p>
-                <p className="text-lg font-bold text-foreground">{cardStats.syrCount}</p>
-              </div>
-            </>
-          )}
-        </div>
+        </section>
 
-        {/* ALL tab */}
-        {activeTab === "all" && (
-          <div className="space-y-1.5">
-            {history.length === 0 && (
-              <p className="text-center text-sm text-muted-foreground py-8">لا توجد عمليات</p>
+        <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          <FilterSelect label="الفترة" value={range} onChange={(value) => resetPage(() => setRange(value as Range))}>
+            <option value="7">آخر 7 أيام</option>
+            <option value="30">آخر 30 يوماً</option>
+            <option value="90">آخر 90 يوماً</option>
+            <option value="all">كل البيانات</option>
+          </FilterSelect>
+          <FilterSelect label="التجميع" value={period} onChange={(value) => resetPage(() => setPeriod(value as ReportPeriod))}>
+            <option value="day">يومي</option>
+            <option value="week">أسبوعي</option>
+            <option value="month">شهري</option>
+          </FilterSelect>
+          <FilterSelect label="المشغل" value={operator} onChange={(value) => resetPage(() => setOperator(value))}>
+            <option value="">كل المشغلين</option>
+            <option value="mtn">MTN</option>
+            <option value="syriatel">Syriatel</option>
+          </FilterSelect>
+          <FilterSelect label="الحالة" value={status} onChange={(value) => resetPage(() => setStatus(value))}>
+            <option value="">كل الحالات</option>
+            <option value="success">ناجح</option>
+            <option value="completed">مكتمل</option>
+            <option value="failed">فاشل</option>
+            <option value="pending">قيد الانتظار</option>
+          </FilterSelect>
+          <FilterSelect label="نوع الوصول" value={accessSource} onChange={(value) => resetPage(() => setAccessSource(value))}>
+            <option value="">الكل</option>
+            <option value="trial">تجربة</option>
+            <option value="temporary_license">ترخيص مؤقت</option>
+            <option value="permanent_license">ترخيص دائم</option>
+            <option value="none">بدون ترخيص</option>
+          </FilterSelect>
+        </section>
+
+        <details className="border-y border-border py-3">
+          <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold">
+            <Filter className="h-4 w-4" />
+            عوامل تصفية متقدمة
+          </summary>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <FilterInput label="معرف المستخدم" value={userId} onChange={(value) => resetPage(() => setUserId(value))} />
+            <FilterInput label="معرف الجهاز" value={deviceId} onChange={(value) => resetPage(() => setDeviceId(value))} />
+            <FilterInput label="معرف التجربة" value={trialId} onChange={(value) => resetPage(() => setTrialId(value))} />
+            <FilterInput label="معرف الترخيص" value={licenseId} onChange={(value) => resetPage(() => setLicenseId(value))} />
+          </div>
+        </details>
+
+        <section className="grid grid-cols-2 gap-2 lg:grid-cols-6">
+          <Metric label="العمليات" value={(report?.total ?? 0).toLocaleString()} />
+          <Metric label="إجمالي المبالغ" value={(report?.amount_total ?? 0).toLocaleString()} />
+          <Metric label="ناجحة" value={(report?.success_count ?? 0).toLocaleString()} tone="success" />
+          <Metric label="غير ناجحة" value={(report?.failure_count ?? 0).toLocaleString()} tone="danger" />
+          <Metric label="المزامنة" value={(report?.sync_total ?? 0).toLocaleString()} />
+          <Metric label="فشل المزامنة" value={(report?.sync_failed ?? 0).toLocaleString()} tone="danger" />
+        </section>
+
+        <section className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
+          <div className="min-h-[300px] border-y border-border py-4">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h3 className="flex items-center gap-2 text-sm font-bold">
+                <Activity className="h-4 w-4 text-primary" />
+                حركة المبالغ
+              </h3>
+              {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+            </div>
+            {chartData.length ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="period" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Bar dataKey="amount" name="المبلغ" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState />
             )}
-            {history
-              .filter((r) => selectedOperator === "all" || r.operator === selectedOperator)
-              .map((r, i) => (
-              <div key={i} className="flex items-center justify-between bg-card border border-border rounded-xl px-4 py-3 shadow-card">
-                <div className="flex flex-col gap-0.5">
-                  <span className="font-mono text-sm text-foreground" dir="ltr">{r.phone}</span>
-                  <span className="text-[11px] text-muted-foreground">
-                    {new Date(r.timestamp).toLocaleDateString("ar-SY", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                  </span>
+          </div>
+
+          <div className="border-y border-border py-4">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h3 className="text-sm font-bold">التوزيع</h3>
+              <select
+                className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                value={dimension}
+                onChange={(event) => setDimension(event.target.value as Dimension)}
+              >
+                <option value="operator">حسب المشغل</option>
+                <option value="status">حسب الحالة</option>
+                <option value="access">حسب التجربة/الترخيص</option>
+                <option value="user">حسب المستخدم</option>
+                <option value="device">حسب الجهاز</option>
+                <option value="sync">حسب المزامنة</option>
+              </select>
+            </div>
+            <div className="max-h-[250px] space-y-1 overflow-y-auto">
+              {dimensions.length ? dimensions.map((item) => (
+                <div key={item.key} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 border-b border-border py-2 text-xs">
+                  <span className="break-all font-medium">{item.label || item.key}</span>
+                  <span className="text-muted-foreground">{item.count.toLocaleString()}</span>
+                  <span className="font-semibold">{item.amount.toLocaleString()}</span>
                 </div>
-                <div className="flex items-center gap-2.5">
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                    r.operator === "mtn" ? "bg-operator-mtn text-operator-mtn-foreground" : "bg-operator-syriatel text-operator-syriatel-foreground"
-                  }`}>
-                    {r.operator === "mtn" ? "MTN" : "SYR"}
-                  </span>
-                  <span className="font-bold text-sm text-foreground">{Number(r.amount).toLocaleString()}</span>
-                  <StatusIcon status={r.status} />
-                </div>
-              </div>
-            ))}
+              )) : <EmptyState />}
+            </div>
           </div>
-        )}
+        </section>
 
-        {/* DAILY tab */}
-        {activeTab === "daily" && (
-          <div className="space-y-1.5">
-            {dailyTotals.length === 0 && <p className="text-center text-sm text-muted-foreground py-8">لا توجد بيانات</p>}
-            {dailyTotals.map(([day, data]) => (
-              <PeriodRow key={day} label={day} data={data} />
-            ))}
+        <section>
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-bold">سجل العمليات</h3>
+            <span className="text-xs text-muted-foreground">صفحة {page} من {totalPages}</span>
           </div>
-        )}
-
-        {/* WEEKLY tab */}
-        {activeTab === "weekly" && (
-          <div className="space-y-1.5">
-            {weeklyTotals.length === 0 && <p className="text-center text-sm text-muted-foreground py-8">لا توجد بيانات</p>}
-            {weeklyTotals.map(([week, data]) => (
-              <PeriodRow key={week} label={week} data={data} />
-            ))}
+          <div className="overflow-x-auto border-y border-border">
+            <table className="w-full min-w-[900px] text-right text-xs">
+              <thead className="bg-muted/60 text-muted-foreground">
+                <tr>
+                  <th className="p-2 font-medium">التاريخ</th>
+                  <th className="p-2 font-medium">الهاتف</th>
+                  <th className="p-2 font-medium">المبلغ</th>
+                  <th className="p-2 font-medium">المشغل</th>
+                  <th className="p-2 font-medium">الحالة</th>
+                  <th className="p-2 font-medium">الوصول</th>
+                  <th className="p-2 font-medium">الجهاز</th>
+                  <th className="p-2 font-medium">المستخدم</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(report?.rows ?? []).map((row) => (
+                  <tr key={row.id} className="border-t border-border align-top">
+                    <td className="whitespace-nowrap p-2">{new Date(row.created_at).toLocaleString("ar-SY")}</td>
+                    <td className="p-2 font-mono" dir="ltr">{row.phone}</td>
+                    <td className="p-2 font-semibold">{row.amount.toLocaleString()}</td>
+                    <td className="p-2">{row.operator}</td>
+                    <td className="p-2">{row.status}</td>
+                    <td className="p-2">{accessLabel(row.access_source)}</td>
+                    <td className="max-w-[220px] break-all p-2 font-mono" dir="ltr">{row.device_id}</td>
+                    <td className="max-w-[180px] break-all p-2">{row.display_name || row.email || row.user_id || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!loading && !(report?.rows.length) && <EmptyState />}
           </div>
-        )}
-
-        {/* MONTHLY tab */}
-        {activeTab === "monthly" && (
-          <div className="space-y-1.5">
-            {monthlyTotals.length === 0 && <p className="text-center text-sm text-muted-foreground py-8">لا توجد بيانات</p>}
-            {monthlyTotals.map(([month, data]) => (
-              <PeriodRow key={month} label={month} data={data} />
-            ))}
+          <div className="mt-3 flex justify-center gap-2">
+            <Button
+              size="icon"
+              variant="outline"
+              disabled={page <= 1 || loading}
+              onClick={() => setPage((value) => Math.max(1, value - 1))}
+              title="الصفحة السابقة"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant="outline"
+              disabled={page >= totalPages || loading}
+              onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+              title="الصفحة التالية"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
           </div>
-        )}
-
-        {/* CARDS tab */}
-        {activeTab === "cards" && (
-          <div className="space-y-4">
-            {cardStats.mtn.length === 0 && cardStats.syriatel.length === 0 && (
-              <p className="text-center text-sm text-muted-foreground py-8">لا توجد بيانات</p>
-            )}
-            <CardSection operator="mtn" cards={cardStats.mtn} total={cardStats.mtnTotal} count={cardStats.mtnCount} />
-            <CardSection operator="syriatel" cards={cardStats.syriatel} total={cardStats.syrTotal} count={cardStats.syrCount} />
-          </div>
-        )}
-      </main>
+        </section>
+      </div>
     </AppLayout>
   );
 };
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  children,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="space-y-1 text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <select
+        className="h-9 w-full rounded-md border border-input bg-background px-2"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {children}
+      </select>
+    </label>
+  );
+}
+
+function FilterInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="space-y-1 text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <Input value={value} onChange={(event) => onChange(event.target.value)} dir="ltr" className="font-mono text-xs" />
+    </label>
+  );
+}
+
+function Metric({ label, value, tone }: { label: string; value: string; tone?: "success" | "danger" }) {
+  return (
+    <div className="border-b border-border px-2 py-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={`mt-1 text-xl font-bold ${
+        tone === "success" ? "text-emerald-600" : tone === "danger" ? "text-destructive" : "text-foreground"
+      }`}>{value}</p>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return <p className="py-10 text-center text-sm text-muted-foreground">لا توجد بيانات مطابقة</p>;
+}
+
+function accessLabel(value: string): string {
+  if (value === "trial") return "تجربة";
+  if (value === "temporary_license") return "ترخيص مؤقت";
+  if (value === "permanent_license") return "ترخيص دائم";
+  if (value === "offline_cache") return "ذاكرة الجهاز";
+  return "بدون ترخيص";
+}
 
 export default Reports;

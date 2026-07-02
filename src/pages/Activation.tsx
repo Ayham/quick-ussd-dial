@@ -24,8 +24,8 @@ import { Input } from "@/components/ui/input";
 import { createActivationRequest, getLocalActivationRequest, checkActivationStatus } from "@/lib/activation-request";
 import { getCurrentUser, getProfile } from "@/lib/auth";
 import { getDeviceId } from "@/lib/device-id";
-import { getAppStatus, saveLicense, type AppLicenseStatus } from "@/lib/license";
-import { activateLicenseKey, isShortFormat } from "@/lib/license-key";
+import { getAppStatus, type AppLicenseStatus } from "@/lib/license";
+import { activateLicenseKey } from "@/lib/license-key";
 import { flush } from "@/lib/supabase-sync";
 
 interface ActivationProps {
@@ -56,7 +56,6 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
   const activationHandledRef = useRef(false);
 
   const isExpired = status.status === "trial_expired" || status.status === "license_expired";
-  const isTampered = status.status === "clock_tampered";
   const isBlocked = status.status === "blocked";
   const isSuspended = status.status === "suspended";
   const isTrial = status.status === "trial";
@@ -122,8 +121,9 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
     if (!activationToken || !isExpired) return;
 
     let stopped = false;
-    let id: number | undefined;
+    let attempts = 0;
     const poll = async () => {
+      attempts += 1;
       const s = await checkActivationStatus(activationToken);
       if (stopped) return;
 
@@ -140,10 +140,14 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
       } else if (s === "pending") {
         setActivationRequestStatus("pending");
       }
+      if (attempts >= 30) {
+        stopped = true;
+        window.clearInterval(id);
+      }
     };
 
     poll();
-    id = window.setInterval(poll, 8000);
+    const id = window.setInterval(poll, 10_000);
     return () => {
       stopped = true;
       window.clearInterval(id);
@@ -174,8 +178,8 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
     try {
       const result = await activateLicenseKey(licenseKey.trim());
       if (result.ok) {
-        if (!isShortFormat(licenseKey.trim())) saveLicense(licenseKey.trim());
         toast.success(isArabic ? "تم تفعيل التطبيق بنجاح!" : "App activated successfully!");
+        await flush({ force: true });
         onActivated();
       } else {
         toast.error(result.reason === "network"
@@ -241,25 +245,13 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
         </div>
 
         <div className={`rounded-2xl p-5 text-center shadow-sm ${
-          isTampered
-            ? "bg-destructive/10 border-2 border-destructive/30"
-            : isExpired || isBlocked || isSuspended
+          isExpired || isBlocked || isSuspended
               ? "bg-destructive/10 border-2 border-destructive/20"
               : isLicensed
                 ? "bg-green-500/10 border-2 border-green-500/30"
                 : "bg-primary/10 border-2 border-primary/30"
         }`}>
-          {isTampered ? (
-            <>
-              <AlertTriangle className="w-14 h-14 mx-auto mb-3 text-destructive" />
-              <h2 className="text-lg font-bold text-destructive">
-                {isArabic ? "تم اكتشاف تلاعب بالتاريخ" : "Date Tampering Detected"}
-              </h2>
-              <p className="text-sm text-muted-foreground mt-2">
-                {isArabic ? "يرجى ضبط تاريخ الجهاز بشكل صحيح وإعادة تشغيل التطبيق" : "Please set the correct date and restart the app"}
-              </p>
-            </>
-          ) : isBlocked || isSuspended ? (
+          {isBlocked || isSuspended ? (
             <>
               <AlertTriangle className="w-14 h-14 mx-auto mb-3 text-destructive" />
               <h2 className="text-lg font-bold text-foreground">
@@ -412,7 +404,7 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
           </div>
         )}
 
-        {!isExpired && !isTampered && !isBlocked && !isSuspended && (
+        {!isBlocked && !isSuspended && (
           <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
             <label className="text-sm font-medium text-foreground flex items-center gap-2">
               <Key className="w-4 h-4" />

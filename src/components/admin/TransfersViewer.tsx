@@ -159,7 +159,7 @@ export function TransfersViewer() {
                     {transfer.status}
                   </span>
                 </td>
-                <td className="p-3 text-xs font-mono">{transfer.device_id.substring(0, 8)}...</td>
+                <td className="p-3 text-xs font-mono whitespace-nowrap">{transfer.device_id}</td>
                 <td className="p-3 text-xs">
                   {new Date(transfer.created_at).toLocaleString()}
                 </td>

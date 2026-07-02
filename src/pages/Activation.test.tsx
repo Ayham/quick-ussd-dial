@@ -101,7 +101,7 @@ describe("Activation expired request flow", () => {
     expect(screen.getByText("The app will activate automatically after admin approval.")).toBeInTheDocument();
     expect(screen.queryByText("Activation Link")).not.toBeInTheDocument();
     expect(screen.queryByText("Copy Link")).not.toBeInTheDocument();
-    expect(screen.queryByText("activation.enterKey")).not.toBeInTheDocument();
+    expect(screen.getByText("activation.enterKey")).toBeInTheDocument();
 
     expect(createActivationRequest).toHaveBeenCalledWith("Customer", "0991234567");
   });

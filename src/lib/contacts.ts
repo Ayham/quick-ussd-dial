@@ -2,6 +2,7 @@
  * Named Contacts Management
  * إدارة جهات الاتصال بالاسم والرقم
  */
+import { pushEvent } from "./supabase-sync";
 
 const CONTACTS_KEY = 'named-contacts-v1';
 
@@ -29,10 +30,21 @@ export function getSavedContacts(): SavedContact[] {
 }
 
 export function saveSavedContacts(contacts: SavedContact[]) {
-  localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts.slice(0, 200)));
+  const deduped = new Map<string, SavedContact>();
+  for (const contact of contacts) {
+    const phone = normalizePhone(contact.phone);
+    if (!phone || phone.length < 10) continue;
+    const existing = deduped.get(phone);
+    deduped.set(phone, {
+      phone,
+      name: contact.name?.trim() || existing?.name || "",
+    });
+  }
+  localStorage.setItem(CONTACTS_KEY, JSON.stringify(Array.from(deduped.values()).slice(0, 5000)));
 }
 
 export function saveContact(phone: string, name: string = '') {
+  phone = normalizePhone(phone);
   const contacts = getSavedContacts();
   const existing = contacts.findIndex(c => c.phone === phone);
   if (existing >= 0) {
@@ -45,6 +57,7 @@ export function saveContact(phone: string, name: string = '') {
     contacts.unshift({ phone, name });
   }
   saveSavedContacts(contacts);
+  pushEvent("contact_upsert", { phone, name });
 }
 
 export function updateContactName(phone: string, name: string) {
@@ -53,6 +66,7 @@ export function updateContactName(phone: string, name: string) {
   if (idx >= 0) {
     contacts[idx].name = name;
     saveSavedContacts(contacts);
+    pushEvent("contact_upsert", { phone, name });
   } else {
     saveContact(phone, name);
   }
@@ -61,6 +75,16 @@ export function updateContactName(phone: string, name: string) {
 export function deleteContact(phone: string) {
   const contacts = getSavedContacts().filter(c => c.phone !== phone);
   saveSavedContacts(contacts);
+  pushEvent("contact_delete", { phone: normalizePhone(phone) });
+}
+
+export function queueContactsForSync(contacts: SavedContact[]) {
+  for (const contact of contacts) {
+    pushEvent("contact_upsert", {
+      phone: normalizePhone(contact.phone),
+      name: contact.name?.trim() || "",
+    });
+  }
 }
 
 export function searchContacts(query: string): SavedContact[] {
@@ -163,9 +187,9 @@ export async function pickPhoneContact(): Promise<SavedContact | null> {
   return { phone, name };
 }
 
-function normalizePhone(phone: string): string {
+export function normalizePhone(phone: string): string {
   // Remove spaces, dashes, country code
-  let p = phone.replace(/[\s\-()]/g, '');
+  let p = phone.replace(/[^\d+]/g, '');
   if (p.startsWith('+963')) p = '0' + p.slice(4);
   if (p.startsWith('963')) p = '0' + p.slice(3);
   return p;

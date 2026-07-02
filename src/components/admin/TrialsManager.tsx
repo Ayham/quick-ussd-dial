@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { Plus } from 'lucide-react';
+import { Plus, Square } from 'lucide-react';
 
 interface Trial {
   id: string;
@@ -32,15 +32,23 @@ export function TrialsManager() {
 
   useEffect(() => { load(); }, []);
 
-  async function extend(id: string, currentExpiry: string) {
+  async function extend(id: string, deviceId: string) {
     const days = extra[id] || 7;
-    const newExpiry = new Date(new Date(currentExpiry).getTime() + days * 86400000).toISOString();
-    const { error } = await supabase
-      .from('trials')
-      .update({ expires_at: newExpiry, extended_by_admin: true, status: 'active' })
-      .eq('id', id);
-    if (error) toast.error(error.message);
+    const { data, error } = await supabase.rpc('admin_extend_trial', {
+      _device_id: deviceId,
+      _days: days,
+    });
+    const result = data as { ok?: boolean; reason?: string } | null;
+    if (error || !result?.ok) toast.error(error?.message || result?.reason || 'Trial update failed');
     else { toast.success(`Extended by ${days} days`); load(); }
+  }
+
+  async function endTrial(deviceId: string) {
+    if (!confirm('End this trial now?')) return;
+    const { data, error } = await supabase.rpc('admin_end_trial', { _device_id: deviceId });
+    const result = data as { ok?: boolean; reason?: string } | null;
+    if (error || !result?.ok) toast.error(error?.message || result?.reason || 'Trial update failed');
+    else { toast.success('Trial ended'); load(); }
   }
 
   if (loading) return <div className="text-center py-8">Loading...</div>;
@@ -53,14 +61,14 @@ export function TrialsManager() {
           <th className="text-left p-2">Started</th>
           <th className="text-left p-2">Expires</th>
           <th className="text-left p-2">Status</th>
-          <th className="text-left p-2">Extend</th>
+          <th className="text-left p-2">Actions</th>
         </tr></thead>
         <tbody>
           {rows.map(t => {
             const expired = new Date(t.expires_at) < new Date();
             return (
               <tr key={t.id} className="border-b hover:bg-muted/50">
-                <td className="p-2 font-mono text-[10px]">{t.device_id.substring(0, 12)}...</td>
+                <td className="p-2 font-mono text-[10px] whitespace-nowrap">{t.device_id}</td>
                 <td className="p-2 text-xs">{new Date(t.started_at).toLocaleDateString()}</td>
                 <td className="p-2 text-xs">{new Date(t.expires_at).toLocaleDateString()}</td>
                 <td className="p-2">
@@ -73,8 +81,11 @@ export function TrialsManager() {
                     value={extra[t.id] ?? ''}
                     onChange={(e) => setExtra(s => ({ ...s, [t.id]: Number(e.target.value) }))}
                     className="h-7 w-16 text-xs" />
-                  <Button size="sm" className="h-7" onClick={() => extend(t.id, t.expires_at)}>
+                  <Button size="sm" className="h-7" onClick={() => extend(t.id, t.device_id)} title="Adjust trial days">
                     <Plus className="w-3 h-3" />
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-7" onClick={() => endTrial(t.device_id)} title="End trial">
+                    <Square className="w-3 h-3" />
                   </Button>
                 </td>
               </tr>

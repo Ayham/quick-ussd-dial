@@ -1,29 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ACCESS_CACHE_MAX_AGE_MS, ACCESS_SNAPSHOT_KEY } from "./access-state";
 import { getAppStatus } from "./license";
 
-vi.mock("./device-id", () => ({
-  getDeviceId: vi.fn(() => "device-1"),
-}));
+function cache(state: string, extra: Record<string, unknown> = {}, checkedAt = new Date().toISOString()) {
+  localStorage.setItem(ACCESS_SNAPSHOT_KEY, JSON.stringify({
+    ok: true,
+    state,
+    server_checked_at: checkedAt,
+    ...extra,
+  }));
+}
 
-vi.mock("./trial-guard", () => ({
-  getProtectedTrial: vi.fn(() => Promise.resolve({ status: "expired", daysLeft: 0 })),
-}));
-
-describe("getAppStatus remote synced license", () => {
+describe("server-authoritative app access", () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.useRealTimers();
   });
 
-  it("treats a synced permanent device license as licensed", async () => {
-    localStorage.setItem("_sys_remote_license_v1", JSON.stringify({
-      license_key: "ABCD2345EFGH",
-      status: "active",
-      expiry_date: null,
-      permanent: true,
-      ussd_numbers: [],
-    }));
-
+  it("allows a permanent license only from a heartbeat snapshot", async () => {
+    cache("license_active", {
+      license: { status: "active", expiry_date: null, permanent: true },
+    });
     await expect(getAppStatus()).resolves.toEqual({
       status: "licensed",
       expiryDate: "permanent",
@@ -32,82 +30,53 @@ describe("getAppStatus remote synced license", () => {
     });
   });
 
-  it("treats a synced expiring device license as licensed until its expiry date", async () => {
-    const future = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
-    localStorage.setItem("_sys_remote_license_v1", JSON.stringify({
-      license_key: "ABCD2345EFGH",
-      status: "active",
-      expiry_date: future,
-      permanent: false,
-      ussd_numbers: [],
-    }));
-
-    const status = await getAppStatus();
-    expect(status.status).toBe("licensed");
-    expect(status).toMatchObject({ expiryDate: future });
-    expect("permanent" in status).toBe(false);
-  });
-
-  it("blocks the app when a synced license is revoked", async () => {
-    localStorage.setItem("_sys_remote_license_v1", JSON.stringify({
-      license_key: "ABCD2345EFGH",
-      status: "revoked",
-      expiry_date: null,
-      permanent: true,
-      ussd_numbers: [],
-    }));
-
-    await expect(getAppStatus()).resolves.toEqual({ status: "blocked" });
-  });
-
-  it("enters suspended mode when a synced license is suspended", async () => {
-    localStorage.setItem("_sys_remote_license_v1", JSON.stringify({
-      license_key: "ABCD2345EFGH",
-      status: "suspended",
-      expiry_date: null,
-      permanent: true,
-      ussd_numbers: [],
-    }));
-
-    await expect(getAppStatus()).resolves.toEqual({ status: "suspended" });
-  });
-
-  it("uses modified synced expiry dates immediately", async () => {
-    const future = new Date(Date.now() + 12 * 86400000).toISOString().slice(0, 10);
-    localStorage.setItem("_sys_remote_license_v1", JSON.stringify({
-      license_key: "ABCD2345EFGH",
-      status: "active",
-      expiry_date: future,
-      permanent: false,
-      ussd_numbers: [],
-    }));
-
-    await expect(getAppStatus()).resolves.toMatchObject({ status: "licensed", expiryDate: future });
-  });
-
-  it("uses permanent conversion from synced license data immediately", async () => {
-    localStorage.setItem("_sys_remote_license_v1", JSON.stringify({
-      license_key: "ABCD2345EFGH",
-      status: "active",
-      expiry_date: null,
-      permanent: true,
-      ussd_numbers: [],
-    }));
-
-    await expect(getAppStatus()).resolves.toMatchObject({ status: "licensed", expiryDate: "permanent", permanent: true });
-  });
-
-  it("allows trial only from synced server trial data", async () => {
-    const future = new Date(Date.now() + 4 * 86400000).toISOString();
-    localStorage.setItem("_sys_remote_trial_v1", JSON.stringify({
-      status: "active",
-      expires_at: future,
-    }));
-
+  it("allows an active server trial", async () => {
+    cache("trial_active", {
+      trial: { status: "active", expires_at: new Date(Date.now() + 3 * 86_400_000).toISOString() },
+    });
     await expect(getAppStatus()).resolves.toMatchObject({ status: "trial" });
   });
 
-  it("blocks as trial expired when no server trial or license is cached", async () => {
-    await expect(getAppStatus()).resolves.toEqual({ status: "trial_expired" });
+  it.each([
+    ["blocked", "blocked"],
+    ["fingerprint_mismatch", "blocked"],
+    ["suspended", "suspended"],
+    ["revoked", "license_expired"],
+    ["license_expired", "license_expired"],
+    ["trial_expired", "trial_expired"],
+    ["maintenance", "maintenance"],
+  ])("maps %s to %s", async (serverState, appState) => {
+    cache(serverState);
+    await expect(getAppStatus()).resolves.toMatchObject({ status: appState });
+  });
+
+  it("blocks a forced update and preserves the minimum version", async () => {
+    cache("force_update", {
+      force_update: { enabled: true, minimum_version: "0.5.0", latest_version: "0.6.0" },
+    });
+    await expect(getAppStatus()).resolves.toEqual({
+      status: "force_update",
+      minimumVersion: "0.5.0",
+      latestVersion: "0.6.0",
+    });
+  });
+
+  it("does not allow legacy local license data to grant access", async () => {
+    localStorage.setItem("_sys_remote_license_v1", JSON.stringify({
+      status: "active", permanent: true,
+    }));
+    localStorage.setItem("_sys_v2_lk_meta", JSON.stringify({
+      status: "active", permanent: true,
+    }));
+    await expect(getAppStatus()).resolves.toEqual({ status: "offline_expired" });
+  });
+
+  it("expires offline authorization after the bounded cache window", async () => {
+    cache(
+      "license_active",
+      { license: { status: "active", permanent: true } },
+      new Date(Date.now() - ACCESS_CACHE_MAX_AGE_MS - 1_000).toISOString(),
+    );
+    await expect(getAppStatus()).resolves.toEqual({ status: "offline_expired" });
   });
 });

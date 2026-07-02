@@ -17,7 +17,7 @@ export type ActivityType =
 
 /**
  * Log a user activity event
- * Stored locally first, synced to Google Sheets when online
+ * Stored locally first and synchronized through the Supabase event queue.
  */
 export function logActivity(activity: ActivityType, data: Record<string, unknown> = {}) {
   // Map activity types to cloud sync event types

@@ -358,10 +358,6 @@ const Settings = () => {
                           transferHistory: localStorage.getItem('transfer-history'),
                           savedContacts: localStorage.getItem('saved-contacts'),
                           savedBalances: localStorage.getItem('saved_balances_v1'),
-                          license: localStorage.getItem('_LK_KEY'),
-                          trialStart: localStorage.getItem('app_trial_start_v1'),
-                          syncEndpoint: localStorage.getItem('cloud_sync_endpoint_v1'),
-                          syncEnabled: localStorage.getItem('cloud_sync_enabled_v1'),
                         };
                         const json = JSON.stringify(backup, null, 2);
                         const blob = new Blob([json], { type: 'application/json' });
@@ -413,11 +409,6 @@ const Settings = () => {
                             if (data.transferHistory) localStorage.setItem('transfer-history', data.transferHistory);
                             if (data.savedContacts) localStorage.setItem('saved-contacts', data.savedContacts);
                             if (data.savedBalances) localStorage.setItem('saved_balances_v1', data.savedBalances);
-                            if (data.license) localStorage.setItem('_LK_KEY', data.license);
-                            if (data.trialStart) localStorage.setItem('app_trial_start_v1', data.trialStart);
-                            if (data.syncEndpoint) localStorage.setItem('cloud_sync_endpoint_v1', data.syncEndpoint);
-                            if (data.syncEnabled) localStorage.setItem('cloud_sync_enabled_v1', data.syncEnabled);
-
                             setPresets(getPresets());
                             setCredentials(getCredentials());
                             setTemplates(getUssdTemplates());

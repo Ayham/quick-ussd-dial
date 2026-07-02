@@ -58,7 +58,7 @@ export function EventsViewer() {
             {filtered.map(e => (
               <tr key={e.id} className="border-b hover:bg-muted/50">
                 <td className="p-2 text-xs font-semibold">{e.event}</td>
-                <td className="p-2 font-mono text-[10px]">{e.device_id.substring(0, 12)}...</td>
+                <td className="p-2 font-mono text-[10px] whitespace-nowrap">{e.device_id}</td>
                 <td className="p-2 text-[10px] font-mono max-w-xs truncate">{JSON.stringify(e.data)}</td>
                 <td className="p-2 text-xs">{new Date(e.created_at).toLocaleString()}</td>
               </tr>
@@ -67,9 +67,9 @@ export function EventsViewer() {
         </table>
       </div>
       <div className="flex justify-between text-xs text-muted-foreground">
-        <button disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))} className="disabled:opacity-30">← Prev</button>
+        <button disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))} className="disabled:opacity-30">Prev</button>
         <span>Page {page + 1}</span>
-        <button disabled={rows.length < PAGE} onClick={() => setPage(p => p + 1)} className="disabled:opacity-30">Next →</button>
+        <button disabled={rows.length < PAGE} onClick={() => setPage(p => p + 1)} className="disabled:opacity-30">Next</button>
       </div>
     </div>
   );

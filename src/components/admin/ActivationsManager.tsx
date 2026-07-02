@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { adminApproveActivation, adminRejectActivation } from '@/lib/activation-request';
 import { Switch } from '@/components/ui/switch';
@@ -106,28 +106,6 @@ export function ActivationsManager() {
     }
   }
 
-  async function deleteActivation(activationId: string) {
-    if (!confirm('Delete this activation?')) return;
-
-    setActionInProgress(activationId);
-    try {
-      const { error } = await supabase
-        .from('activations')
-        .delete()
-        .eq('id', activationId);
-
-      if (error) throw error;
-
-      setActivations(prev => prev.filter(a => a.id !== activationId));
-      toast.success('Activation deleted');
-    } catch (error) {
-      console.error('Error deleting activation:', error);
-      toast.error('Failed to delete');
-    } finally {
-      setActionInProgress(null);
-    }
-  }
-
   const filteredActivations = activations.filter(a => 
     a.request_token.includes(search) || 
     a.device_id.includes(search) ||
@@ -189,8 +167,8 @@ export function ActivationsManager() {
           <tbody>
             {filteredActivations.map(activation => (
               <tr key={activation.id} className="border-b hover:bg-muted/50">
-                <td className="p-3 font-mono text-xs">{activation.request_token.substring(0, 12)}...</td>
-                <td className="p-3 text-xs font-mono">{activation.device_id.substring(0, 8)}...</td>
+                <td className="p-3 font-mono text-xs">{activation.request_token}</td>
+                <td className="p-3 text-xs font-mono whitespace-nowrap">{activation.device_id}</td>
                 <td className="p-3 text-xs">
                   <div>{activation.contact_name || '-'}</div>
                   <div className="text-muted-foreground">{activation.contact_phone || '-'}</div>
@@ -262,17 +240,7 @@ export function ActivationsManager() {
                         Mark as permanent
                       </label>
                     </div>
-                  ) : (
-                    <Button
-                      onClick={() => deleteActivation(activation.id)}
-                      disabled={actionInProgress === activation.id}
-                      variant="destructive"
-                      size="sm"
-                      className="h-8"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
+                  ) : <span className="text-xs text-muted-foreground">Decision recorded</span>}
                 </td>
               </tr>
             ))}

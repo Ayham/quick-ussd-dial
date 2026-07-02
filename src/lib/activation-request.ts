@@ -6,7 +6,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { getDeviceId } from './device-id';
-import { flush } from './supabase-sync';
+import { flush, pushEvent } from './supabase-sync';
 
 const ACTIVATION_REQUEST_KEY = 'activation_request_v1';
 
@@ -35,22 +35,40 @@ export async function createActivationRequest(
       return null;
     }
 
-    const { data, error } = await supabase.functions.invoke('request-activation', {
-      body: {
-        device_id: deviceId,
+    const offlineToken = crypto.randomUUID();
+    const queueOfflineRequest = () => {
+      pushEvent('activation_request', {
+        request_token: offlineToken,
         contact_name: contactName || null,
         contact_phone: contactPhone || null,
         ussd_numbers: ussdNumbers,
-      },
-    });
+      });
+      return offlineToken;
+    };
 
-    if (error || !data?.ok || !data?.token) {
+    let data: { ok?: boolean; token?: string } | null = null;
+    let error: { message?: string } | null = null;
+    if (navigator.onLine) {
+      const response = await supabase.functions.invoke('request-activation', {
+        body: {
+          device_id: deviceId,
+          contact_name: contactName || null,
+          contact_phone: contactPhone || null,
+          ussd_numbers: ussdNumbers,
+        },
+      });
+      data = response.data;
+      error = response.error;
+    }
+    const token = data?.ok && data.token ? data.token : queueOfflineRequest();
+
+    if (navigator.onLine && error && !token) {
       console.error('request-activation failed:', error, data);
       return null;
     }
 
     const request: ActivationRequest = {
-      requestToken: data.token,
+      requestToken: token,
       deviceId,
       createdAt: new Date().toISOString(),
       contactName,
@@ -65,14 +83,6 @@ export async function createActivationRequest(
     console.error('Error creating activation request:', e);
     return null;
   }
-}
-
-/**
- * Build the shareable activation request URL the customer sends to the admin.
- */
-export function getActivationRequestLink(requestToken: string): string {
-  const base = typeof window !== 'undefined' ? window.location.origin : '';
-  return `${base}/sys-panel?activation=${requestToken}`;
 }
 
 /**
@@ -157,17 +167,16 @@ export async function adminApproveActivation(
       return { success: false, error: licData?.error || licErr?.message || 'license creation failed' };
     }
 
-    // Link activation → license
-    const { error: updErr } = await supabase
-      .from('activations')
-      .update({
-        status: 'approved',
-        license_id: licData.license.id,
-        processed_at: new Date().toISOString(),
-      })
-      .eq('request_token', requestToken);
-
-    if (updErr) return { success: false, error: updErr.message };
+    const { data: decision, error: decisionError } = await supabase.rpc('admin_decide_activation', {
+      _request_id: activation.id,
+      _decision: 'approved',
+      _license_id: licData.license.id,
+      _notes: `Approved request ${requestToken}`,
+    });
+    const decisionResult = decision as { ok?: boolean; reason?: string } | null;
+    if (decisionError || !decisionResult?.ok) {
+      return { success: false, error: decisionError?.message || decisionResult?.reason || 'activation decision failed' };
+    }
 
     return { success: true, licenseKey: licData.formatted || licData.license.license_key };
   } catch (e) {
@@ -183,15 +192,20 @@ export async function adminRejectActivation(
   reason?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
+    const { data: activation, error: fetchError } = await supabase
       .from('activations')
-      .update({
-        status: 'rejected',
-        processed_at: new Date().toISOString(),
-        notes: reason ?? null,
-      })
-      .eq('request_token', requestToken);
-    if (error) return { success: false, error: error.message };
+      .select('id')
+      .eq('request_token', requestToken)
+      .maybeSingle();
+    if (fetchError || !activation) return { success: false, error: fetchError?.message || 'Activation not found' };
+    const { data, error } = await supabase.rpc('admin_decide_activation', {
+      _request_id: activation.id,
+      _decision: 'rejected',
+      _license_id: null,
+      _notes: reason ?? null,
+    });
+    const result = data as { ok?: boolean; reason?: string } | null;
+    if (error || !result?.ok) return { success: false, error: error?.message || result?.reason || 'Reject failed' };
     return { success: true };
   } catch (e) {
     return { success: false, error: String(e) };
@@ -206,11 +220,11 @@ export async function adminSetDeviceBlocked(
   blocked: boolean
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Upsert device row so we can flip is_blocked even if it never synced.
-    const { error } = await supabase
-      .from('devices')
-      .upsert({ device_id: deviceId, is_blocked: blocked }, { onConflict: 'device_id' });
-    if (error) return { success: false, error: error.message };
+    const { data, error } = blocked
+      ? await supabase.rpc('admin_block_device', { _device_id: deviceId, _reason: 'Blocked by administrator' })
+      : await supabase.rpc('admin_unblock_device', { _device_id: deviceId });
+    const result = data as { ok?: boolean; reason?: string } | null;
+    if (error || !result?.ok) return { success: false, error: error?.message || result?.reason || 'Device update failed' };
     return { success: true };
   } catch (e) {
     return { success: false, error: String(e) };
