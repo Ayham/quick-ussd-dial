@@ -3,7 +3,7 @@ import getProfileTool from "./tools/get-profile";
 import listTransfersTool from "./tools/list-transfers";
 import listDevicesTool from "./tools/list-devices";
 import getLicenseStatusTool from "./tools/get-license-status";
-import listDistributorsTool from "./tools/list-distributors";
+
 
 const projectRef = import.meta.env.VITE_SUPABASE_PROJECT_ID ?? "project-ref-unset";
 
