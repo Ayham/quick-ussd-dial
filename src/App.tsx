@@ -15,6 +15,7 @@ import Activation from "./pages/Activation";
 import Updates from "./pages/Updates";
 import Subscription from "./pages/Subscription";
 import Auth from "./pages/Auth";
+import OAuthConsent from "./pages/OAuthConsent";
 import Profile from "./pages/Profile";
 import { AuthSessionProvider, RequireAuth, RequireAdmin } from "./lib/auth-session";
 
@@ -106,6 +107,7 @@ const AppContent = () => {
         <AuthSessionProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
             <Route path="/sys-panel" element={<RequireAdmin><Admin /></RequireAdmin>} />
             <Route path="*" element={<RequireAuth><Activation status={status} onActivated={checkStatus} /></RequireAuth>} />
           </Routes>
@@ -119,6 +121,7 @@ const AppContent = () => {
       <AuthSessionProvider>
         <Routes>
           <Route path="/auth" element={<Auth />} />
+          <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
           <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
           <Route path="/distributor" element={<RequireAuth><Distributor /></RequireAuth>} />
           <Route path="/contacts" element={<RequireAuth><Contacts /></RequireAuth>} />
