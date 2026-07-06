@@ -22,6 +22,6 @@ export default defineMcp({
     listTransfersTool,
     listDevicesTool,
     getLicenseStatusTool,
-    listDistributorsTool,
+    
   ],
 });
