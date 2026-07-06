@@ -15,6 +15,7 @@ import Activation from "./pages/Activation";
 import Updates from "./pages/Updates";
 import Subscription from "./pages/Subscription";
 import Auth from "./pages/Auth";
+import OAuthConsent from "./pages/OAuthConsent";
 import Profile from "./pages/Profile";
 import { AuthSessionProvider, RequireAuth, RequireAdmin } from "./lib/auth-session";
 
