@@ -121,6 +121,7 @@ const AppContent = () => {
       <AuthSessionProvider>
         <Routes>
           <Route path="/auth" element={<Auth />} />
+          <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
           <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
           <Route path="/distributor" element={<RequireAuth><Distributor /></RequireAuth>} />
           <Route path="/contacts" element={<RequireAuth><Contacts /></RequireAuth>} />
