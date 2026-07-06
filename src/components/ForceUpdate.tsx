@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import type { UpdateInfo } from "@/lib/update-checker";
 import { downloadAndInstallApk, type DownloadProgress } from "@/lib/apk-downloader";
 import { toast } from "@/hooks/use-toast";
+import { APP_VERSION } from "@/config/version";
 
 interface UpdateBannerProps {
   updateInfo: UpdateInfo;
@@ -155,75 +156,40 @@ const REMIND_INTERVAL_MS = 24 * 60 * 60 * 1000; // Remind every 24 hours
 const DISMISS_KEY = 'app_update_dismissed_at';
 
 interface ForceUpdateProps {
-  updateInfo: UpdateInfo;
-  onRetry: () => void;
-  checking: boolean;
+  minimumVersion?: string;
+  latestVersion?: string;
 }
 
 /**
- * Update component — shows dismissible dialog + periodic banner.
- * User can skip and continue using the app.
+ * Blocking update gate shown when the server requires a higher app version.
  */
-const ForceUpdate = ({ updateInfo, onRetry, checking }: ForceUpdateProps) => {
-  const [showDialog, setShowDialog] = useState(true);
-  const [showBanner, setShowBanner] = useState(false);
-
-  // Check if we should show the dialog or just the banner
-  useEffect(() => {
-    const dismissedAt = localStorage.getItem(DISMISS_KEY);
-    if (dismissedAt) {
-      const elapsed = Date.now() - Number(dismissedAt);
-      if (elapsed < REMIND_INTERVAL_MS) {
-        // Recently dismissed — just show banner
-        setShowDialog(false);
-        setShowBanner(true);
-      } else {
-        // Time to remind again
-        localStorage.removeItem(DISMISS_KEY);
-        setShowDialog(true);
-        setShowBanner(false);
-      }
-    }
-  }, []);
-
-  // Set up periodic reminder
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const dismissedAt = localStorage.getItem(DISMISS_KEY);
-      if (dismissedAt) {
-        const elapsed = Date.now() - Number(dismissedAt);
-        if (elapsed >= REMIND_INTERVAL_MS) {
-          localStorage.removeItem(DISMISS_KEY);
-          setShowDialog(true);
-          setShowBanner(false);
-        }
-      }
-    }, 60000); // Check every minute
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleSkip = () => {
-    localStorage.setItem(DISMISS_KEY, String(Date.now()));
-    setShowDialog(false);
-    setShowBanner(true);
-  };
-
-  const handleDismissBanner = () => {
-    setShowBanner(false);
-  };
-
+const ForceUpdate = ({ minimumVersion, latestVersion }: ForceUpdateProps) => {
   return (
-    <>
-      {showDialog && (
-        <UpdateDialog
-          updateInfo={updateInfo}
-          onRetry={onRetry}
-          onSkip={handleSkip}
-          checking={checking}
-        />
-      )}
-    </>
+    <div className="min-h-dvh bg-background p-6 flex items-center justify-center safe-area-insets">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 text-center space-y-4">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <RefreshCw className="h-7 w-7" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-xl font-semibold">Update required</h1>
+          <p className="text-sm text-muted-foreground">
+            Install version {minimumVersion || "required by the administrator"} or newer to continue.
+          </p>
+        </div>
+        <div className="rounded-xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+          <div className="flex items-center justify-between">
+            <span>Current version</span>
+            <span className="font-medium text-foreground">{APP_VERSION}</span>
+          </div>
+          {latestVersion ? (
+            <div className="mt-2 flex items-center justify-between">
+              <span>Required version</span>
+              <span className="font-medium text-foreground">{latestVersion}</span>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
   );
 };
 

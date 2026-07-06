@@ -30,10 +30,10 @@ export interface AccessSnapshot {
 export type AppAccessStatus =
   | { status: "trial"; daysLeft: number }
   | { status: "licensed"; expiryDate: string; daysLeft: number; permanent?: boolean }
-  | { status: "trial_expired" }
-  | { status: "license_expired" }
+  | { status: "trial_expired"; reason?: string }
+  | { status: "license_expired"; reason?: string }
   | { status: "blocked"; reason?: string }
-  | { status: "suspended" }
+  | { status: "suspended"; reason?: string }
   | { status: "maintenance" }
   | { status: "force_update"; minimumVersion?: string; latestVersion?: string }
   | { status: "offline_expired" };
@@ -89,14 +89,16 @@ export function mapAccessSnapshot(snapshot: AccessSnapshot | null): AppAccessSta
         daysLeft: snapshot.trial?.expires_at ? daysUntil(snapshot.trial.expires_at) : 0,
       };
     case "suspended":
-      return { status: "suspended" };
+      return { status: "suspended", reason: snapshot.reason || undefined };
     case "blocked":
     case "device_mismatch":
     case "fingerprint_mismatch":
       return { status: "blocked", reason: snapshot.reason || snapshot.state };
     case "license_expired":
     case "revoked":
-      return { status: "license_expired" };
+      return { status: "license_expired", reason: snapshot.reason || undefined };
+    case "trial_expired":
+      return { status: "trial_expired", reason: snapshot.reason || undefined };
     case "maintenance":
       return { status: "maintenance" };
     case "force_update":

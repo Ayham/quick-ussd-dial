@@ -26,6 +26,7 @@ import { flush, startSupabaseSync } from "./lib/supabase-sync";
 import { isWebBrowser } from "./lib/platform";
 import { initDeviceId } from "./lib/device-id";
 import { checkForUpdate, type UpdateInfo } from "./lib/update-checker";
+import ForceUpdate from "./components/ForceUpdate";
 
 const queryClient = new QueryClient();
 const Reports = lazy(() => import("./pages/Reports"));
@@ -94,7 +95,7 @@ const AppContent = () => {
   }
 
   if (status.status === 'force_update') {
-    return <AccessBlock title="Update required" message={`Install version ${status.minimumVersion || "required by the administrator"} or newer to continue.`} />;
+    return <ForceUpdate minimumVersion={status.minimumVersion} latestVersion={status.latestVersion} />;
   }
 
   if (status.status === 'offline_expired') {
@@ -102,6 +103,7 @@ const AppContent = () => {
   }
 
   if (status.status === 'trial_expired' || status.status === 'license_expired' || status.status === 'blocked' || status.status === 'suspended') {
+    const reason = status.reason;
     return (
       <BrowserRouter>
         <AuthSessionProvider>
@@ -146,11 +148,12 @@ const AppContent = () => {
   );
 };
 
-const AccessBlock = ({ title, message }: { title: string; message: string }) => (
+const AccessBlock = ({ title, message, reason }: { title: string; message: string; reason?: string }) => (
   <div className="min-h-dvh bg-background p-6 flex items-center justify-center safe-area-insets">
     <div className="w-full max-w-sm border border-border bg-card p-6 text-center space-y-3">
       <h1 className="text-xl font-bold">{title}</h1>
       <p className="text-sm text-muted-foreground">{message}</p>
+      {reason ? <p className="text-xs text-muted-foreground/90">{reason}</p> : null}
     </div>
   </div>
 );

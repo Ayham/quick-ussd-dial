@@ -61,6 +61,26 @@ describe("server-authoritative app access", () => {
     });
   });
 
+  it("surfaces the server reason for blocked and expired gate states", async () => {
+    cache("blocked", { reason: "Device was blocked by admin" });
+    await expect(getAppStatus()).resolves.toEqual({
+      status: "blocked",
+      reason: "Device was blocked by admin",
+    });
+
+    cache("suspended", { reason: "Account suspended by admin" });
+    await expect(getAppStatus()).resolves.toEqual({
+      status: "suspended",
+      reason: "Account suspended by admin",
+    });
+
+    cache("license_expired", { reason: "License expired" });
+    await expect(getAppStatus()).resolves.toEqual({
+      status: "license_expired",
+      reason: "License expired",
+    });
+  });
+
   it("does not allow legacy local license data to grant access", async () => {
     localStorage.setItem("_sys_remote_license_v1", JSON.stringify({
       status: "active", permanent: true,

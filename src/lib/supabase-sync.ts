@@ -18,6 +18,7 @@ const DEVICE_BLOCKED_KEY = "_sys_device_blocked_v1";
 const SYNC_IN_PROGRESS_KEY = "supabase_sync_in_progress";
 const APP_INSTANCE_KEY = "app_instance_id_v1";
 const SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const FOREGROUND_SYNC_INTERVAL = 60 * 1000; // 60 seconds while visible
 
 export interface SbSyncEvent {
   id: string;
@@ -180,16 +181,29 @@ export function getSupabaseQueueSize(): number {
 }
 
 let started = false;
+let syncIntervalId: number | null = null;
+
+function startSyncLoop() {
+  if (syncIntervalId) window.clearInterval(syncIntervalId);
+  const intervalMs = document.visibilityState === "visible" ? FOREGROUND_SYNC_INTERVAL : SYNC_INTERVAL;
+  syncIntervalId = window.setInterval(() => {
+    if (navigator.onLine && !isSyncing()) flush().catch(() => {});
+  }, intervalMs);
+}
+
 export function startSupabaseSync() {
   if (started) return;
   started = true;
   // Initial push
   flush().catch(() => {});
   // Periodic
-  setInterval(() => { if (navigator.onLine && !isSyncing()) flush().catch(() => {}); }, SYNC_INTERVAL);
+  startSyncLoop();
   // Connectivity-aware
   window.addEventListener("online", () => flush().catch(() => {}));
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && navigator.onLine && !isSyncing()) flush().catch(() => {});
+    if (document.visibilityState === "visible") {
+      flush({ force: true }).catch(() => {});
+    }
+    startSyncLoop();
   });
 }
