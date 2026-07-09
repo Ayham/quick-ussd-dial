@@ -167,7 +167,7 @@ export async function adminApproveActivation(
       return { success: false, error: licData?.error || licErr?.message || 'license creation failed' };
     }
 
-    const { data: decision, error: decisionError } = await supabase.rpc('admin_decide_activation', {
+    const { data: decision, error: decisionError } = await adminRpc('admin_decide_activation', {
       _request_id: activation.id,
       _decision: 'approved',
       _license_id: licData.license.id,
