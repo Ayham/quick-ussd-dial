@@ -34,6 +34,53 @@ export function LicensesManager() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [edits, setEdits] = useState<Record<string, { expiryDate: string; deviceId: string }>>({});
+  const [transferFor, setTransferFor] = useState<License | null>(null);
+  const [transferTargetDevice, setTransferTargetDevice] = useState('');
+  const [transferReason, setTransferReason] = useState('');
+  const [transferInProgress, setTransferInProgress] = useState(false);
+
+  async function copyText(value: string, label = 'Copied') {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(label);
+    } catch {
+      toast.error('Failed to copy');
+    }
+  }
+
+  async function handleTransfer() {
+    if (!transferFor) return;
+    const target = transferTargetDevice.trim();
+    if (target.length < 4) {
+      toast.error('Enter the target device ID');
+      return;
+    }
+    if (target === transferFor.device_id) {
+      toast.error('Target device is the same as current');
+      return;
+    }
+    setTransferInProgress(true);
+    try {
+      const { data, error } = await supabase.rpc('admin_transfer_license', {
+        _license_id: transferFor.id,
+        _new_device_id: target,
+        _reason: transferReason.trim() || null,
+      });
+      if (error) throw error;
+      const payload = data as { ok?: boolean; reason?: string } | null;
+      if (!payload?.ok) throw new Error(payload?.reason || 'Transfer failed');
+      toast.success('License transferred');
+      setTransferFor(null);
+      setTransferTargetDevice('');
+      setTransferReason('');
+      loadLicenses();
+    } catch (err) {
+      console.error('Transfer error', err);
+      toast.error(err instanceof Error ? err.message : 'Transfer failed');
+    } finally {
+      setTransferInProgress(false);
+    }
+  }
 
   useEffect(() => {
     loadLicenses();
