@@ -38,14 +38,14 @@ const Contacts = () => {
     );
   }, [contacts, search]);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const phone = newPhone.trim();
     const name = newName.trim();
     if (!phone || phone.length < 10) {
       toast.error("أدخل رقم هاتف صحيح");
       return;
     }
-    saveContact(phone, name);
+    await saveContact(phone, name);
     reload();
     setNewPhone("");
     setNewName("");
@@ -53,16 +53,16 @@ const Contacts = () => {
     toast.success("تمت إضافة جهة الاتصال");
   };
 
-  const handleEdit = (phone: string) => {
+  const handleEdit = async (phone: string) => {
     const name = editName.trim();
-    updateContactName(phone, name);
+    await updateContactName(phone, name);
     reload();
     setEditingPhone(null);
     toast.success("تم تحديث الاسم");
   };
 
-  const handleDelete = (phone: string) => {
-    deleteContact(phone);
+  const handleDelete = async (phone: string) => {
+    await deleteContact(phone);
     reload();
     setDeleteConfirm(null);
     toast.info("تم حذف جهة الاتصال");
@@ -127,7 +127,7 @@ const Contacts = () => {
     toast.success(`تم تصدير ${data.length} جهة اتصال بصيغة VCF`);
   };
 
-  const mergeImportedContacts = (imported: SavedContact[]) => {
+  const mergeImportedContacts = async (imported: SavedContact[]) => {
     const normalized = imported
       .map((contact) => ({ phone: normalizePhone(String(contact.phone || "")), name: String(contact.name || "").trim() }))
       .filter((contact) => contact.phone.length >= 10);
@@ -136,7 +136,7 @@ const Contacts = () => {
     const existingPhones = new Set(existing.map((contact) => contact.phone));
     const newContacts = normalized.filter((contact) => !existingPhones.has(contact.phone));
     saveSavedContacts([...existing, ...normalized]);
-    queueContactsForSync(normalized);
+    await queueContactsForSync(normalized);
     reload();
     toast.success(`تم استيراد ${newContacts.length} جهة اتصال جديدة وتحديث ${normalized.length - newContacts.length}`);
   };
@@ -168,18 +168,18 @@ const Contacts = () => {
             toast.error("لم يتم العثور على جهات اتصال في الملف");
             return;
           }
-          mergeImportedContacts(imported);
+          await mergeImportedContacts(imported);
         } else if (file.name.endsWith('.json')) {
           // Parse JSON
           const data: SavedContact[] = JSON.parse(text);
           if (!Array.isArray(data)) throw new Error('invalid');
-          mergeImportedContacts(data);
+          await mergeImportedContacts(data);
         } else if (file.name.endsWith(".csv")) {
           const rows = text.split(/\r?\n/).filter(Boolean);
           const headers = rows.shift()?.split(",").map((value) => value.replace(/^"|"$/g, "").trim().toLowerCase()) || [];
           const nameIndex = headers.findIndex((value) => ["name", "الاسم"].includes(value));
           const phoneIndex = headers.findIndex((value) => ["phone", "mobile", "الهاتف", "الرقم"].includes(value));
-          mergeImportedContacts(rows.map((row) => {
+          await mergeImportedContacts(rows.map((row) => {
             const values = row.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g)?.map((value) =>
               value.replace(/^"|"$/g, "").replace(/""/g, '"').trim()
             ) || [];
@@ -189,7 +189,7 @@ const Contacts = () => {
           const doc = new DOMParser().parseFromString(text, "application/xml");
           if (doc.querySelector("parsererror")) throw new Error("invalid_excel_xml");
           const rows = Array.from(doc.getElementsByTagName("Row")).slice(1);
-          mergeImportedContacts(rows.map((row) => {
+          await mergeImportedContacts(rows.map((row) => {
             const cells = Array.from(row.getElementsByTagName("Data")).map((cell) => cell.textContent || "");
             return { name: cells[0] || "", phone: cells[1] || "" };
           }));
@@ -207,11 +207,8 @@ const Contacts = () => {
         open={phoneBookOpen}
         onOpenChange={setPhoneBookOpen}
         onSelect={(picked) => {
-          // Insert selected phone into search box
           setSearch(picked.phone);
-          // Keep current behavior: save it to our in-app contacts too
-          saveContact(picked.phone, picked.name);
-          reload();
+          void saveContact(picked.phone, picked.name).then(reload);
           toast.success(`تم اختيار ${picked.name || picked.phone}`);
         }}
       />

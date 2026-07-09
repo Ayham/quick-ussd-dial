@@ -166,7 +166,10 @@ const Index = () => {
         status: "success",
       });
       setHistory(getHistory());
-      trackTransfer(phone.trim(), String(selectedAmount.amount), operator, "success");
+      trackTransfer(phone.trim(), String(selectedAmount.amount), operator, "success", {
+        package_price: selectedAmount.price,
+        package_name: `${selectedAmount.amount}`,
+      });
 
       toast.success("تم إرسال الطلب بنجاح ✓");
 

@@ -3,6 +3,7 @@
  * إدارة جهات الاتصال بالاسم والرقم
  */
 import { pushEvent } from "./supabase-sync";
+import { getCurrentUser } from "./auth";
 
 const CONTACTS_KEY = 'named-contacts-v1';
 
@@ -43,46 +44,49 @@ export function saveSavedContacts(contacts: SavedContact[]) {
   localStorage.setItem(CONTACTS_KEY, JSON.stringify(Array.from(deduped.values()).slice(0, 5000)));
 }
 
-export function saveContact(phone: string, name: string = '') {
+export async function saveContact(phone: string, name: string = '') {
   phone = normalizePhone(phone);
   const contacts = getSavedContacts();
   const existing = contacts.findIndex(c => c.phone === phone);
   if (existing >= 0) {
-    // Update name if provided
     if (name) contacts[existing].name = name;
-    // Move to top
     const [contact] = contacts.splice(existing, 1);
     contacts.unshift(contact);
   } else {
     contacts.unshift({ phone, name });
   }
   saveSavedContacts(contacts);
-  pushEvent("contact_upsert", { phone, name });
+  const user = await getCurrentUser();
+  pushEvent("contact_upsert", { phone, name, user_id: user?.id ?? null });
 }
 
-export function updateContactName(phone: string, name: string) {
+export async function updateContactName(phone: string, name: string) {
   const contacts = getSavedContacts();
   const idx = contacts.findIndex(c => c.phone === phone);
   if (idx >= 0) {
     contacts[idx].name = name;
     saveSavedContacts(contacts);
-    pushEvent("contact_upsert", { phone, name });
+    const user = await getCurrentUser();
+    pushEvent("contact_upsert", { phone, name, user_id: user?.id ?? null });
   } else {
-    saveContact(phone, name);
+    await saveContact(phone, name);
   }
 }
 
-export function deleteContact(phone: string) {
+export async function deleteContact(phone: string) {
   const contacts = getSavedContacts().filter(c => c.phone !== phone);
   saveSavedContacts(contacts);
-  pushEvent("contact_delete", { phone: normalizePhone(phone) });
+  const user = await getCurrentUser();
+  pushEvent("contact_delete", { phone: normalizePhone(phone), user_id: user?.id ?? null });
 }
 
-export function queueContactsForSync(contacts: SavedContact[]) {
+export async function queueContactsForSync(contacts: SavedContact[]) {
+  const user = await getCurrentUser();
   for (const contact of contacts) {
     pushEvent("contact_upsert", {
       phone: normalizePhone(contact.phone),
       name: contact.name?.trim() || "",
+      user_id: user?.id ?? null,
     });
   }
 }

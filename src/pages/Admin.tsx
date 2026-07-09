@@ -1,11 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Shield, LogOut, LayoutDashboard, Smartphone, Key, CheckCircle,
-  Clock, Activity, Users,
-} from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { Shield, LogOut, LayoutGrid, Users, Smartphone, Key, Activity, FileText, Database, Bell, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { signOut } from "@/lib/auth";
 import { DashboardOverview } from "@/components/admin/DashboardOverview";
@@ -16,29 +13,24 @@ import { TrialsManager } from "@/components/admin/TrialsManager";
 import { EventsViewer } from "@/components/admin/EventsViewer";
 import { TransfersViewer } from "@/components/admin/TransfersViewer";
 import { UsersRolesManager } from "@/components/admin/UsersRolesManager";
+import { ContactsAdminViewer } from "@/components/admin/ContactsAdminViewer";
 
-type AdminTab =
-  | "dashboard"
-  | "licenses"
-  | "devices"
-  | "activations"
-  | "trials"
-  | "monitoring"
-  | "users";
-
-const TABS: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
-  { id: "dashboard",   label: "Dashboard",   icon: LayoutDashboard },
-  { id: "licenses",    label: "Licenses",    icon: Key },
-  { id: "devices",     label: "Devices",     icon: Smartphone },
-  { id: "activations", label: "Activations", icon: CheckCircle },
-  { id: "trials",      label: "Trials",      icon: Clock },
-  { id: "monitoring",  label: "Monitoring",  icon: Activity },
-  { id: "users",       label: "Users & Roles", icon: Users },
+const tabs = [
+  { value: "overview", labelKey: "admin.dashboard", icon: LayoutGrid },
+  { value: "users", labelKey: "admin.users", icon: Users },
+  { value: "devices", labelKey: "admin.devices", icon: Smartphone },
+  { value: "licenses", labelKey: "admin.licenses", icon: Key },
+  { value: "activations", labelKey: "admin.activations", icon: Bell },
+  { value: "trials", labelKey: "admin.trials", icon: Award },
+  { value: "transfers", labelKey: "admin.transfers", icon: Activity },
+  { value: "contacts", labelKey: "admin.customers", icon: FileText },
+  { value: "events", labelKey: "admin.events", icon: Database },
 ];
 
 const Admin = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<AdminTab>("dashboard");
+  const [activeTab, setActiveTab] = useState("overview");
 
   const handleLogout = async () => {
     await signOut();
@@ -46,51 +38,83 @@ const Admin = () => {
     navigate("/auth");
   };
 
+  const renderPanel = (value: string) => {
+    switch (value) {
+      case "overview":
+        return <DashboardOverview />;
+      case "users":
+        return <UsersRolesManager />;
+      case "devices":
+        return <DevicesManager />;
+      case "licenses":
+        return <LicensesManager />;
+      case "activations":
+        return <ActivationsManager />;
+      case "trials":
+        return <TrialsManager />;
+      case "transfers":
+        return <TransfersViewer />;
+      case "contacts":
+        return <ContactsAdminViewer />;
+      case "events":
+        return <EventsViewer />;
+      default:
+        return <DashboardOverview />;
+    }
+  };
+
   return (
     <div className="min-h-dvh bg-background safe-area-insets">
-      <header className="header-gradient px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] flex items-center justify-between shadow-elevated">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary-foreground/15 flex items-center justify-center">
-            <Shield className="w-4.5 h-4.5 text-primary-foreground" />
+      <header className="header-gradient px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] flex flex-col gap-4 shadow-elevated">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-primary-foreground/15 flex items-center justify-center">
+              <Shield className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-primary-foreground text-lg font-bold tracking-tight">Administration</h1>
+              <p className="text-sm text-muted-foreground">Operational console for licenses, devices, users, and system events.</p>
+            </div>
           </div>
-          <h1 className="text-primary-foreground text-lg font-bold tracking-tight">
-            Administration
-          </h1>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/")}>Back to app</Button>
+            <Button variant="ghost" size="icon" onClick={handleLogout}>
+              <LogOut className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="text-primary-foreground hover:bg-primary-foreground/15">
-            Back to app
-          </Button>
-          <Button variant="ghost" size="icon" onClick={handleLogout} className="text-primary-foreground hover:bg-primary-foreground/15">
-            <LogOut className="w-4 h-4" />
-          </Button>
+
+        <div className="overflow-x-auto">
+          <div className="flex gap-2 rounded-2xl border border-border bg-card p-2">
+            {tabs.map((tab) => {
+              const active = activeTab === tab.value;
+              return (
+                <button
+                  key={tab.value}
+                  onClick={() => setActiveTab(tab.value)}
+                  className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold transition-all ${active ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-foreground hover:bg-muted/80'}`}
+                >
+                  <tab.icon className="h-4 w-4" />
+                  {t(tab.labelKey)}
+                </button>
+              );
+            })}
+          </div>
         </div>
+
       </header>
 
-      <main className="p-4 max-w-7xl mx-auto">
-        <Tabs value={tab} onValueChange={(v) => setTab(v as AdminTab)}>
-          <TabsList className="flex flex-wrap h-auto gap-1 mb-4">
-            {TABS.map((t) => (
-              <TabsTrigger key={t.id} value={t.id} className="gap-1.5">
-                <t.icon className="w-3.5 h-3.5" />
-                <span>{t.label}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          <TabsContent value="dashboard"><DashboardOverview /></TabsContent>
-          <TabsContent value="licenses"><LicensesManager /></TabsContent>
-          <TabsContent value="devices"><DevicesManager /></TabsContent>
-          <TabsContent value="activations"><ActivationsManager /></TabsContent>
-          <TabsContent value="trials"><TrialsManager /></TabsContent>
-          <TabsContent value="monitoring">
-            <div className="space-y-6">
-              <TransfersViewer />
-              <EventsViewer />
+      <main className="p-4 max-w-7xl mx-auto pb-8">
+        <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          {tabs.map((tab) => (
+            <div
+              key={tab.value}
+              className={activeTab === tab.value ? "block" : "hidden"}
+            >
+              {renderPanel(tab.value)}
             </div>
-          </TabsContent>
-          <TabsContent value="users"><UsersRolesManager /></TabsContent>
-        </Tabs>
+          ))}
+        </section>
       </main>
     </div>
   );

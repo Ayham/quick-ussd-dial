@@ -99,10 +99,14 @@
 
   html {
     direction: rtl;
+    height: 100%;
   }
 
   body {
     @apply bg-background text-foreground font-tajawal antialiased;
+    min-height: 100%;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   #root {
@@ -112,8 +116,16 @@
   }
 }
 
-/* Safe area insets - only bottom, top is handled by header */
 .safe-area-insets {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 

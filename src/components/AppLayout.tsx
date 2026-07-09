@@ -189,7 +189,7 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children }: AppLayoutProps)
         </SheetContent>
       </Sheet>
 
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto pt-safe pb-safe">
         {children}
       </main>
     </div>

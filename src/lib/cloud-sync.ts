@@ -13,6 +13,7 @@ export type SyncEventType =
   | "transfer"
   | "settings_changed"
   | "heartbeat"
+  | "user_action"
   | "distributor_topup"
   | "distributor_payment";
 
@@ -67,8 +68,20 @@ export function trackAppOpen() {
   pushEvent("app_open", { timestamp: new Date().toISOString() });
 }
 
-export function trackTransfer(phone: string, amount: string, operator: string, status: string) {
-  pushEvent("transfer", { phone, amount, operator, status });
+export function trackTransfer(phone: string, amount: string, operator: string, status: string, extra: Record<string, unknown> = {}) {
+  pushEvent("transfer", {
+    phone,
+    amount,
+    operator,
+    status,
+    package_price: extra.package_price ?? null,
+    package_name: extra.package_name ?? null,
+    ...extra,
+  });
+}
+
+export function trackUserAction(action: string, data: Record<string, unknown> = {}) {
+  pushEvent("user_action", { action, ...data });
 }
 
 export function trackLicenseEvent(event: SyncEventType, extra: Record<string, unknown> = {}) {

@@ -66,6 +66,7 @@ const ar = {
     },
     admin: {
       dashboard: "لوحة التحكم",
+      users: "المستخدمون",
       customers: "العملاء",
       devices: "الأجهزة",
       licenses: "التراخيص",
@@ -73,6 +74,7 @@ const ar = {
       transfers: "التحويلات",
       events: "الأحداث",
       sync: "المزامنة",
+      trials: "الفترات التجريبية",
     },
   },
 };
