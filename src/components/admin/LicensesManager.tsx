@@ -345,7 +345,21 @@ export function LicensesManager() {
                     new Date(license.expiry_date).toLocaleDateString()
                   ) : '-'}
                 </td>
-                <td className="p-3 text-xs font-mono whitespace-nowrap">{license.device_id || '-'}</td>
+                <td className="p-3 text-xs font-mono whitespace-nowrap">
+                  {license.device_id ? (
+                    <span className="inline-flex items-center gap-1">
+                      <span title={license.device_id}>{license.device_id}</span>
+                      <button
+                        type="button"
+                        onClick={() => copyText(license.device_id!, 'Device ID copied')}
+                        className="text-muted-foreground hover:text-foreground"
+                        aria-label="Copy device ID"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ) : '-'}
+                </td>
                 <td className="p-3 text-xs">{license.level || 'standard'}</td>
                 <td className="p-3 text-xs">
                   {new Date(license.created_at).toLocaleDateString()}
