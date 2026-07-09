@@ -34,6 +34,53 @@ export function LicensesManager() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [edits, setEdits] = useState<Record<string, { expiryDate: string; deviceId: string }>>({});
+  const [transferFor, setTransferFor] = useState<License | null>(null);
+  const [transferTargetDevice, setTransferTargetDevice] = useState('');
+  const [transferReason, setTransferReason] = useState('');
+  const [transferInProgress, setTransferInProgress] = useState(false);
+
+  async function copyText(value: string, label = 'Copied') {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(label);
+    } catch {
+      toast.error('Failed to copy');
+    }
+  }
+
+  async function handleTransfer() {
+    if (!transferFor) return;
+    const target = transferTargetDevice.trim();
+    if (target.length < 4) {
+      toast.error('Enter the target device ID');
+      return;
+    }
+    if (target === transferFor.device_id) {
+      toast.error('Target device is the same as current');
+      return;
+    }
+    setTransferInProgress(true);
+    try {
+      const { data, error } = await supabase.rpc('admin_transfer_license', {
+        _license_id: transferFor.id,
+        _new_device_id: target,
+        _reason: transferReason.trim() || null,
+      });
+      if (error) throw error;
+      const payload = data as { ok?: boolean; reason?: string } | null;
+      if (!payload?.ok) throw new Error(payload?.reason || 'Transfer failed');
+      toast.success('License transferred');
+      setTransferFor(null);
+      setTransferTargetDevice('');
+      setTransferReason('');
+      loadLicenses();
+    } catch (err) {
+      console.error('Transfer error', err);
+      toast.error(err instanceof Error ? err.message : 'Transfer failed');
+    } finally {
+      setTransferInProgress(false);
+    }
+  }
 
   useEffect(() => {
     loadLicenses();
@@ -298,7 +345,21 @@ export function LicensesManager() {
                     new Date(license.expiry_date).toLocaleDateString()
                   ) : '-'}
                 </td>
-                <td className="p-3 text-xs font-mono whitespace-nowrap">{license.device_id || '-'}</td>
+                <td className="p-3 text-xs font-mono whitespace-nowrap">
+                  {license.device_id ? (
+                    <span className="inline-flex items-center gap-1">
+                      <span title={license.device_id}>{license.device_id}</span>
+                      <button
+                        type="button"
+                        onClick={() => copyText(license.device_id!, 'Device ID copied')}
+                        className="text-muted-foreground hover:text-foreground"
+                        aria-label="Copy device ID"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ) : '-'}
+                </td>
                 <td className="p-3 text-xs">{license.level || 'standard'}</td>
                 <td className="p-3 text-xs">
                   {new Date(license.created_at).toLocaleDateString()}
@@ -440,6 +501,19 @@ export function LicensesManager() {
                     >
                       Reassign
                     </Button>
+                    <Button
+                      onClick={() => {
+                        setTransferFor(license);
+                        setTransferTargetDevice('');
+                        setTransferReason('');
+                      }}
+                      disabled={actionInProgress === license.id || license.status === 'revoked'}
+                      variant="default"
+                      size="sm"
+                      className="h-8"
+                    >
+                      Transfer
+                    </Button>
                     </div>
                   </div>
                 </td>
@@ -452,6 +526,70 @@ export function LicensesManager() {
       {filteredLicenses.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
           No licenses found
+        </div>
+      )}
+
+      {transferFor && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => !transferInProgress && setTransferFor(null)}
+        >
+          <div
+            className="bg-card border border-border rounded-lg shadow-lg w-full max-w-md p-5 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <h3 className="text-lg font-semibold">Transfer license</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Rebinds this license to a new device via server RPC (with audit + lifecycle sync).
+              </p>
+            </div>
+            <div className="space-y-2 text-sm">
+              <div>
+                <div className="text-muted-foreground text-xs">License key</div>
+                <div className="font-mono">{transferFor.license_key}</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground text-xs">Current device</div>
+                <div className="font-mono break-all">{transferFor.device_id || '—'}</div>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">New device ID</label>
+              <Input
+                value={transferTargetDevice}
+                onChange={(e) => setTransferTargetDevice(e.target.value)}
+                className="font-mono"
+                placeholder="Target device ID"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Reason (optional)</label>
+              <Input
+                value={transferReason}
+                onChange={(e) => setTransferReason(e.target.value)}
+                placeholder="e.g. replaced phone"
+              />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setTransferFor(null)}
+                disabled={transferInProgress}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={handleTransfer}
+                disabled={transferInProgress}
+              >
+                {transferInProgress ? 'Transferring…' : 'Confirm transfer'}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
