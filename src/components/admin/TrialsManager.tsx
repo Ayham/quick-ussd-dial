@@ -46,7 +46,7 @@ export function TrialsManager() {
 
   async function endTrial(deviceId: string) {
     if (!confirm('End this trial now?')) return;
-    const { data, error } = await supabase.rpc('admin_end_trial', { _device_id: deviceId });
+    const { data, error } = await adminRpc('admin_end_trial', { _device_id: deviceId });
     const result = data as { ok?: boolean; reason?: string } | null;
     if (error || !result?.ok) toast.error(error?.message || result?.reason || 'Trial update failed');
     else { toast.success('Trial ended'); load(); }
