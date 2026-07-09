@@ -501,6 +501,19 @@ export function LicensesManager() {
                     >
                       Reassign
                     </Button>
+                    <Button
+                      onClick={() => {
+                        setTransferFor(license);
+                        setTransferTargetDevice('');
+                        setTransferReason('');
+                      }}
+                      disabled={actionInProgress === license.id || license.status === 'revoked'}
+                      variant="default"
+                      size="sm"
+                      className="h-8"
+                    >
+                      Transfer
+                    </Button>
                     </div>
                   </div>
                 </td>
