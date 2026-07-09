@@ -181,10 +181,8 @@ Deno.serve(async (req) => {
     const { data: heartbeat, error: heartbeatError } = await sb.rpc("device_heartbeat", {
       _device_id: deviceId,
       _fingerprint: fingerprint,
-      _app_instance_id: device.app_instance_id ?? null,
       _app_version: device.app_version ?? null,
       _platform: device.platform ?? null,
-      _user_id: userId,
     });
     if (heartbeatError) return json({ ok: false, error: heartbeatError.message }, 500);
 
