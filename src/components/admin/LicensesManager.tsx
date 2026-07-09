@@ -528,6 +528,70 @@ export function LicensesManager() {
           No licenses found
         </div>
       )}
+
+      {transferFor && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => !transferInProgress && setTransferFor(null)}
+        >
+          <div
+            className="bg-card border border-border rounded-lg shadow-lg w-full max-w-md p-5 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <h3 className="text-lg font-semibold">Transfer license</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Rebinds this license to a new device via server RPC (with audit + lifecycle sync).
+              </p>
+            </div>
+            <div className="space-y-2 text-sm">
+              <div>
+                <div className="text-muted-foreground text-xs">License key</div>
+                <div className="font-mono">{transferFor.license_key}</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground text-xs">Current device</div>
+                <div className="font-mono break-all">{transferFor.device_id || '—'}</div>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">New device ID</label>
+              <Input
+                value={transferTargetDevice}
+                onChange={(e) => setTransferTargetDevice(e.target.value)}
+                className="font-mono"
+                placeholder="Target device ID"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Reason (optional)</label>
+              <Input
+                value={transferReason}
+                onChange={(e) => setTransferReason(e.target.value)}
+                placeholder="e.g. replaced phone"
+              />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setTransferFor(null)}
+                disabled={transferInProgress}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={handleTransfer}
+                disabled={transferInProgress}
+              >
+                {transferInProgress ? 'Transferring…' : 'Confirm transfer'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
