@@ -5,6 +5,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { adminRpc } from './admin-rpc';
 import { getDeviceId } from './device-id';
 import { flush, pushEvent } from './supabase-sync';
 
