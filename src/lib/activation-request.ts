@@ -199,7 +199,7 @@ export async function adminRejectActivation(
       .eq('request_token', requestToken)
       .maybeSingle();
     if (fetchError || !activation) return { success: false, error: fetchError?.message || 'Activation not found' };
-    const { data, error } = await supabase.rpc('admin_decide_activation', {
+    const { data, error } = await adminRpc('admin_decide_activation', {
       _request_id: activation.id,
       _decision: 'rejected',
       _license_id: null,
