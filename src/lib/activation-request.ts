@@ -222,8 +222,8 @@ export async function adminSetDeviceBlocked(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { data, error } = blocked
-      ? await supabase.rpc('admin_block_device', { _device_id: deviceId, _reason: 'Blocked by administrator' })
-      : await supabase.rpc('admin_unblock_device', { _device_id: deviceId });
+      ? await adminRpc('admin_block_device', { _device_id: deviceId, _reason: 'Blocked by administrator' })
+      : await adminRpc('admin_unblock_device', { _device_id: deviceId });
     const result = data as { ok?: boolean; reason?: string } | null;
     if (error || !result?.ok) return { success: false, error: error?.message || result?.reason || 'Device update failed' };
     return { success: true };
