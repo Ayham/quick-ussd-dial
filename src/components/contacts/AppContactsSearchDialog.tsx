@@ -74,7 +74,7 @@ export default function AppContactsSearchDialog({ open, onOpenChange, onSelect, 
         aria-describedby={undefined}
       >
         <div className="p-4 border-b border-border bg-card">
-          <DialogTitle className="text-base text-right leading-6">البحث في جهات التطبيق</DialogTitle>
+          <DialogTitle className="pr-12 text-base text-right">البحث في جهات التطبيق</DialogTitle>
 
           <div className="relative mt-3">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
