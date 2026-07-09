@@ -35,7 +35,7 @@ export function TrialsManager() {
 
   async function extend(id: string, deviceId: string) {
     const days = extra[id] || 7;
-    const { data, error } = await supabase.rpc('admin_extend_trial', {
+    const { data, error } = await adminRpc('admin_extend_trial', {
       _device_id: deviceId,
       _days: days,
     });
