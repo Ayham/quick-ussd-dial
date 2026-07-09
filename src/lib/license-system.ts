@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { adminRpc } from "./admin-rpc";
 
 export type AdminLicenseAction =
   | "license_activated"
