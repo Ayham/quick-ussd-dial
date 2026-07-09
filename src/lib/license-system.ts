@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { adminRpc } from "./admin-rpc";
 
 export type AdminLicenseAction =
   | "license_activated"
@@ -36,7 +37,7 @@ export async function adminUpdateLicense(
 ): Promise<{ success: boolean; error?: string }> {
   if (patch.device_id !== undefined) {
     if (!patch.device_id) return { success: false, error: "A target device is required" };
-    const { data, error } = await supabase.rpc("admin_transfer_license", {
+    const { data, error } = await adminRpc("admin_transfer_license", {
       _license_id: licenseId,
       _new_device_id: patch.device_id,
       _reason: action,
@@ -45,7 +46,7 @@ export async function adminUpdateLicense(
   }
 
   if (patch.permanent !== undefined) {
-    const { data, error } = await supabase.rpc("admin_convert_license", {
+    const { data, error } = await adminRpc("admin_convert_license", {
       _license_id: licenseId,
       _permanent: patch.permanent,
       _expiry: patch.permanent ? null : patch.expiry_date || null,
@@ -55,7 +56,7 @@ export async function adminUpdateLicense(
 
   if (patch.expiry_date !== undefined) {
     if (!patch.expiry_date) return { success: false, error: "Expiry date is required" };
-    const { data, error } = await supabase.rpc("admin_extend_license", {
+    const { data, error } = await adminRpc("admin_extend_license", {
       _license_id: licenseId,
       _new_expiry: patch.expiry_date,
     });
@@ -64,7 +65,7 @@ export async function adminUpdateLicense(
 
   if (patch.status !== undefined) {
     const status = patch.status === "inactive" ? "expired" : patch.status;
-    const { data, error } = await supabase.rpc("admin_set_license_status", {
+    const { data, error } = await adminRpc("admin_set_license_status", {
       _license_id: licenseId,
       _status: status,
       _reason: action,

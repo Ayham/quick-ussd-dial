@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
+import { adminRpc } from '@/lib/admin-rpc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Copy, Plus } from 'lucide-react';
@@ -61,12 +62,12 @@ export function LicensesManager() {
     }
     setTransferInProgress(true);
     try {
-      const { data, error } = await supabase.rpc('admin_transfer_license', {
+      const { data, error } = await adminRpc('admin_transfer_license', {
         _license_id: transferFor.id,
         _new_device_id: target,
         _reason: transferReason.trim() || null,
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       const payload = data as { ok?: boolean; reason?: string } | null;
       if (!payload?.ok) throw new Error(payload?.reason || 'Transfer failed');
       toast.success('License transferred');

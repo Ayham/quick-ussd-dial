@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { adminRpc } from "@/lib/admin-rpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -35,7 +36,7 @@ export function UsersRolesManager() {
 
   const toggleAdmin = async (userId: string, grant: boolean) => {
     setBusy(userId);
-    const { data, error } = await supabase.rpc("admin_set_role", {
+    const { data, error } = await adminRpc("admin_set_role", {
       _target_user: userId, _role: "admin", _grant: grant,
     });
     setBusy(null);

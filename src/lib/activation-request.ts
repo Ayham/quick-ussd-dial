@@ -5,6 +5,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { adminRpc } from './admin-rpc';
 import { getDeviceId } from './device-id';
 import { flush, pushEvent } from './supabase-sync';
 
@@ -167,7 +168,7 @@ export async function adminApproveActivation(
       return { success: false, error: licData?.error || licErr?.message || 'license creation failed' };
     }
 
-    const { data: decision, error: decisionError } = await supabase.rpc('admin_decide_activation', {
+    const { data: decision, error: decisionError } = await adminRpc('admin_decide_activation', {
       _request_id: activation.id,
       _decision: 'approved',
       _license_id: licData.license.id,
@@ -198,7 +199,7 @@ export async function adminRejectActivation(
       .eq('request_token', requestToken)
       .maybeSingle();
     if (fetchError || !activation) return { success: false, error: fetchError?.message || 'Activation not found' };
-    const { data, error } = await supabase.rpc('admin_decide_activation', {
+    const { data, error } = await adminRpc('admin_decide_activation', {
       _request_id: activation.id,
       _decision: 'rejected',
       _license_id: null,
@@ -221,8 +222,8 @@ export async function adminSetDeviceBlocked(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { data, error } = blocked
-      ? await supabase.rpc('admin_block_device', { _device_id: deviceId, _reason: 'Blocked by administrator' })
-      : await supabase.rpc('admin_unblock_device', { _device_id: deviceId });
+      ? await adminRpc('admin_block_device', { _device_id: deviceId, _reason: 'Blocked by administrator' })
+      : await adminRpc('admin_unblock_device', { _device_id: deviceId });
     const result = data as { ok?: boolean; reason?: string } | null;
     if (error || !result?.ok) return { success: false, error: error?.message || result?.reason || 'Device update failed' };
     return { success: true };
