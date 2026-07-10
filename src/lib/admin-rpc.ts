@@ -34,7 +34,8 @@ export async function adminRpc<T = unknown>(
   }
 
   try {
-    const { data, error } = await supabase.rpc(fn, args);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.rpc as any)(fn, args);
     if (error) return { data: null, error: { message: error.message } };
     return { data: (data as T | null) ?? null, error: null };
   } catch (error) {
