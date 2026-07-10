@@ -1,4 +1,4 @@
-package com.5Giga.Raseed;
+package com.BlueOrbitTechnologies.Raseed;
 
 import android.os.Environment;
 import com.getcapacitor.JSObject;

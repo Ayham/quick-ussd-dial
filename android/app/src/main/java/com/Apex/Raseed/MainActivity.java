@@ -1,4 +1,4 @@
-package com.5Giga.Raseed;
+package com.BlueOrbitTechnologies.Raseed;
 
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;
