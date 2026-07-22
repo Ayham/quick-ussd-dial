@@ -1,150 +1,192 @@
-# Portable Supabase Migration Runbook
+# Cutover runbook — Lovable Cloud → `tebyyidgcsivzslaohxd`
 
-This bundle lets you move the Quick USSD Dial app off Lovable Cloud onto your **own Supabase project** while keeping the same schema, RLS, edge functions, and offline-first sync.
+Command-by-command procedure for migrating the Quick USSD Dial app from the
+Lovable-managed Supabase project (`jwfsiqkvzmttkuxldkrq`) to your own
+Supabase project (`tebyyidgcsivzslaohxd`).
 
-> ⚠️ **Rotate the access token you shared in chat** (`sbp_a55…f326`) at https://supabase.com/dashboard/account/tokens before doing anything else. Lovable never needs it.
+> All destructive commands run against the **destination** project. Source
+> project operations are strictly read-only.
 
 ---
 
-## 1. Bundle contents
+## 1. Prerequisites
 
-```
-db/portable/
-├── schema/
-│   └── 00_full_schema.sql        # consolidated DDL: tables, RLS, GRANTs, triggers, seeds
-├── edge-functions/               # one folder per function, ready for `supabase functions deploy`
-│   ├── admin-bootstrap/
-│   ├── admin-create-license/
-│   ├── admin-reset-user/
-│   ├── check-license/
-│   ├── device-sync/
-│   ├── migrate-from-sheets/
-│   └── request-activation/
-├── client.template.ts            # drop-in replacement for src/integrations/supabase/client.ts
-├── .env.example                  # required env vars
-└── MIGRATION.md                  # this file
-```
-
-## 2. Prerequisites
-
-- A new Supabase project (Free tier is fine to start).
-- `supabase` CLI ≥ 1.180 installed locally (`npm i -g supabase`).
-- This repo cloned locally.
-
-## 3. Steps
-
-### 3.1 Apply the schema
+- Repo forked out of Lovable and cloned locally.
+- Node ≥ 20, PostgreSQL client (`psql`, `pg_dump`) ≥ 15.
+- `supabase` CLI ≥ 1.180 — `npm i -g supabase`.
+- Personal access token (PAT) generated at
+  https://supabase.com/dashboard/account/tokens.
+- The following filled in inside `.env` (see `db/portable/.env.example`):
+  `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_URL_DIRECT`,
+  `SUPABASE_SERVICE_ROLE_KEY`, `SOURCE_DB_URL_DIRECT`,
+  `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`.
 
 ```bash
-# Get your DB connection string from: Project Settings → Database → Connection string (URI)
-psql "postgresql://postgres:[PASSWORD]@db.[REF].supabase.co:5432/postgres" \
+export $(grep -v '^#' .env | xargs)   # load env for shell scripts
+```
+
+## 2. Back up the SOURCE project
+
+```bash
+# schema snapshot (read-only)
+./db/portable/dump-source-schema.sh
+# data snapshot (CSV, read-only)
+./db/portable/export-data.sh          # writes to ./_export/
+tar -czf source-backup-$(date +%F).tgz db/portable/schema/99_authoritative_dump.sql _export/
+```
+
+Also trigger **Lovable → Cloud → Advanced settings → Export data** and keep
+that archive.
+
+## 3. Link the destination project
+
+```bash
+supabase login --token "$SUPABASE_ACCESS_TOKEN"
+supabase link --project-ref tebyyidgcsivzslaohxd
+```
+
+## 4. Apply schema (in order)
+
+```bash
+psql "$SUPABASE_DB_URL_DIRECT" -v ON_ERROR_STOP=1 \
   -f db/portable/schema/00_full_schema.sql
+psql "$SUPABASE_DB_URL_DIRECT" -v ON_ERROR_STOP=1 \
+  -f db/portable/schema/01_final_device_authority_hardening.sql
+psql "$SUPABASE_DB_URL_DIRECT" -v ON_ERROR_STOP=1 \
+  -f db/portable/schema/02_post_hardening.sql
 ```
 
-This creates **all 30 tables**, RLS policies, GRANTs, triggers (`enforce_device_limit`, `detect_device_cloning`, `handle_new_user`, `update_updated_at_column`), the `has_role` security-definer function, and seeds the 5 `subscription_plans` and `system_config` defaults.
+If `99_authoritative_dump.sql` diverges from `00 + 01 + 02`, prefer the
+authoritative dump for tables, and re-apply `02_post_hardening.sql` on top for
+grants and hardening.
 
-### 3.2 Deploy edge functions
+## 5. Import data
 
 ```bash
-supabase link --project-ref YOUR-REF
+./db/portable/import-data.sh          # reads ./_export/, writes destination
+```
+
+The script disables user triggers during load, TRUNCATE-CASCADEs each table
+inside a per-table transaction, then re-enables triggers and resyncs every
+sequence with `setval(MAX(col))`.
+
+`auth.users` is **not** included. Options:
+
+- Have users sign in again (works transparently for Google OAuth).
+- Contact Supabase support to bulk-import a JSON of users, then rerun
+  `import-data.sh` for `profiles` / `user_roles` (they FK to `auth.users`).
+
+## 6. Deploy edge functions
+
+```bash
 for fn in db/portable/edge-functions/*/; do
-  name=$(basename "$fn")
-  supabase functions deploy "$name" --no-verify-jwt
+  name="$(basename "$fn")"
+  supabase functions deploy "$name" --project-ref tebyyidgcsivzslaohxd
 done
 ```
 
-> `admin-reset-user` is the only one that needs `--no-verify-jwt`; the rest validate the JWT in code. Adjust per `supabase/config.toml` if you change defaults.
+`admin-reset-user` deploys with `verify_jwt = false` via
+`supabase/config.toml`. All others validate the JWT in code.
 
-### 3.3 Configure Auth
+## 7. Set edge-function secrets
 
-- **Email/password**: already enabled.
-- **Google OAuth** (required for in-app Google login):
-  1. Create OAuth credentials at https://console.cloud.google.com/apis/credentials (Web application).
-  2. Authorized redirect URI: `https://YOUR-REF.supabase.co/auth/v1/callback`.
-  3. In Supabase Dashboard → Authentication → Providers → Google: paste Client ID + Client Secret.
-- **Site URL / Redirect URLs**: add your production domain and `http://localhost:5173` (or your Vite port).
-- **Disable** "Confirm email" only if you want instant sign-up; otherwise leave on.
+```bash
+supabase secrets set --project-ref tebyyidgcsivzslaohxd --env-file .env
+# then remove anything you didn't intend to push:
+supabase secrets list --project-ref tebyyidgcsivzslaohxd
+```
 
-### 3.4 Point the app at your project
+If any code path used `LOVABLE_API_KEY`, replace it with your own provider
+key before this step (e.g. `OPENAI_API_KEY=…`).
+
+## 8. Configure auth
+
+Supabase dashboard → Authentication:
+
+1. **Providers → Google** — paste the Client ID + Secret from Google Cloud
+   Console. Authorized redirect URI:
+   `https://tebyyidgcsivzslaohxd.supabase.co/auth/v1/callback`.
+2. **URL Configuration** — Site URL = `$APP_SITE_URL`; Redirect URLs =
+   comma-separated `$APP_REDIRECT_URLS`.
+3. **Email Templates** — reapply your branded templates (Confirmation,
+   Reset password, Magic Link).
+
+Then in the repo, swap the OAuth wrapper. See
+`db/portable/POST_FORK_CHECKLIST.md` for the exact edit in `src/pages/Auth.tsx`.
+
+## 9. Storage buckets
+
+The current project has **zero storage buckets** (verified against
+`storage.buckets`). If you later need one:
+
+```bash
+supabase storage create <name> --project-ref tebyyidgcsivzslaohxd --public
+# or via SQL:
+psql "$SUPABASE_DB_URL_DIRECT" -c \
+  "INSERT INTO storage.buckets (id, name, public) VALUES ('avatars','avatars',true);"
+```
+
+## 10. Bootstrap the first admin
+
+```bash
+# Sign up in the app first so an auth.users row exists.
+JWT="paste your access_token from browser devtools localStorage"
+curl -X POST https://tebyyidgcsivzslaohxd.supabase.co/functions/v1/admin-bootstrap \
+  -H "Authorization: Bearer $JWT"
+```
+
+The function promotes the first caller to `admin` and self-locks; further
+promotions require an existing admin.
+
+## 11. Point the frontend at the new project
+
+Only after the repo is forked (Lovable will otherwise overwrite):
 
 ```bash
 cp db/portable/client.template.ts src/integrations/supabase/client.ts
-cp db/portable/.env.example .env
-# edit .env with your URL + anon key
+cp db/portable/.env.example .env       # fill in real values
+supabase gen types typescript --project-id tebyyidgcsivzslaohxd \
+  > src/integrations/supabase/types.ts
 ```
 
-Then regenerate types against **your** project:
+Then apply the edits listed in `db/portable/POST_FORK_CHECKLIST.md`
+(remove `src/integrations/lovable/`, replace the Google OAuth handler, drop
+`@lovable.dev/cloud-auth-js` from `package.json`).
+
+## 12. Validate
 
 ```bash
-supabase gen types typescript --project-id YOUR-REF > src/integrations/supabase/types.ts
+./db/portable/verify-migration.sh
 ```
 
-### 3.5 Promote your first admin
+Manual smoke tests (each must pass):
 
-Sign up in the app, then call the `admin-bootstrap` function once (it promotes the first user to admin and locks itself):
-
-```bash
-curl -X POST https://YOUR-REF.supabase.co/functions/v1/admin-bootstrap \
-  -H "Authorization: Bearer YOUR_USER_ACCESS_TOKEN"
-```
-
-### 3.6 Verify
-
-- Sign in → reach `/`.
+- Sign in with email/password → land on `/`.
+- Sign in with Google → land on `/`.
 - Create a transfer offline → reconnect → row appears in `public.transfers`.
-- Open `/sys-panel` → all tabs load.
-- Run the linter: Supabase Dashboard → Database → Linter.
+- Open `/sys-panel` → every tab loads with data.
+- Admin RPC — extend a license via the panel → row updates + `audit_logs`
+  entry appears.
+- `POST /functions/v1/mcp` returns a valid tool list.
+- Contacts sync — add a contact on device A, sign in on device B → contact
+  appears after next sync.
+- Trial-expired flow — force `trials.expires_at` into the past → activation
+  request queues and appears in `/sys-panel → Activations`.
 
----
+## 13. Rollback
 
-## 4. Portability matrix
+If validation fails:
 
-| Component                        | Portable | Notes |
-|----------------------------------|----------|-------|
-| Tables, indexes, RLS, GRANTs     | ✅ | `00_full_schema.sql` |
-| Triggers & functions             | ✅ | `enforce_device_limit`, `detect_device_cloning`, `has_role`, `handle_new_user` |
-| Seed data (plans, system_config) | ✅ | included in schema |
-| Edge functions                   | ✅ | redeploy via CLI |
-| Email/password auth              | ✅ | enabled by default |
-| Google OAuth                     | ⚠️  | needs your own Google Client ID + Secret |
-| Email templates (branding)       | ⚠️  | re-apply manually in Auth → Email Templates |
-| `client.ts` + `.env`             | ⚠️  | use `client.template.ts` + regenerate `.env` |
-| `supabase/config.toml` project_id | ❌ | Lovable-managed; replace with your own ref |
-| `LOVABLE_API_KEY`                | ❌ | Lovable AI Gateway only; swap to your own LLM provider |
+1. Do NOT reset the destination — investigate first.
+2. Revert DNS / deployment to Lovable-hosted app.
+3. Destination DB is unaffected by Lovable traffic — fix and retry.
+4. Only truncate destination tables if you plan to re-run
+   `import-data.sh` — the schema itself is safe to keep.
 
----
+## 14. Final cutover
 
-## 5. Offline-first sync — how it works
-
-- Local writes go to IndexedDB / localStorage immediately (works fully offline).
-- `src/lib/supabase-sync.ts` queues events under `supabase_sync_queue_v1`.
-- When `navigator.onLine` flips true (or every 5 min), the queue is flushed to the `device-sync` edge function, which upserts into `transfers`, `app_events`, `sync_logs`, and returns the current license + device status.
-- Duplicate protection: each event carries a `client_id` (UUID); `transfers` has a `(device_id, client_id)` unique key so retries are idempotent.
-
-## 6. Multi-device licensing
-
-- `subscription_plans.max_devices` is enforced by the `enforce_device_limit()` trigger on `public.devices` — activating a 2nd device on a 1-seat plan raises `device_limit_exceeded`.
-- `detect_device_cloning()` writes an `audit_logs` row + admin `notifications` row when the same `device_fingerprint` appears under two users.
-
-## 7. Known limitations after porting
-
-- **Lovable preview URL** stops reflecting database changes — use your own dev server.
-- The `/auth` page uses `lovable.auth.signInWithOAuth("google")` from `@lovable.dev/cloud-auth-js`. Replace the body of `src/pages/Auth.tsx`'s `google()` handler with:
-  ```ts
-  await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin + "/auth" } });
-  ```
-- Any future Lovable Cloud auto-edits to `src/integrations/supabase/client.ts` / `.env` will overwrite your changes — once ported, stop syncing from Lovable.
-
----
-
-## 8. Remaining work (tracked, not yet shipped)
-
-The following items from the master plan are **not** in this bundle yet and remain TODO in the running app:
-
-1. Extending `supabase-sync.ts` queue to cover contacts, presets, distributors, licenses, payments (currently only transfers + generic events).
-2. Full `/sys-panel` enterprise pages (search, pagination, CSV export, row actions) — only the basic managers exist today.
-3. Contacts CSV/XLSX importer UI.
-4. Advanced reports built directly off `transfers` + `daily_summaries`.
-5. Playwright deep-check pass + acceptance evidence.
-
-The schema and policies needed for all of the above are already in place, so the app code can be added incrementally without further DB migrations.
+- Flip DNS/CDN to the forked build.
+- Keep the Lovable project alive for **≥ 7 days** in case of regressions.
+- After 7 clean days, disable Lovable Cloud for future projects via
+  **Connectors → Lovable Cloud → Disable Cloud** (this does not remove Cloud
+  from the current Lovable project — only prevents new ones).
