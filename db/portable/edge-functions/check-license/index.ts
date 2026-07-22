@@ -1,5 +1,5 @@
-// Public endpoint — verify a license key against device.
-// Returns full license details if valid, else reason.
+// Public endpoint — verify a license key against a device using the
+// activate_license RPC so binding & mismatch checks are enforced server-side.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -20,41 +20,39 @@ function normalizeKey(k: string): string {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const { license_key, device_id } = await req.json();
+    const { license_key, device_id, fingerprint } = await req.json();
     if (!license_key || !device_id) return json({ valid: false, reason: "missing" }, 400);
 
     const normalized = normalizeKey(String(license_key));
     if (normalized.length !== 12) return json({ valid: false, reason: "format" }, 200);
 
-    const { data: lic } = await sb.from("licenses")
-      .select("*")
-      .eq("license_key", normalized)
-      .maybeSingle();
-
-    if (!lic) return json({ valid: false, reason: "not_found" });
-    if (lic.status === "revoked") return json({ valid: false, reason: "revoked" });
+    // Block check
     const { data: dev } = await sb.from("devices")
-      .select("is_blocked")
+      .select("is_blocked, is_banned")
       .eq("device_id", device_id)
       .maybeSingle();
-    if (dev?.is_blocked) return json({ valid: false, reason: "blocked" });
+    if (dev?.is_blocked || dev?.is_banned) return json({ valid: false, reason: "blocked" });
 
-    if (!lic.permanent && lic.expiry_date && new Date(lic.expiry_date) < new Date()) {
-      await sb.from("licenses").update({ status: "expired" }).eq("id", lic.id);
-      return json({ valid: false, reason: "expired" });
-    }
+    // Bind via RPC first, then validate through the server-authoritative path.
+    const { data: rpc, error: rpcErr } = await sb.rpc("activate_license", {
+      _license_key: normalized,
+      _device_id: String(device_id),
+      _fingerprint: fingerprint ? String(fingerprint) : null,
+    });
+    if (rpcErr) return json({ valid: false, reason: rpcErr.message }, 500);
+    const res = rpc as { ok: boolean; reason?: string; license?: Record<string, unknown> } | null;
+    if (!res?.ok) return json({ valid: false, reason: res?.reason || "invalid" });
 
-    // Bind to device on first activation
-    if (!lic.device_id) {
-      await sb.from("licenses").update({
-        device_id, status: "active", activated_at: new Date().toISOString(),
-      }).eq("id", lic.id);
-      lic.device_id = device_id;
-      lic.status = "active";
-    } else if (lic.device_id !== device_id) {
-      return json({ valid: false, reason: "wrong_device" });
-    }
+    const { data: validation, error: validationErr } = await sb.rpc("validate_license", {
+      _license_key: normalized,
+      _device_id: String(device_id),
+      _fingerprint: fingerprint ? String(fingerprint) : null,
+    });
+    if (validationErr) return json({ valid: false, reason: validationErr.message }, 500);
+    const validated = validation as { ok: boolean; reason?: string; license?: Record<string, unknown> } | null;
+    if (!validated?.ok) return json({ valid: false, reason: validated?.reason || "invalid" });
 
+    const lic = validated.license!;
     return json({
       valid: true,
       license: {

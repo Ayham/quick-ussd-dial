@@ -47,8 +47,12 @@ Deno.serve(async (req) => {
     const level = body.level || "standard";
     const notes = body.notes || null;
     const licenseUserId = (typeof body.user_id === "string" && body.user_id.trim()) ? body.user_id.trim() : null;
-    const deviceId = (typeof body.device_id === "string" && body.device_id.trim()) ? body.device_id.trim() : null;
+    const deviceId: string | null = (typeof body.device_id === "string" && body.device_id.trim()) ? body.device_id.trim() : null;
+    const allowPending = body.allow_pending === true; // must be explicit to create an unbound license
     if (!permanent && !expiryDate) return json({ error: "expiry_date_required" }, 400);
+    if (!deviceId && !allowPending) {
+      return json({ error: "device_id_required", hint: "Pass device_id, or allow_pending:true to create an unbound license." }, 400);
+    }
 
     if (deviceId) {
       const { error: deviceErr } = await sb.from("devices").upsert({
