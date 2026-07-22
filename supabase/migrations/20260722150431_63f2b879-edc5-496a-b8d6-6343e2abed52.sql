@@ -1,0 +1,2 @@
+DROP POLICY IF EXISTS system_config_read_authenticated ON public.system_config;
+CREATE POLICY system_config_read_admin ON public.system_config FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'::app_role));
