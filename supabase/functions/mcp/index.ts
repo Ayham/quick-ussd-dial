@@ -2,7 +2,128 @@
 // To take ownership, delete this banner line; the plugin then leaves the file alone.
 // supabase function: mcp
 // Bundled from src/lib/mcp/index.ts by @lovable.dev/mcp-js.
+// src/lib/mcp/index.ts
+import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@0.20.0";
+
+// src/lib/mcp/tools/get-profile.ts
+import { defineTool } from "npm:@lovable.dev/mcp-js@0.20.0";
+
+// src/lib/mcp/supabase.ts
+import { createClient } from "npm:@supabase/supabase-js@^2.105.4";
+function supabaseForUser(ctx) {
+  const url = process.env.SUPABASE_URL;
+  const anon = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY;
+  return createClient(url, anon, {
+    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+function textResult(data, structured) {
+  return {
+    content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+    ...structured ? { structuredContent: structured } : {}
+  };
+}
+function errorResult(message) {
+  return { content: [{ type: "text", text: message }], isError: true };
+}
+
+// src/lib/mcp/tools/get-profile.ts
+var get_profile_default = defineTool({
+  name: "get_profile",
+  title: "Get my profile",
+  description: "Return the signed-in user's profile (display name, email, phone).",
+  inputSchema: {},
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async (_input, ctx) => {
+    if (!ctx.isAuthenticated()) return errorResult("Not authenticated");
+    const sb = supabaseForUser(ctx);
+    const { data, error } = await sb.from("profiles").select("user_id,email,display_name,phone,created_at,updated_at").eq("user_id", ctx.getUserId()).maybeSingle();
+    if (error) return errorResult(error.message);
+    return textResult(data ?? { user_id: ctx.getUserId(), email: ctx.getUserEmail() });
+  }
+});
+
+// src/lib/mcp/tools/list-transfers.ts
+import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z } from "npm:zod@^3.25.76";
+var list_transfers_default = defineTool2({
+  name: "list_transfers",
+  title: "List recent transfers",
+  description: "Return the signed-in user's recent USSD unit transfers, newest first.",
+  inputSchema: {
+    limit: z.number().int().min(1).max(200).default(50).describe("Max rows to return (1-200)"),
+    operator: z.enum(["MTN", "Syriatel"]).optional().describe("Filter by operator")
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ limit, operator }, ctx) => {
+    if (!ctx.isAuthenticated()) return errorResult("Not authenticated");
+    const sb = supabaseForUser(ctx);
+    let q = sb.from("transfers").select("*").eq("user_id", ctx.getUserId()).order("created_at", { ascending: false }).limit(limit);
+    if (operator) q = q.eq("operator", operator);
+    const { data, error } = await q;
+    if (error) return errorResult(error.message);
+    return textResult(data ?? [], { count: data?.length ?? 0, rows: data ?? [] });
+  }
+});
+
+// src/lib/mcp/tools/list-devices.ts
+import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.20.0";
+var list_devices_default = defineTool3({
+  name: "list_devices",
+  title: "List my devices",
+  description: "Return every device registered to the signed-in user.",
+  inputSchema: {},
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async (_input, ctx) => {
+    if (!ctx.isAuthenticated()) return errorResult("Not authenticated");
+    const sb = supabaseForUser(ctx);
+    const { data, error } = await sb.from("devices").select("device_id,platform,app_version,lifecycle_state,is_active,is_blocked,last_seen_at,first_seen_at").eq("user_id", ctx.getUserId()).order("last_seen_at", { ascending: false });
+    if (error) return errorResult(error.message);
+    return textResult(data ?? [], { count: data?.length ?? 0, rows: data ?? [] });
+  }
+});
+
+// src/lib/mcp/tools/get-license-status.ts
+import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.20.0";
+var get_license_status_default = defineTool4({
+  name: "get_license_status",
+  title: "Get license & trial status",
+  description: "Return the signed-in user's active licenses and trial status.",
+  inputSchema: {},
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async (_input, ctx) => {
+    if (!ctx.isAuthenticated()) return errorResult("Not authenticated");
+    const sb = supabaseForUser(ctx);
+    const [{ data: licenses, error: le }, { data: trials, error: te }] = await Promise.all([
+      sb.from("licenses").select("id,license_key,status,permanent,expiry_date,activated_at,device_id").eq("user_id", ctx.getUserId()),
+      sb.from("trials").select("id,device_id,status,started_at,expires_at,days_total")
+    ]);
+    if (le) return errorResult(le.message);
+    if (te) return errorResult(te.message);
+    return textResult({ licenses: licenses ?? [], trials: trials ?? [] });
+  }
+});
+
+// src/lib/mcp/index.ts
+var projectRef = "jwfsiqkvzmttkuxldkrq";
+var mcp_default = defineMcp({
+  name: "quick-ussd-dial-mcp",
+  title: "Quick USSD Dial",
+  version: "0.1.0",
+  instructions: "Read-only tools for the signed-in Quick USSD Dial user. Use these tools to inspect the user's profile, recent USSD unit transfers, registered devices, current license/trial status, and distributor list. All tools operate on the authenticated user's own data.",
+  auth: auth.oauth.issuer({
+    issuer: `https://${projectRef}.supabase.co/auth/v1`,
+    acceptedAudiences: "authenticated"
+  }),
+  tools: [
+    get_profile_default,
+    list_transfers_default,
+    list_devices_default,
+    get_license_status_default
+  ]
+});
+
 // lovable-mcp-supabase-entry.ts
-import mcp from "npm:E:\\My Documents\\Files\\My Work\\Quick USSD Dial\\src\\lib\\mcp\\index.ts";
 import { createSupabaseHandler } from "npm:@lovable.dev/mcp-js@0.20.0/stacks/supabase";
-Deno.serve(createSupabaseHandler(mcp, { functionName: "mcp" }));
+Deno.serve(createSupabaseHandler(mcp_default, { functionName: "mcp" }));
