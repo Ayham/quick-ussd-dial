@@ -39,4 +39,13 @@ describe("admin license RPC routing", () => {
       _reason: "license_suspended",
     });
   });
+
+  it("normalizes inactive status to expired", async () => {
+    await adminUpdateLicense("license-1", { status: "inactive" }, "license_deactivated");
+    expect(rpc).toHaveBeenCalledWith("admin_set_license_status", {
+      _license_id: "license-1",
+      _status: "expired",
+      _reason: "license_deactivated",
+    });
+  });
 });

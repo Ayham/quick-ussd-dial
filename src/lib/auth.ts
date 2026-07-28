@@ -14,6 +14,11 @@ export interface UserProfile {
   email: string | null;
   phone: string | null;
   language: string;
+  role: string;
+  distributor_id: string | null;
+  created_by: string | null;
+  notes: string | null;
+  customer_status: string;
 }
 
 export async function signInWithEmail(email: string, password: string) {
@@ -54,20 +59,6 @@ export async function signUpWithEmail(
 
 export async function signOut() {
   return supabase.auth.signOut();
-}
-
-export async function signInWithGoogle(next = "/") {
-  const redirectTo = `${window.location.origin}/auth?next=${encodeURIComponent(next)}`;
-  return supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo,
-      queryParams: {
-        access_type: "offline",
-        prompt: "consent",
-      },
-    },
-  });
 }
 
 export async function sendPasswordReset(email: string) {
@@ -141,12 +132,35 @@ export async function isAdminUser(): Promise<boolean> {
   return (roleRows || []).some((r) => ["admin", "super_admin", "sys_admin"].includes(r.role));
 }
 
+export type UserRole = "admin" | "distributor" | "customer";
+
+export async function getUserRole(): Promise<UserRole> {
+  const user = await getCurrentUser();
+  if (!user) return "customer";
+
+  if (await isAdminUser()) return "admin";
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (profile?.role === "distributor") return "distributor";
+  return "customer";
+}
+
+export async function isDistributorUser(): Promise<boolean> {
+  const role = await getUserRole();
+  return role === "distributor";
+}
+
 export async function getProfile(): Promise<UserProfile | null> {
   const user = await getCurrentUser();
   if (!user) return null;
   const { data } = await supabase
     .from("profiles")
-    .select("user_id, display_name, email, phone, language")
+    .select("user_id, display_name, email, phone, language, role, distributor_id, created_by, notes, customer_status")
     .eq("user_id", user.id)
     .maybeSingle();
   if (data) return data as UserProfile;
@@ -157,6 +171,11 @@ export async function getProfile(): Promise<UserProfile | null> {
     email: user.email ?? null,
     phone: (user.user_metadata as { phone?: string })?.phone ?? null,
     language: "ar",
+    role: "customer",
+    distributor_id: null,
+    created_by: null,
+    notes: null,
+    customer_status: "active",
   };
 }
 

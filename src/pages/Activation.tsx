@@ -21,11 +21,10 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createActivationRequest, getLocalActivationRequest, checkActivationStatus } from "@/lib/activation-request";
+import { requestActivation, getLocalActivationRequest, checkActivationStatus } from "@/lib/license";
 import { getCurrentUser, getProfile } from "@/lib/auth";
 import { getDeviceId } from "@/lib/device-id";
-import { getAppStatus, type AppLicenseStatus } from "@/lib/license";
-import { activateLicenseKey } from "@/lib/license-key";
+import { getAppStatus, type AppLicenseStatus, activateWithLicenseKey } from "@/lib/license";
 import { flush } from "@/lib/supabase-sync";
 
 interface ActivationProps {
@@ -176,7 +175,7 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
     }
     setLoading(true);
     try {
-      const result = await activateLicenseKey(licenseKey.trim());
+      const result = await activateWithLicenseKey(licenseKey.trim());
       if (result.ok) {
         toast.success(isArabic ? "تم تفعيل التطبيق بنجاح!" : "App activated successfully!");
         await flush({ force: true });
@@ -206,7 +205,7 @@ const Activation = ({ status, onActivated }: ActivationProps) => {
 
     setRequesting(true);
     try {
-      const request = await createActivationRequest(contactName.trim(), contactPhone.trim());
+      const request = await requestActivation(contactName.trim(), contactPhone.trim());
       if (request) {
         setActivationToken(request.requestToken);
         setActivationRequestStatus("pending");

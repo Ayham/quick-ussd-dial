@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Ban, CheckCircle, Search, Copy } from 'lucide-react';
 import { toast } from 'sonner';
-import { adminSetDeviceBlocked } from '@/lib/activation-request';
+import { blockDevice, unblockDevice } from '@/lib/license';
 
 export interface Device {
   id: string;
@@ -113,7 +113,9 @@ export function DevicesManager() {
   async function toggleBlock(deviceId: string, currentlyBlocked: boolean) {
     setActionInProgress(deviceId);
     try {
-      const result = await adminSetDeviceBlocked(deviceId, !currentlyBlocked);
+      const result = currentlyBlocked
+        ? await unblockDevice(deviceId)
+        : await blockDevice(deviceId);
       if (!result.success) throw new Error(result.error || 'Device update failed');
 
       setDevices(prev => prev.map(d => 

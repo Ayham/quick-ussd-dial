@@ -58,7 +58,6 @@ export async function dialUssdDirect(ussdCode: string, simSlot: SimSlot = 0): Pr
     }
   } else {
     // Web fallback — log intended SIM
-    console.log(`[Web] Dialing ${ussdCode} on SIM ${simSlot + 1}`);
     window.location.href = `tel:${encodedUssd}`;
     return true;
   }

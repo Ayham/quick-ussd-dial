@@ -284,23 +284,9 @@ CREATE POLICY "Admins view events" ON public.app_events FOR SELECT USING (public
 REVOKE EXECUTE ON FUNCTION public.has_role(UUID, public.app_role) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.update_updated_at_column() FROM PUBLIC, anon, authenticated;
--- ============ SYNC LOGS ============
-CREATE TABLE public.sync_logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  device_id TEXT NOT NULL,
-  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-  event_type TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'synced',
-  records_count INTEGER NOT NULL DEFAULT 0,
-  error_message TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  synced_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX idx_sync_logs_device ON public.sync_logs(device_id, created_at DESC);
-CREATE INDEX idx_sync_logs_status ON public.sync_logs(status);
-ALTER TABLE public.sync_logs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users view own sync logs" ON public.sync_logs FOR SELECT USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-CREATE POLICY "Admins manage sync logs" ON public.sync_logs FOR ALL USING (public.has_role(auth.uid(), 'admin'));
+-- Re-declaration kept for migration compatibility (table already exists from prior migration).
+-- The canonical column set is added idempotently below with CREATE TABLE IF NOT EXISTS
+-- and ALTER TABLE … ADD COLUMN IF NOT EXISTS so older databases are brought up to date.
 
 -- ============ ERROR LOGS ============
 CREATE TABLE public.error_logs (
@@ -932,26 +918,15 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_limit INT;
+  v_limit INT := 5;
   v_count INT;
 BEGIN
-  -- Only check on INSERT or when transitioning to active
   IF TG_OP = 'UPDATE' AND COALESCE(OLD.is_active,false) = COALESCE(NEW.is_active,false) THEN
     RETURN NEW;
   END IF;
-  IF COALESCE(NEW.is_active, false) = false THEN
+  IF COALESCE(NEW.is_active, false) = false OR NEW.user_id IS NULL THEN
     RETURN NEW;
   END IF;
-
-  SELECT COALESCE(MAX(sp.max_devices), 1) INTO v_limit
-    FROM public.licenses l
-    JOIN public.subscription_plans sp
-      ON sp.code = l.plan OR sp.id::text = l.plan
-   WHERE l.user_id = NEW.user_id
-     AND l.status = 'active'
-     AND (l.expires_at IS NULL OR l.expires_at > now());
-
-  IF v_limit IS NULL THEN v_limit := 1; END IF;
 
   SELECT COUNT(*) INTO v_count
     FROM public.devices d
@@ -960,7 +935,7 @@ BEGIN
      AND d.id <> NEW.id;
 
   IF v_count + 1 > v_limit THEN
-    RAISE EXCEPTION 'device_limit_exceeded: plan allows % active device(s)', v_limit
+    RAISE EXCEPTION 'device_limit_exceeded: max % active device(s)', v_limit
       USING ERRCODE = 'check_violation';
   END IF;
 

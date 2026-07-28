@@ -1,8 +1,9 @@
 // Admin-only — generate a license key in AB12-CD34-EF56 format.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+const APP_URL = Deno.env.get("APP_SITE_URL") || "http://localhost:5173";
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": APP_URL,
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
@@ -27,12 +28,7 @@ Deno.serve(async (req) => {
     if (!auth?.startsWith("Bearer ")) return json({ error: "unauth" }, 401);
     const token = auth.replace("Bearer ", "");
 
-    const userClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: auth } } },
-    );
-    const { data: claims, error: cErr } = await userClient.auth.getUser(token);
+    const { data: claims, error: cErr } = await sb.auth.getUser(token);
     if (cErr || !claims?.user?.id) return json({ error: "unauth" }, 401);
 
     const userId = claims.user.id;

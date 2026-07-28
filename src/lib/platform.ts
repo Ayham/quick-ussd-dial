@@ -13,7 +13,7 @@ export function isNativeApp(): boolean {
 
 export function isDevPreview(): boolean {
   const { hostname, search } = window.location;
-  return hostname.includes('-preview--') || search.includes('__lovable_token=') || hostname === 'localhost';
+  return hostname.includes('-preview--') || hostname === 'localhost';
 }
 
 export function isWebBrowser(): boolean {

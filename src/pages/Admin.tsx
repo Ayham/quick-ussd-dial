@@ -14,10 +14,12 @@ import { EventsViewer } from "@/components/admin/EventsViewer";
 import { TransfersViewer } from "@/components/admin/TransfersViewer";
 import { UsersRolesManager } from "@/components/admin/UsersRolesManager";
 import { ContactsAdminViewer } from "@/components/admin/ContactsAdminViewer";
+import { DistributorsManager } from "@/components/admin/DistributorsManager";
 
 const tabs = [
   { value: "overview", labelKey: "admin.dashboard", icon: LayoutGrid },
   { value: "users", labelKey: "admin.users", icon: Users },
+  { value: "distributors", labelKey: "admin.distributors", icon: Users },
   { value: "devices", labelKey: "admin.devices", icon: Smartphone },
   { value: "licenses", labelKey: "admin.licenses", icon: Key },
   { value: "activations", labelKey: "admin.activations", icon: Bell },

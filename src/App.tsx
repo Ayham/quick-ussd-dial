@@ -15,18 +15,22 @@ import Activation from "./pages/Activation";
 import Updates from "./pages/Updates";
 import Subscription from "./pages/Subscription";
 import Auth from "./pages/Auth";
-import OAuthConsent from "./pages/OAuthConsent";
 import Profile from "./pages/Profile";
-import { AuthSessionProvider, RequireAuth, RequireAdmin } from "./lib/auth-session";
+import { AuthSessionProvider, RequireAuth, RequireAdmin, RequireDistributor } from "@/lib/auth-session";
 
 import "./lib/i18n";
 import { getAppStatus, type AppLicenseStatus } from "./lib/license";
 import { startBackgroundSync, trackAppOpen, trackDeviceInfo } from "./lib/cloud-sync";
-import { flush, startSupabaseSync } from "./lib/supabase-sync";
-import { isWebBrowser } from "./lib/platform";
-import { initDeviceId } from "./lib/device-id";
-import { checkForUpdate, type UpdateInfo } from "./lib/update-checker";
-import ForceUpdate from "./components/ForceUpdate";
+import { flush, startSupabaseSync } from "@/lib/supabase-sync";
+import { isWebBrowser } from "@/lib/platform";
+import { initDeviceId } from "@/lib/device-id";
+import { checkForUpdate, type UpdateInfo } from "@/lib/update-checker";
+import ForceUpdate from "@/components/ForceUpdate";
+
+import DistributorDashboard from "@/pages/distributor/DistributorDashboard";
+import DistributorCustomers from "@/pages/distributor/DistributorCustomers";
+import DistributorCustomerDetail from "@/pages/distributor/DistributorCustomerDetail";
+import DistributorRequests from "@/pages/distributor/DistributorRequests";
 
 const queryClient = new QueryClient();
 const Reports = lazy(() => import("./pages/Reports"));
@@ -88,7 +92,14 @@ const AppContent = () => {
 
   // Update info is available but no overlay is shown — user checks via Updates page
 
-  if (!status) return null;
+  if (!status) return (
+    <div dir="rtl" className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+        <p className="text-muted-foreground">جاري التحميل...</p>
+      </div>
+    </div>
+  );
 
   if (status.status === 'maintenance') {
     return <AccessBlock title="Maintenance in progress" message="The service is temporarily unavailable. Access will resume automatically." />;
@@ -109,7 +120,6 @@ const AppContent = () => {
         <AuthSessionProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
-            <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
             <Route path="/sys-panel" element={<RequireAdmin><Admin /></RequireAdmin>} />
             <Route path="*" element={<RequireAuth><Activation status={status} onActivated={checkStatus} /></RequireAuth>} />
           </Routes>
@@ -123,9 +133,12 @@ const AppContent = () => {
       <AuthSessionProvider>
         <Routes>
           <Route path="/auth" element={<Auth />} />
-          <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
           <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
           <Route path="/distributor" element={<RequireAuth><Distributor /></RequireAuth>} />
+          <Route path="/dm" element={<RequireDistributor><DistributorDashboard /></RequireDistributor>} />
+          <Route path="/dm/customers" element={<RequireDistributor><DistributorCustomers /></RequireDistributor>} />
+          <Route path="/dm/customer/:id" element={<RequireDistributor><DistributorCustomerDetail /></RequireDistributor>} />
+          <Route path="/dm/requests" element={<RequireDistributor><DistributorRequests /></RequireDistributor>} />
           <Route path="/contacts" element={<RequireAuth><Contacts /></RequireAuth>} />
           <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
           <Route path="/reports" element={
@@ -138,9 +151,9 @@ const AppContent = () => {
           <Route path="/balance" element={<RequireAuth><Balance /></RequireAuth>} />
           <Route path="/sys-panel" element={<RequireAdmin><Admin /></RequireAdmin>} />
           <Route path="/updates" element={<RequireAuth><Updates /></RequireAuth>} />
+          <Route path="/activation" element={<RequireAuth><Activation status={status} onActivated={checkStatus} /></RequireAuth>} />
           <Route path="/subscription" element={<RequireAuth><Subscription /></RequireAuth>} />
           <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
-          <Route path="/activation" element={<Navigate to="/" replace />} />
           <Route path="*" element={<RequireAuth><NotFound /></RequireAuth>} />
         </Routes>
       </AuthSessionProvider>

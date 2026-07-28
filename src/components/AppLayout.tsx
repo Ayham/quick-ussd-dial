@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from "react";
 import {
   Send, Wallet, BarChart3, Settings, Zap, Menu, ChevronLeft,
-  Users, BookUser, Download, Shield, ChevronDown, Home, LogIn, LogOut, User
+  Users, BookUser, Download, Shield, ChevronDown, Home, LogIn, LogOut, User,
+  LayoutDashboard, FileText, UserCheck
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { getCurrentUser, signOut, isAdminUser } from "@/lib/auth";
+import { getCurrentUser, signOut, isAdminUser, isDistributorUser } from "@/lib/auth";
 import { toast } from "sonner";
 
 function useMenuItems() {
   const { t } = useTranslation();
-  return [
+  const items = [
     { icon: Send, label: t("nav.transfer"), path: "/", description: t("nav.transferDesc", "Quick balance transfer") },
     { icon: BookUser, label: t("nav.contacts"), path: "/contacts", description: t("nav.contactsDesc", "Manage customer names") },
-    { icon: Users, label: t("nav.distributor"), path: "/distributor", description: t("nav.distributorDesc", "Distributor account") },
     { icon: Wallet, label: t("nav.balance"), path: "/balance", description: t("nav.balanceDesc", "Track balance") },
     { icon: BarChart3, label: t("nav.reports"), path: "/reports", description: t("nav.reportsDesc", "Transfer statistics") },
     { icon: Shield, label: t("nav.activation"), path: "/subscription", description: t("nav.activationDesc", "Subscription & payment") },
@@ -22,6 +22,7 @@ function useMenuItems() {
     { icon: Settings, label: t("nav.settings"), path: "/settings", description: t("nav.settingsDesc", "App settings") },
     { icon: Download, label: t("nav.updates"), path: "/updates", description: t("nav.updatesDesc", "Check for updates") },
   ];
+  return items;
 }
 
 interface AppLayoutProps {
@@ -38,12 +39,14 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children }: AppLayoutProps)
   const [showScrollHint, setShowScrollHint] = useState(true);
   const [user, setUser] = useState<{ email?: string } | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isDistributor, setIsDistributor] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
     getCurrentUser().then((u) => setUser(u ? { email: u.email } : null));
     isAdminUser().then(setIsAdmin).catch(() => setIsAdmin(false));
+    isDistributorUser().then(setIsDistributor).catch(() => setIsDistributor(false));
   }, [menuOpen]);
 
   const handleScroll = (e: React.UIEvent<HTMLElement>) => {
@@ -146,6 +149,63 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children }: AppLayoutProps)
                   </div>
                 </button>
               )}
+
+               {/* Distributor section (only for distributors) */}
+               {isDistributor && !isAdmin && (
+                 <>
+                   <button
+                     onClick={() => { setMenuOpen(false); navigate("/dm"); }}
+                     className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-smooth flex-shrink-0 w-full ${
+                       location.pathname === "/dm" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
+                     }`}
+                   >
+                     <div className={`w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center ${
+                       location.pathname === "/dm" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                     }`}>
+                       <LayoutDashboard className="w-4.5 h-4.5" />
+                     </div>
+                     <div className="text-right flex-1">
+                       <span className={`text-sm font-semibold block ${location.pathname === "/dm" ? "text-primary" : ""}`}>لوحة الموزع</span>
+                       <span className="text-[11px] text-muted-foreground line-clamp-1">لوحة التحكم</span>
+                     </div>
+                     {location.pathname === "/dm" && <ChevronLeft className="w-4 h-4 text-primary mr-auto flex-shrink-0" />}
+                   </button>
+                   <button
+                     onClick={() => { setMenuOpen(false); navigate("/dm/customers"); }}
+                     className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-smooth flex-shrink-0 w-full ${
+                       location.pathname.startsWith("/dm/customers") || location.pathname.startsWith("/dm/customer") ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
+                     }`}
+                   >
+                     <div className={`w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center ${
+                       location.pathname.startsWith("/dm/customers") || location.pathname.startsWith("/dm/customer") ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                     }`}>
+                       <Users className="w-4.5 h-4.5" />
+                     </div>
+                     <div className="text-right flex-1">
+                       <span className={`text-sm font-semibold block ${location.pathname.startsWith("/dm/customers") || location.pathname.startsWith("/dm/customer") ? "text-primary" : ""}`}>العملاء</span>
+                       <span className="text-[11px] text-muted-foreground line-clamp-1">إدارة العملاء</span>
+                     </div>
+                     {(location.pathname.startsWith("/dm/customers") || location.pathname.startsWith("/dm/customer")) && <ChevronLeft className="w-4 h-4 text-primary mr-auto flex-shrink-0" />}
+                   </button>
+                   <button
+                     onClick={() => { setMenuOpen(false); navigate("/dm/requests"); }}
+                     className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-smooth flex-shrink-0 w-full ${
+                       location.pathname === "/dm/requests" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
+                     }`}
+                   >
+                     <div className={`w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center ${
+                       location.pathname === "/dm/requests" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                     }`}>
+                       <FileText className="w-4.5 h-4.5" />
+                     </div>
+                     <div className="text-right flex-1">
+                       <span className={`text-sm font-semibold block ${location.pathname === "/dm/requests" ? "text-primary" : ""}`}>طلبات الرصيد</span>
+                       <span className="text-[11px] text-muted-foreground line-clamp-1">طلبات التعبئة</span>
+                     </div>
+                     {location.pathname === "/dm/requests" && <ChevronLeft className="w-4 h-4 text-primary mr-auto flex-shrink-0" />}
+                   </button>
+                 </>
+               )}
 
               {/* Sign In / Sign Out */}
               <div className="border-t border-border mt-2 pt-2">

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { adminApproveActivation, adminRejectActivation } from '@/lib/activation-request';
+import { approveActivation, rejectActivation } from '@/lib/license';
 import { Switch } from '@/components/ui/switch';
 
 export interface Activation {
@@ -64,7 +64,7 @@ export function ActivationsManager() {
 
     setActionInProgress(activation.id);
     try {
-      const result = await adminApproveActivation(
+      const result = await approveActivation(
         activation.request_token,
         data.permanent ? null : data.expiryDate,
         activation.ussd_numbers,
@@ -90,7 +90,7 @@ export function ActivationsManager() {
 
     setActionInProgress(activation.id);
     try {
-      const result = await adminRejectActivation(activation.request_token);
+const result = await rejectActivation(activation.request_token);
 
       if (result.success) {
         toast.success('Activation rejected');

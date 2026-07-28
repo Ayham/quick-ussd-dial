@@ -1,15 +1,15 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+const ALLOWED_ORIGINS = [Deno.env.get("APP_SITE_URL") || "http://localhost:5173", "http://localhost:5173", "http://localhost:3000"];
+function getCorsHeaders(origin: string | null) {
+  const o = ALLOWED_ORIGINS.includes(origin || "") ? origin : ALLOWED_ORIGINS[0];
+  return { "Access-Control-Allow-Origin": o ?? ALLOWED_ORIGINS[0], "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
+}
 
 const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: getCorsHeaders(req.headers.get("origin")) });
 
   try {
     const body = await req.json();
@@ -29,13 +29,13 @@ Deno.serve(async (req) => {
       const { data } = await userClient.auth.getUser(auth.slice(7));
       userId = data.user?.id ?? null;
     }
-    if (deviceId.length < 4) return json({ ok: false, error: "device_id required" }, 400);
+    if (deviceId.length < 4) return json({ ok: false, error: "device_id required" }, 400, req);
 
     const { data: existing, error: lookupError } = await sb.from("devices")
       .select("id, user_id, device_fingerprint, app_instance_id")
       .eq("device_id", deviceId)
       .maybeSingle();
-    if (lookupError) return json({ ok: false, error: lookupError.message }, 500);
+    if (lookupError) return json({ ok: false, error: lookupError.message }, 500, req);
 
     const logSecurity = async (event: string, data: Record<string, unknown>) => {
       await Promise.all([
@@ -57,13 +57,13 @@ Deno.serve(async (req) => {
       await logSecurity("device_owner_mismatch", {
         stored_user_id: existing.user_id, attempted_user_id: userId,
       });
-      return json({ ok: true, state: "device_mismatch", reason: "device_owner_mismatch", device: existing });
+      return json({ ok: true, state: "device_mismatch", reason: "device_owner_mismatch", device: existing }, 200, req);
     }
     if (existing?.device_fingerprint && fingerprint && existing.device_fingerprint !== fingerprint) {
       await logSecurity("fingerprint_mismatch", {
         stored_fingerprint: existing.device_fingerprint, attempted_fingerprint: fingerprint,
       });
-      return json({ ok: true, state: "fingerprint_mismatch", reason: "fingerprint_mismatch", device: existing });
+      return json({ ok: true, state: "fingerprint_mismatch", reason: "fingerprint_mismatch", device: existing }, 200, req);
     }
     if (existing?.app_instance_id && device.app_instance_id && existing.app_instance_id !== device.app_instance_id) {
       await logSecurity("app_instance_changed", {
@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
         device_id: deviceId, user_id: userId, event: "device_registration",
         status: "failed", payload: { device }, error: registration.error.message,
       });
-      return json({ ok: false, error: registration.error.message }, 500);
+      return json({ ok: false, error: registration.error.message }, 500, req);
     }
 
     let inserted = 0;
@@ -184,17 +184,17 @@ Deno.serve(async (req) => {
       _app_version: device.app_version ?? null,
       _platform: device.platform ?? null,
     });
-    if (heartbeatError) return json({ ok: false, error: heartbeatError.message }, 500);
+    if (heartbeatError) return json({ ok: false, error: heartbeatError.message }, 500, req);
 
-    return json({ inserted, errors, failed_event_ids: failedEventIds, ...(heartbeat || {}) });
+    return json({ inserted, errors, failed_event_ids: failedEventIds, ...(heartbeat || {}) }, 200, req);
   } catch (error) {
-    return json({ ok: false, error: (error as Error).message }, 500);
+    return json({ ok: false, error: (error as Error).message }, 500, req);
   }
 });
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, status = 200, req?: Request) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...getCorsHeaders(req?.headers.get("origin") ?? null), "Content-Type": "application/json" },
   });
 }

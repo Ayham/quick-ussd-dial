@@ -2,11 +2,11 @@
 // We read the sheet via its CSV-export URL (sheet must be shared "anyone with link").
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+const ALLOWED_ORIGINS = [Deno.env.get("APP_SITE_URL") || "http://localhost:5173", "http://localhost:5173", "http://localhost:3000"];
+function getCorsHeaders(origin: string | null) {
+  const o = ALLOWED_ORIGINS.includes(origin || "") ? origin : ALLOWED_ORIGINS[0];
+  return { "Access-Control-Allow-Origin": o ?? ALLOWED_ORIGINS[0], "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
+}
 
 const sb = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -43,20 +43,20 @@ async function fetchSheet(gid: string): Promise<string[][]> {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: getCorsHeaders(req.headers.get("origin")) });
   try {
     const auth = req.headers.get("Authorization");
-    if (!auth?.startsWith("Bearer ")) return json({ error: "unauth" }, 401);
+    if (!auth?.startsWith("Bearer ")) return json({ error: "unauth" }, 401, req);
     const userClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: auth } } },
     );
     const { data: claims } = await userClient.auth.getClaims(auth.replace("Bearer ", ""));
-    if (!claims?.claims?.sub) return json({ error: "unauth" }, 401);
+    if (!claims?.claims?.sub) return json({ error: "unauth" }, 401, req);
     const userId = claims.claims.sub;
     const { data: roles } = await sb.from("user_roles").select("role").eq("user_id", userId);
-    if (!(roles || []).some((r) => r.role === "admin")) return json({ error: "forbidden" }, 403);
+    if (!(roles || []).some((r) => r.role === "admin")) return json({ error: "forbidden" }, 403, req);
 
     const body = await req.json().catch(() => ({}));
     const gids: string[] = Array.isArray(body.gids) && body.gids.length ? body.gids : ["1555140549", "0"];
@@ -127,14 +127,14 @@ Deno.serve(async (req) => {
       admin_id: userId, action: "migrate_sheets", details: summary,
     });
 
-    return json({ ok: true, summary });
+    return json({ ok: true, summary }, 200, req);
   } catch (e) {
-    return json({ error: (e as Error).message }, 500);
+    return json({ error: (e as Error).message }, 500, req);
   }
 });
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, status = 200, req?: Request) {
   return new Response(JSON.stringify(body), {
-    status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    status, headers: { ...getCorsHeaders(req?.headers.get("origin") ?? null), "Content-Type": "application/json" },
   });
 }

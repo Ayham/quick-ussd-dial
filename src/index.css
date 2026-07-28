@@ -196,8 +196,3 @@
 .z-header {
   z-index: 50;
 }
-
-/* Hide Lovable badge */
-#lovable-badge, [data-lovable-badge] {
-  display: none !important;
-}

@@ -1,18 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { adminRpc } from "./admin-rpc";
-
-export type AdminLicenseAction =
-  | "license_activated"
-  | "license_deactivated"
-  | "license_suspended"
-  | "license_reactivated"
-  | "license_revoked"
-  | "license_extended"
-  | "license_expiry_changed"
-  | "license_converted_to_permanent"
-  | "license_converted_to_temporary"
-  | "license_type_changed"
-  | "license_reassigned";
+import type { AdminLicenseAction } from "./license";
 
 type LicensePatch = {
   device_id?: string | null;
@@ -101,8 +89,4 @@ export async function adminGenerateLicenses(
     return { success: false, keys: [], error: data?.error || error?.message || "Failed to generate license" };
   }
   return { success: true, keys: [data.formatted || data.license.license_key] };
-}
-
-export function isValidLicenseFormat(key: string): boolean {
-  return /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(key.toUpperCase());
 }

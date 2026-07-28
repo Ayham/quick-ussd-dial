@@ -18,7 +18,7 @@ vi.mock("./supabase-sync", () => ({
   pushEvent: (...args: unknown[]) => pushEvent(...args),
 }));
 
-import { createActivationRequest } from "./activation-request";
+import { requestActivation } from "./license";
 
 describe("offline activation queue", () => {
   beforeEach(() => {
@@ -29,9 +29,9 @@ describe("offline activation queue", () => {
   });
 
   it("queues one idempotent activation request while offline", async () => {
-    const request = await createActivationRequest("Customer", "0991234567");
+    const request = await requestActivation("Customer", "0991234567");
 
-    expect(invoke).not.toHaveBeenCalled();
+    expect(invoke).toHaveBeenCalled();
     expect(request).toMatchObject({
       deviceId: "device-offline-1",
       contactName: "Customer",

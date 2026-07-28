@@ -1,11 +1,13 @@
 // Admin RPC proxy: verifies the caller is an admin, then invokes the requested
-// SECURITY DEFINER function using the service role. This lets us revoke direct
-// EXECUTE on those functions from the `authenticated` role without breaking the
-// admin panel.
+// SECURITY DEFINER function using the service-role client. EXECUTE is revoked
+// from the authenticated role for admin RPCs, so service-role is required.
+// Admin status is verified server-side before the call, and _require_admin()
+// provides a second check inside each function.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+const APP_URL = Deno.env.get("APP_SITE_URL") || "http://localhost:5173";
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": APP_URL,
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
@@ -43,12 +45,8 @@ Deno.serve(async (req) => {
     const auth = req.headers.get("Authorization");
     if (!auth?.startsWith("Bearer ")) return json({ ok: false, error: "unauthorized" }, 401);
 
-    const userClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: auth } } },
-    );
-    const { data: userData, error: userErr } = await userClient.auth.getUser();
+    const token = auth.replace("Bearer ", "");
+    const { data: userData, error: userErr } = await service.auth.getUser(token);
     if (userErr || !userData.user) return json({ ok: false, error: "unauthorized" }, 401);
 
     // Verify admin via a table read (RLS-safe via service client).
@@ -66,6 +64,9 @@ Deno.serve(async (req) => {
     const args = (body?.args ?? {}) as Record<string, unknown>;
     if (!ALLOWED.has(fn)) return json({ ok: false, error: "unknown_fn" }, 400);
 
+    // Use the service-role client because EXECUTE is revoked from the
+    // authenticated role for all admin RPC functions. Admin access is already
+    // verified above via user_roles table read.
     const { data, error } = await service.rpc(fn, args);
     if (error) return json({ ok: false, error: error.message }, 500);
     return json({ ok: true, data });

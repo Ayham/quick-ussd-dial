@@ -2,8 +2,9 @@
 // Returns a unique token that becomes part of the share link.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+const APP_URL = Deno.env.get("APP_SITE_URL") || "http://localhost:5173";
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": APP_URL,
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
@@ -28,12 +29,7 @@ Deno.serve(async (req) => {
 
     const auth = req.headers.get("Authorization");
     if (!auth?.startsWith("Bearer ")) return json({ error: "auth_required" }, 401);
-    const userClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: auth } } },
-    );
-    const { data } = await userClient.auth.getUser(auth.replace("Bearer ", ""));
+    const { data } = await sb.auth.getUser(auth.replace("Bearer ", ""));
     userId = data.user?.id ?? null;
     if (!userId) return json({ error: "auth_required" }, 401);
 

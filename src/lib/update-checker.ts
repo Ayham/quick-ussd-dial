@@ -7,7 +7,6 @@ import { getLatestGitHubRelease } from './github-releases';
 import { APP_VERSION as CONFIG_VERSION } from '../config/version';
 
 const UPDATE_CHECK_KEY = 'app_update_check_v1';
-const UPDATE_SKIP_KEY = 'app_update_skip_v1';
 
 export interface UpdateInfo {
   hasUpdate: boolean;
@@ -19,13 +18,9 @@ export interface UpdateInfo {
   forceUpdate: boolean;
 }
 
-// ✅ النسخة تُقرأ من src/config/version.ts — عدّلها هناك مباشرة
-export const APP_VERSION: string = CONFIG_VERSION;
-
 // Get current app version
 export function getCurrentVersion(): string {
-  // Always use the bundled APP_VERSION as the true installed version
-  return APP_VERSION;
+  return CONFIG_VERSION;
 }
 
 // Compare versions: returns true if remote > local
@@ -83,11 +78,3 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
   }
 }
 
-// For skipping (not used in forced mode, but kept for flexibility)
-export function getSkippedVersion(): string | null {
-  return localStorage.getItem(UPDATE_SKIP_KEY);
-}
-
-export function skipVersion(version: string) {
-  localStorage.setItem(UPDATE_SKIP_KEY, version);
-}

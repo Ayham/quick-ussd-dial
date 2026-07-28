@@ -5,9 +5,8 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { signInWithEmail, signUpWithEmail, getCurrentUser, signOut, isAdminUser, sendPasswordReset } from "@/lib/auth";
-import { lovable } from "@/integrations/lovable";
 import { supabase } from "@/integrations/supabase/client";
-import { Shield, ArrowRight, Crown, LogOut, Mail, Lock, User, Phone } from "lucide-react";
+import { Shield, ArrowRight, Crown, LogOut, Mail, Lock, User, Phone, Eye, EyeOff } from "lucide-react";
 import { useAuthSession } from "@/lib/auth-session";
 
 const Auth = () => {
@@ -17,7 +16,7 @@ const Auth = () => {
   const next = params.get("next") || "/";
   const isArabic = i18n.language === "ar";
 
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+const [mode, setMode] = useState<"signin" | "signup">("signin");
   const isResetMode = params.get("mode") === "reset";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,6 +24,7 @@ const Auth = () => {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [busy, setBusy] = useState<"bootstrap" | "migrate" | null>(null);
@@ -91,14 +91,11 @@ const Auth = () => {
   };
 
   const google = async () => {
-    const r = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: `${window.location.origin}/auth?next=${encodeURIComponent(next)}`,
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin + "/auth?next=" + encodeURIComponent(next) },
     });
-    if (r.error) toast.error(r.error.message || "OAuth failed");
-    else if (!r.redirected) {
-      await refresh();
-      nav(next, { replace: true });
-    }
+    if (error) toast.error(error.message || "OAuth failed");
   };
 
   const resetPassword = async () => {
@@ -156,8 +153,33 @@ const Auth = () => {
             <p className="text-sm text-muted-foreground">{isArabic ? "أدخل كلمة السر الجديدة لحسابك" : "Enter your new account password"}</p>
           </div>
           <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-            <Input type="password" placeholder={isArabic ? "كلمة السر الجديدة" : "New password"} value={password} onChange={(e) => setPassword(e.target.value)} className="h-11" dir="ltr" />
-            <Input type="password" placeholder={isArabic ? "تأكيد كلمة السر" : "Confirm password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="h-11" dir="ltr" onKeyDown={(e) => e.key === "Enter" && updatePassword()} />
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                placeholder={isArabic ? "كلمة السر الجديدة" : "New password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="h-11 pr-10"
+                dir="ltr"
+              />
+              <button type="button" className="absolute top-1/2 end-3 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(!showPassword)}>
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                placeholder={isArabic ? "تأكيد كلمة السر" : "Confirm password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="h-11 pr-10"
+                dir="ltr"
+                onKeyDown={(e) => e.key === "Enter" && updatePassword()}
+              />
+              <button type="button" className="absolute top-1/2 end-3 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(!showPassword)}>
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
             <Button className="w-full h-11 font-bold" onClick={updatePassword} disabled={loading}>{loading ? t("common.loading") : (isArabic ? "تحديث كلمة السر" : "Update password")}</Button>
           </div>
         </div>
@@ -244,8 +266,18 @@ const Auth = () => {
           </div>
           <div className="relative">
             <Lock className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input type="password" placeholder={isArabic ? "كلمة السر" : "Password"} value={password} onChange={(e) => setPassword(e.target.value)} className="h-11 ps-10" dir="ltr"
-              onKeyDown={(e) => e.key === "Enter" && submit()} />
+            <Input
+              type={showPassword ? "text" : "password"}
+              placeholder={isArabic ? "كلمة السر" : "Password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="h-11 ps-10 pr-10"
+              dir="ltr"
+              onKeyDown={(e) => e.key === "Enter" && submit()}
+            />
+            <button type="button" className="absolute top-1/2 end-3 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(!showPassword)}>
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
           </div>
           <Button className="w-full h-11 font-bold" onClick={submit} disabled={loading}>
             {loading ? t("common.loading") : (mode === "signup" ? (isArabic ? "إنشاء الحساب" : "Sign up") : (isArabic ? "تسجيل الدخول" : "Sign in"))}

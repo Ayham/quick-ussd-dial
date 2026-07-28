@@ -1,7 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+const APP_URL = Deno.env.get("APP_SITE_URL") || "http://localhost:5173";
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": APP_URL,
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
@@ -21,12 +22,7 @@ Deno.serve(async (req) => {
 
     const auth = req.headers.get("Authorization");
     if (auth?.startsWith("Bearer ")) {
-      const userClient = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
-        { global: { headers: { Authorization: auth } } },
-      );
-      const { data } = await userClient.auth.getUser(auth.slice(7));
+      const { data } = await sb.auth.getUser(auth.slice(7));
       userId = data.user?.id ?? null;
     }
     if (deviceId.length < 4) return json({ ok: false, error: "device_id required" }, 400);

@@ -2,11 +2,13 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { Navigate, useLocation } from "react-router-dom";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { isAdminUser } from "@/lib/auth";
+import { isAdminUser, getUserRole, type UserRole } from "@/lib/auth";
 
 type AuthState = {
   user: User | null;
   isAdmin: boolean;
+  isDistributor: boolean;
+  userRole: UserRole;
   loading: boolean;
   refresh: () => Promise<void>;
 };
@@ -16,14 +18,11 @@ const AuthSessionContext = createContext<AuthState | null>(null);
 export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isDistributor, setIsDistributor] = useState(false);
+  const [userRole, setUserRole] = useState<UserRole>("customer");
   const [loading, setLoading] = useState(true);
 
   const refresh = async () => {
-    // Validate the session against the auth server. If the stored JWT is
-    // stale/corrupt (e.g. left over from a previous project or a deleted
-    // user), getUser() returns an error like "bad_jwt" / "missing sub
-    // claim". In that case we must clear it locally, otherwise every
-    // protected route bounces the user to /auth in a loop.
     const { data, error } = await supabase.auth.getUser();
     if (error) {
       const msg = (error.message || "").toLowerCase();
@@ -37,11 +36,21 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       }
       setUser(null);
       setIsAdmin(false);
+      setIsDistributor(false);
       return;
     }
     const sessionUser = data.user ?? null;
     setUser(sessionUser);
-    setIsAdmin(sessionUser ? await isAdminUser() : false);
+    if (sessionUser) {
+      const [adminStatus, role] = await Promise.all([isAdminUser(), getUserRole()]);
+      setIsAdmin(adminStatus);
+      setIsDistributor(role === "distributor");
+      setUserRole(role);
+    } else {
+      setIsAdmin(false);
+      setIsDistributor(false);
+      setUserRole("customer");
+    }
   };
 
   useEffect(() => {
@@ -62,10 +71,20 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       setUser(sessionUser);
       if (!sessionUser) {
         setIsAdmin(false);
+        setIsDistributor(false);
         return;
       }
-      window.setTimeout(() => {
-        isAdminUser().then(setIsAdmin).catch(() => setIsAdmin(false));
+      window.setTimeout(async () => {
+        try {
+          const [adminStatus, role] = await Promise.all([isAdminUser(), getUserRole()]);
+          setIsAdmin(adminStatus);
+          setIsDistributor(role === "distributor");
+          setUserRole(role);
+        } catch {
+          setIsAdmin(false);
+          setIsDistributor(false);
+          setUserRole("customer");
+        }
       }, 0);
     });
 
@@ -75,7 +94,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const value = useMemo(() => ({ user, isAdmin, loading, refresh }), [user, isAdmin, loading]);
+  const value = useMemo(() => ({ user, isAdmin, isDistributor, userRole, loading, refresh }), [user, isAdmin, isDistributor, userRole, loading]);
 
   return <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>;
 }
@@ -108,6 +127,19 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
     return <Navigate to={`/auth?next=${next}`} replace />;
   }
   if (!isAdmin) return <Navigate to="/profile" replace state={{ deniedFrom: location.pathname }} />;
+  return <>{children}</>;
+}
+
+export function RequireDistributor({ children }: { children: ReactNode }) {
+  const { user, isAdmin, isDistributor, loading } = useAuthSession();
+  const location = useLocation();
+
+  if (loading) return <AuthLoading />;
+  if (!user) {
+    const next = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/auth?next=${next}`} replace />;
+  }
+  if (!isAdmin && !isDistributor) return <Navigate to="/profile" replace state={{ deniedFrom: location.pathname }} />;
   return <>{children}</>;
 }
 

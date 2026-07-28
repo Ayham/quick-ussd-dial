@@ -1,10 +1,10 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+const ALLOWED_ORIGINS = [Deno.env.get("APP_SITE_URL") || "http://localhost:5173", "http://localhost:5173", "http://localhost:3000"];
+function getCorsHeaders(origin: string | null) {
+  const o = ALLOWED_ORIGINS.includes(origin || "") ? origin : ALLOWED_ORIGINS[0];
+  return { "Access-Control-Allow-Origin": o ?? ALLOWED_ORIGINS[0], "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
+}
 
 const serviceClient = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -12,11 +12,11 @@ const serviceClient = createClient(
 );
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: getCorsHeaders(req.headers.get("origin")) });
 
   try {
     const authorization = req.headers.get("Authorization");
-    if (!authorization?.startsWith("Bearer ")) return json({ ok: false, reason: "auth_required" }, 401);
+    if (!authorization?.startsWith("Bearer ")) return json({ ok: false, reason: "auth_required" }, 401, req);
 
     const token = authorization.slice("Bearer ".length);
     const userClient = createClient(
@@ -25,14 +25,14 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authorization } } },
     );
     const { data: authData, error: authError } = await userClient.auth.getUser(token);
-    if (authError || !authData.user) return json({ ok: false, reason: "auth_required" }, 401);
+    if (authError || !authData.user) return json({ ok: false, reason: "auth_required" }, 401, req);
 
     const userId = authData.user.id;
     const { data: roles, error: roleError } = await serviceClient
       .from("user_roles")
       .select("role")
       .eq("user_id", userId);
-    if (roleError) return json({ ok: false, reason: roleError.message }, 500);
+    if (roleError) return json({ ok: false, reason: roleError.message }, 500, req);
     const isAdmin = (roles ?? []).some((row) => row.role === "admin");
 
     const body = await req.json().catch(() => ({}));
@@ -53,11 +53,11 @@ Deno.serve(async (req) => {
       _page: boundedInteger(body.page, 1, 1, 1_000_000),
       _page_size: boundedInteger(body.page_size, 50, 1, 100),
     });
-    if (error) return json({ ok: false, reason: error.message }, 500);
+    if (error) return json({ ok: false, reason: error.message }, 500, req);
 
-    return json(data ?? { ok: true, rows: [], periods: [], total: 0 });
+    return json(data ?? { ok: true, rows: [], periods: [], total: 0 }, 200, req);
   } catch (error) {
-    return json({ ok: false, reason: (error as Error).message }, 500);
+    return json({ ok: false, reason: (error as Error).message }, 500, req);
   }
 });
 
@@ -77,9 +77,7 @@ function boundedInteger(value: unknown, fallback: number, min: number, max: numb
   return Number.isInteger(parsed) ? Math.min(Math.max(parsed, min), max) : fallback;
 }
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, status = 200, req?: Request) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
+    headers: { ...getCorsHeaders(req?.headers.get("origin") ?? null), "Content-Type": "applicati

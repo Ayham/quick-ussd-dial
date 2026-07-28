@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ActivationsManager } from "./ActivationsManager";
 
-const adminApproveActivation = vi.fn();
-const adminRejectActivation = vi.fn();
+const approveActivation = vi.fn();
+const rejectActivation = vi.fn();
 
 const activation = {
   id: "act-1",
@@ -25,9 +25,9 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-vi.mock("@/lib/activation-request", () => ({
-  adminApproveActivation: (...args: unknown[]) => adminApproveActivation(...args),
-  adminRejectActivation: (...args: unknown[]) => adminRejectActivation(...args),
+vi.mock("@/lib/license", () => ({
+  approveActivation: (...args: unknown[]) => approveActivation(...args),
+  rejectActivation: (...args: unknown[]) => rejectActivation(...args),
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -46,8 +46,8 @@ vi.mock("@/integrations/supabase/client", () => ({
 describe("ActivationsManager approval options", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    adminApproveActivation.mockResolvedValue({ success: true });
-    adminRejectActivation.mockResolvedValue({ success: true });
+    approveActivation.mockResolvedValue({ success: true });
+    rejectActivation.mockResolvedValue({ success: true });
   });
 
   it("approves with an expiry date when permanent is not selected", async () => {
@@ -59,7 +59,7 @@ describe("ActivationsManager approval options", () => {
     fireEvent.change(dateInput, { target: { value: "2026-12-31" } });
     fireEvent.click(screen.getByTitle("Approve"));
 
-    await waitFor(() => expect(adminApproveActivation).toHaveBeenCalledWith(
+    await waitFor(() => expect(approveActivation).toHaveBeenCalledWith(
       "REQ123456789",
       "2026-12-31",
       [],
@@ -74,7 +74,7 @@ describe("ActivationsManager approval options", () => {
     fireEvent.click(screen.getByRole("switch"));
     fireEvent.click(screen.getByTitle("Approve"));
 
-    await waitFor(() => expect(adminApproveActivation).toHaveBeenCalledWith(
+    await waitFor(() => expect(approveActivation).toHaveBeenCalledWith(
       "REQ123456789",
       null,
       [],

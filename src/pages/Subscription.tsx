@@ -9,10 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { getDeviceId } from "@/lib/device-id";
-import { getAppStatus, type AppLicenseStatus } from "@/lib/license";
-import { activateLicenseKey } from "@/lib/license-key";
+import { getAppStatus, type AppLicenseStatus, activateWithLicenseKey } from "@/lib/license";
 import { flush } from "@/lib/supabase-sync";
-import { getPaymentMethods, type PaymentMethod } from "@/lib/payment-config";
+import { type PaymentMethod } from "@/lib/payment-config";
 import { logActivity } from "@/lib/activity-logger";
 import { QRCodeCanvas } from "qrcode.react";
 
@@ -35,13 +34,6 @@ const Subscription = () => {
     loadStatus();
 
   }, []);
-  // useEffect(() => {
-  //   getAppStatus().then(setLicenseStatus);
-  //   setPaymentMethods(getPaymentMethods());
-  //   const config = getAppConfig();
-  //   if (config.supportPhone) setSupportPhone(config.supportPhone);
-  //   logActivity('activation_page_access');
-  // }, []);
 
   const copyToClipboard = async (text: string, label: string) => {
     try {
@@ -65,7 +57,7 @@ const Subscription = () => {
     }
     setLicenseLoading(true);
     try {
-      const result = await activateLicenseKey(newLicenseKey.trim());
+      const result = await activateWithLicenseKey(newLicenseKey.trim());
       if (result.ok) {
         await flush({ force: true });
         toast.success("تم تفعيل الترخيص بنجاح!");

@@ -21,7 +21,7 @@ import { updateContactName, pickPhoneContact, type SavedContact } from "@/lib/co
 import { dialUssdDirect } from "@/lib/ussd-dialer";
 import { trackTransfer } from "@/lib/cloud-sync";
 import { getAppStatus, type AppLicenseStatus } from "@/lib/license";
-import { checkExpiryWarning, shouldShowDailyNotification, markNotificationShown, type ExpiryWarning } from "@/lib/expiry-warning";
+import { type ExpiryWarning } from "@/lib/expiry-warning";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -95,16 +95,6 @@ const Index = () => {
     checkLicense();
 
   }, []);
-  // useEffect(() => {
-  //   getAppStatus().then((status) => {
-  //     const warning = checkExpiryWarning(status);
-  //     setExpiryWarning(warning);
-  //     if (warning.show && shouldShowDailyNotification()) {
-  //       toast.warning(warning.message, { duration: 8000 });
-  //       markNotificationShown();
-  //     }
-  //   });
-  // }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {

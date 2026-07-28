@@ -25,22 +25,6 @@ export function addToHistory(record: TransferRecord) {
   saveContact(record.phone);
 }
 
-export function updateLastRecordStatus(status: "success" | "failed") {
-  const history = getHistory();
-  if (history.length > 0 && history[0].status === "pending") {
-    history[0].status = status;
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-  }
-}
-
-export function getHistoryForPhone(phone: string): TransferRecord[] {
-  return getHistory().filter((r) => r.phone === phone);
-}
-
-export function getSavedContacts(): SavedContact[] {
-  return searchContacts('');
-}
-
 export function getMatchingContacts(input: string): SavedContact[] {
   return searchContacts(input);
 }
