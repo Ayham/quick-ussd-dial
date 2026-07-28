@@ -80,4 +80,6 @@ function boundedInteger(value: unknown, fallback: number, min: number, max: numb
 function json(body: unknown, status = 200, req?: Request) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...getCorsHeaders(req?.headers.get("origin") ?? null), "Content-Type": "applicati
+    headers: { ...getCorsHeaders(req?.headers.get("origin") ?? null), "Content-Type": "application/json" },
+  });
+}

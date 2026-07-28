@@ -2,24 +2,24 @@
 // REQUIRES caller to be an authenticated admin.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
-const APP_URL = Deno.env.get("APP_SITE_URL") || "http://localhost:5173";
-const corsHeaders = {
-  "Access-Control-Allow-Origin": APP_URL,
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const ALLOWED_ORIGINS = [Deno.env.get("APP_SITE_URL") || "http://localhost:5173", "http://localhost:5173", "http://localhost:3000"];
+function getCorsHeaders(origin: string | null) {
+  const o = ALLOWED_ORIGINS.includes(origin || "") ? origin : ALLOWED_ORIGINS[0];
+  return { "Access-Control-Allow-Origin": o ?? ALLOWED_ORIGINS[0], "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
+}
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, status = 200, req?: Request) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...getCorsHeaders(req?.headers.get("origin") ?? null), "Content-Type": "application/json" },
   });
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: getCorsHeaders(req.headers.get("origin")) });
   try {
     const auth = req.headers.get("Authorization");
-    if (!auth?.startsWith("Bearer ")) return json({ ok: false, error: "unauthorized" }, 401);
+    if (!auth?.startsWith("Bearer ")) return json({ ok: false, error: "unauthorized" }, 401, req);
 
     const service = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: auth } } },
     );
     const { data: userData, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !userData.user) return json({ ok: false, error: "unauthorized" }, 401);
+    if (userErr || !userData.user) return json({ ok: false, error: "unauthorized" }, 401, req);
 
     const { data: roleRow } = await service
       .from("user_roles")
@@ -41,11 +41,11 @@ Deno.serve(async (req) => {
       .eq("user_id", userData.user.id)
       .eq("role", "admin")
       .maybeSingle();
-    if (!roleRow) return json({ ok: false, error: "forbidden" }, 403);
+    if (!roleRow) return json({ ok: false, error: "forbidden" }, 403, req);
 
     const { email, password, display_name } = await req.json();
     if (!email || !password) {
-      return json({ ok: false, error: "email and password required" }, 400);
+      return json({ ok: false, error: "email and password required" }, 400, req);
     }
 
     const { data: list } = await service.auth.admin.listUsers({ page: 1, perPage: 200 });
@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
       user_metadata: { full_name: display_name ?? email },
     });
     if (createErr || !created.user) {
-      return json({ ok: false, error: createErr?.message ?? "create failed" }, 500);
+      return json({ ok: false, error: createErr?.message ?? "create failed" }, 500, req);
     }
 
     await service.from("user_roles").upsert(
@@ -69,8 +69,8 @@ Deno.serve(async (req) => {
       { onConflict: "user_id,role" },
     );
 
-    return json({ ok: true, user_id: created.user.id, email });
+    return json({ ok: true, user_id: created.user.id, email }, 200, req);
   } catch (e) {
-    return json({ ok: false, error: String(e) }, 500);
+    return json({ ok: false, error: String(e) }, 500, req);
   }
 });

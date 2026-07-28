@@ -5,12 +5,11 @@
 // provides a second check inside each function.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const APP_URL = Deno.env.get("APP_SITE_URL") || "http://localhost:5173";
-const corsHeaders = {
-  "Access-Control-Allow-Origin": APP_URL,
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+const ALLOWED_ORIGINS = [Deno.env.get("APP_SITE_URL") || "http://localhost:5173", "http://localhost:5173", "http://localhost:3000"];
+function getCorsHeaders(origin: string | null) {
+  const o = ALLOWED_ORIGINS.includes(origin || "") ? origin : ALLOWED_ORIGINS[0];
+  return { "Access-Control-Allow-Origin": o ?? ALLOWED_ORIGINS[0], "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
+}
 
 const service = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -32,22 +31,22 @@ const ALLOWED = new Set([
   "admin_transfer_license",
 ]);
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, status = 200, req?: Request) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...getCorsHeaders(req?.headers.get("origin") ?? null), "Content-Type": "application/json" },
   });
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: getCorsHeaders(req.headers.get("origin")) });
   try {
     const auth = req.headers.get("Authorization");
-    if (!auth?.startsWith("Bearer ")) return json({ ok: false, error: "unauthorized" }, 401);
+    if (!auth?.startsWith("Bearer ")) return json({ ok: false, error: "unauthorized" }, 401, req);
 
     const token = auth.replace("Bearer ", "");
     const { data: userData, error: userErr } = await service.auth.getUser(token);
-    if (userErr || !userData.user) return json({ ok: false, error: "unauthorized" }, 401);
+    if (userErr || !userData.user) return json({ ok: false, error: "unauthorized" }, 401, req);
 
     // Verify admin via a table read (RLS-safe via service client).
     const { data: roleRow, error: roleErr } = await service
@@ -56,21 +55,21 @@ Deno.serve(async (req) => {
       .eq("user_id", userData.user.id)
       .eq("role", "admin")
       .maybeSingle();
-    if (roleErr) return json({ ok: false, error: roleErr.message }, 500);
-    if (!roleRow) return json({ ok: false, error: "forbidden" }, 403);
+    if (roleErr) return json({ ok: false, error: roleErr.message }, 500, req);
+    if (!roleRow) return json({ ok: false, error: "forbidden" }, 403, req);
 
     const body = await req.json().catch(() => ({}));
     const fn = String(body?.fn || "");
     const args = (body?.args ?? {}) as Record<string, unknown>;
-    if (!ALLOWED.has(fn)) return json({ ok: false, error: "unknown_fn" }, 400);
+    if (!ALLOWED.has(fn)) return json({ ok: false, error: "unknown_fn" }, 400, req);
 
     // Use the service-role client because EXECUTE is revoked from the
     // authenticated role for all admin RPC functions. Admin access is already
     // verified above via user_roles table read.
     const { data, error } = await service.rpc(fn, args);
-    if (error) return json({ ok: false, error: error.message }, 500);
-    return json({ ok: true, data });
+    if (error) return json({ ok: false, error: error.message }, 500, req);
+    return json({ ok: true, data }, 200, req);
   } catch (e) {
-    return json({ ok: false, error: String(e) }, 500);
+    return json({ ok: false, error: String(e) }, 500, req);
   }
 });

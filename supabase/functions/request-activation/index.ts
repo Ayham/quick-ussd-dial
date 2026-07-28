@@ -2,11 +2,11 @@
 // Returns a unique token that becomes part of the share link.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const APP_URL = Deno.env.get("APP_SITE_URL") || "http://localhost:5173";
-const corsHeaders = {
-  "Access-Control-Allow-Origin": APP_URL,
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const ALLOWED_ORIGINS = [Deno.env.get("APP_SITE_URL") || "http://localhost:5173", "http://localhost:5173", "http://localhost:3000"];
+function getCorsHeaders(origin: string | null) {
+  const o = ALLOWED_ORIGINS.includes(origin || "") ? origin : ALLOWED_ORIGINS[0];
+  return { "Access-Control-Allow-Origin": o ?? ALLOWED_ORIGINS[0], "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
+}
 
 const sb = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -21,13 +21,13 @@ function genToken(len = 10): string {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: getCorsHeaders(req.headers.get("origin")) });
 
   try {
     let userId: string | null = null;
 
     const auth = req.headers.get("Authorization");
-    if (!auth?.startsWith("Bearer ")) return json({ error: "auth_required" }, 401);
+    if (!auth?.startsWith("Bearer ")) return json({ error: "auth_required" }, 401, req);
     const userClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
     );
     const { data } = await userClient.auth.getUser(auth.replace("Bearer ", ""));
     userId = data.user?.id ?? null;
-    if (!userId) return json({ error: "auth_required" }, 401);
+    if (!userId) return json({ error: "auth_required" }, 401, req);
 
     const body = await req.json();
     const deviceId = String(body.device_id || "").trim();
@@ -43,13 +43,13 @@ Deno.serve(async (req) => {
     const contactPhone = body.contact_phone ? String(body.contact_phone) : null;
     const contactName = body.contact_name ? String(body.contact_name) : null;
 
-    if (!deviceId || deviceId.length < 4) return json({ error: "device_id required" }, 400);
+    if (!deviceId || deviceId.length < 4) return json({ error: "device_id required" }, 400, req);
 
     const { data: device, error: deviceLookupError } = await sb.from("devices")
       .select("id, user_id, is_blocked, is_banned")
       .eq("device_id", deviceId)
       .maybeSingle();
-    if (deviceLookupError) return json({ error: deviceLookupError.message }, 500);
+    if (deviceLookupError) return json({ error: deviceLookupError.message }, 500, req);
     if (device?.user_id && device.user_id !== userId) {
       await sb.from("audit_logs").insert({
         target_user_id: device.user_id,
@@ -59,9 +59,9 @@ Deno.serve(async (req) => {
         entity_id: device.id,
         metadata: { attempted_user_id: userId },
       });
-      return json({ error: "device_owner_mismatch" }, 403);
+      return json({ error: "device_owner_mismatch" }, 403, req);
     }
-    if (device?.is_blocked || device?.is_banned) return json({ error: "device_blocked" }, 403);
+    if (device?.is_blocked || device?.is_banned) return json({ error: "device_blocked" }, 403, req);
     if (!device) {
       const { error: insertDeviceError } = await sb.from("devices").insert({
         device_id: deviceId,
@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
         first_seen_at: new Date().toISOString(),
         last_seen: new Date().toISOString(),
       });
-      if (insertDeviceError) return json({ error: insertDeviceError.message }, 500);
+      if (insertDeviceError) return json({ error: insertDeviceError.message }, 500, req);
     } else {
       await sb.from("devices").update({
         user_id: device.user_id ?? userId,
@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
       .eq("status", "active")
       .limit(1)
       .maybeSingle();
-    if (activeLicense) return json({ error: "already_active" }, 409);
+    if (activeLicense) return json({ error: "already_active" }, 409, req);
 
     // Reuse latest pending request for this device (deduplicate)
     const { data: existing } = await sb.from("activations")
@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
         contact_name: contactName,
         ussd_numbers: ussdNumbers,
       }).eq("request_token", existing.request_token);
-      return json({ ok: true, token: existing.request_token, reused: true });
+      return json({ ok: true, token: existing.request_token, reused: true }, 200, req);
     }
 
     const token = genToken(10);
@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
       contact_phone: contactPhone,
       contact_name: contactName,
     });
-    if (error) return json({ error: error.message }, 500);
+    if (error) return json({ error: error.message }, 500, req);
 
     await sb.from("audit_logs").insert({
       target_user_id: userId,
@@ -124,14 +124,14 @@ Deno.serve(async (req) => {
       metadata: { contact_phone: contactPhone },
     });
 
-    return json({ ok: true, token });
+    return json({ ok: true, token }, 200, req);
   } catch (e) {
-    return json({ error: (e as Error).message }, 500);
+    return json({ error: (e as Error).message }, 500, req);
   }
 });
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, status = 200, req?: Request) {
   return new Response(JSON.stringify(body), {
-    status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    status, headers: { ...getCorsHeaders(req?.headers.get("origin") ?? null), "Content-Type": "application/json" },
   });
 }
