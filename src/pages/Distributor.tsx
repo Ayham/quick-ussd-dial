@@ -17,8 +17,8 @@ import {
 type ViewTab = 'main' | 'history' | 'stats' | 'settings';
 
 const OPERATORS: { id: Operator; label: string; color: string }[] = [
-  { id: 'syriatel', label: 'سيريتل', color: 'text-red-500' },
-  { id: 'mtn', label: 'MTN', color: 'text-yellow-500' },
+  { id: 'syriatel', label: 'سيريتل', color: 'text-operator-syriatel' },
+  { id: 'mtn', label: 'MTN', color: 'text-operator-mtn' },
 ];
 
 const Distributor = () => {
@@ -150,14 +150,14 @@ const Distributor = () => {
             {/* Balance Cards - per operator */}
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-card border border-border rounded-xl p-3 text-center shadow-card">
-                <p className="text-[11px] text-red-500 font-bold mb-0.5">سيريتل</p>
+                <p className="text-[11px] text-operator-syriatel font-bold mb-0.5">سيريتل</p>
                 <p className={`text-xl font-bold tracking-tight ${syriatelBalance < 0 ? "text-destructive" : "text-foreground"}`}>
                   {syriatelBalance.toLocaleString()}
                 </p>
                 <p className="text-[10px] text-muted-foreground">ل.س</p>
               </div>
               <div className="bg-card border border-border rounded-xl p-3 text-center shadow-card">
-                <p className="text-[11px] text-yellow-500 font-bold mb-0.5">MTN</p>
+                <p className="text-[11px] text-operator-mtn font-bold mb-0.5">MTN</p>
                 <p className={`text-xl font-bold tracking-tight ${mtnBalance < 0 ? "text-destructive" : "text-foreground"}`}>
                   {mtnBalance.toLocaleString()}
                 </p>
@@ -193,25 +193,25 @@ const Distributor = () => {
               {/* Per-operator amount inputs */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-red-500 text-center block">سيريتل</label>
+                  <label className="text-[11px] font-bold text-operator-syriatel text-center block">سيريتل</label>
                   <Input
                     type="number"
                     value={syriatelAmount}
                     onChange={(e) => setSyriatelAmount(e.target.value)}
                     placeholder="0"
-                    className="h-12 text-center text-lg font-bold rounded-xl border-2 border-red-500/20"
+                    className="h-12 text-center text-lg font-bold rounded-xl border-2 border-operator-syriatel/20"
                     dir="ltr"
                     inputMode="numeric"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-yellow-500 text-center block">MTN</label>
+                  <label className="text-[11px] font-bold text-operator-mtn text-center block">MTN</label>
                   <Input
                     type="number"
                     value={mtnAmount}
                     onChange={(e) => setMtnAmount(e.target.value)}
                     placeholder="0"
-                    className="h-12 text-center text-lg font-bold rounded-xl border-2 border-yellow-500/20"
+                    className="h-12 text-center text-lg font-bold rounded-xl border-2 border-operator-mtn/20"
                     dir="ltr"
                     inputMode="numeric"
                   />
@@ -406,12 +406,12 @@ const Distributor = () => {
               <p className="text-[10px] text-muted-foreground">نسبة العمولة التي يأخذها الموزع على كل طلب رصيد. مثال: 8 تعني 100,000 تكلفتها 108,000</p>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-red-500 text-center block">سيريتل %</label>
+                  <label className="text-[11px] font-bold text-operator-syriatel text-center block">سيريتل %</label>
                   <Input type="number" value={editSyriatelMarkup} onChange={(e) => setEditSyriatelMarkup(e.target.value)}
                     placeholder="0" className="h-11 rounded-xl text-center" dir="ltr" inputMode="decimal" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-yellow-500 text-center block">MTN %</label>
+                  <label className="text-[11px] font-bold text-operator-mtn text-center block">MTN %</label>
                   <Input type="number" value={editMtnMarkup} onChange={(e) => setEditMtnMarkup(e.target.value)}
                     placeholder="0" className="h-11 rounded-xl text-center" dir="ltr" inputMode="decimal" />
                 </div>
@@ -521,7 +521,7 @@ const TransactionRow = ({ tx, onDelete }: {
 }) => {
   const isTopup = tx.type === 'topup';
   const operatorLabel = tx.operator === 'mtn' ? 'MTN' : tx.operator === 'syriatel' ? 'سيريتل' : '';
-  const operatorColor = tx.operator === 'mtn' ? 'text-yellow-500' : 'text-red-500';
+  const operatorColor = tx.operator === 'mtn' ? 'text-operator-mtn' : 'text-operator-syriatel';
   const actualCost = isTopup && tx.operator ? getActualCost(tx.amount, tx.operator as Operator) : tx.amount;
   const hasMarkup = isTopup && actualCost !== tx.amount;
   return (

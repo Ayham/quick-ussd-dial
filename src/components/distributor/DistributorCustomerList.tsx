@@ -95,9 +95,9 @@ export function DistributorCustomerList({ onSelectCustomer, onBack }: Props) {
 
   const statusBadge = (status: string) => {
     const map: Record<string, { label: string; className: string }> = {
-      active: { label: "نشط", className: "bg-green-500/10 text-green-600" },
-      blocked: { label: "محظور", className: "bg-red-500/10 text-red-600" },
-      archived: { label: "مؤرشف", className: "bg-gray-500/10 text-gray-600" },
+      active: { label: "نشط", className: "bg-success/10 text-success" },
+      blocked: { label: "محظور", className: "bg-destructive/10 text-destructive" },
+      archived: { label: "مؤرشف", className: "bg-muted text-muted-foreground" },
     };
     const info = map[status] || map.active;
     return (
@@ -232,7 +232,7 @@ export function DistributorCustomerList({ onSelectCustomer, onBack }: Props) {
                           ) : (
                             <button
                               onClick={() => handleStatusChange(c.customer_id, "active")}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted text-green-600"
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted text-success"
                             >
                               <UserCheck className="w-3.5 h-3.5" /> تفعيل
                             </button>

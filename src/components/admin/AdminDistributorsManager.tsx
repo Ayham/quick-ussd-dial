@@ -174,9 +174,9 @@ export function AdminDistributorsManager() {
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-bold text-foreground">{c.display_name || "بدون اسم"}</span>
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            c.customer_status === "active" ? "bg-green-500/10 text-green-600" :
-                            c.customer_status === "blocked" ? "bg-red-500/10 text-red-600" :
-                            "bg-gray-500/10 text-gray-600"
+                            c.customer_status === "active" ? "bg-success/10 text-success" :
+                            c.customer_status === "blocked" ? "bg-destructive/10 text-destructive" :
+                            "bg-muted text-muted-foreground"
                           }`}>
                             {c.customer_status === "active" ? "نشط" : c.customer_status === "blocked" ? "محظور" : "مؤرشف"}
                           </span>
@@ -245,7 +245,7 @@ export function AdminDistributorsManager() {
                           </span>
                           <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
                             req.status === "pending" ? "bg-accent/10 text-accent" :
-                            req.status === "completed" ? "bg-green-500/10 text-green-600" :
+                            req.status === "completed" ? "bg-success/10 text-success" :
                             "bg-muted text-muted-foreground"
                           }`}>
                             {req.status === "pending" ? "معلق" : req.status === "completed" ? "مكتمل" : req.status}

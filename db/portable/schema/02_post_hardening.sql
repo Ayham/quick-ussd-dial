@@ -107,6 +107,12 @@ CREATE INDEX IF NOT EXISTS sync_logs_device_created_idx      ON public.sync_logs
 CREATE INDEX IF NOT EXISTS sync_conflicts_user_idx           ON public.sync_conflicts (user_id, resolved);
 CREATE INDEX IF NOT EXISTS activations_status_idx            ON public.activations (status, created_at DESC);
 
+-- RLS: users can read their own activation requests (needed for polling)
+DROP POLICY IF EXISTS "Users read own activations" ON public.activations;
+CREATE POLICY "Users read own activations" ON public.activations
+  FOR SELECT TO authenticated
+  USING (auth.uid() = user_id);
+
 -- ---------------------------------------------------------------------------
 -- 5. Security-hardened policies
 -- ---------------------------------------------------------------------------

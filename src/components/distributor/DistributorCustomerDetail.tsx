@@ -123,9 +123,9 @@ export function DistributorCustomerDetail({ customerId, distributorId, onBack, o
         <div className="flex items-center justify-between">
           <h3 className="text-base font-bold text-foreground">{p?.display_name || "بدون اسم"}</h3>
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-            p?.customer_status === "active" ? "bg-green-500/10 text-green-600" :
-            p?.customer_status === "blocked" ? "bg-red-500/10 text-red-600" :
-            "bg-gray-500/10 text-gray-600"
+            p?.customer_status === "active" ? "bg-success/10 text-success" :
+            p?.customer_status === "blocked" ? "bg-destructive/10 text-destructive" :
+            "bg-muted text-muted-foreground"
           }`}>
             {p?.customer_status === "active" ? "نشط" : p?.customer_status === "blocked" ? "محظور" : "مؤرشف"}
           </span>
@@ -169,7 +169,7 @@ export function DistributorCustomerDetail({ customerId, distributorId, onBack, o
           { type: "debt" as const, label: "دين", icon: Plus, color: "text-destructive" },
           { type: "payment" as const, label: "دفعة", icon: Minus, color: "text-accent" },
           { type: "adjustment" as const, label: "تعديل", icon: Edit3, color: "text-muted-foreground" },
-          { type: "credit" as const, label: "دائن", icon: TrendingUp, color: "text-green-500" },
+          { type: "credit" as const, label: "دائن", icon: TrendingUp, color: "text-success" },
         ]).map(({ type, label, icon: Icon, color }) => (
           <button
             key={type}

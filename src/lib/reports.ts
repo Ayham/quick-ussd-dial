@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { getDeviceId } from "./device-id";
 import { getHistory } from "./transfer-history";
 
 export type ReportPeriod = "day" | "week" | "month";
@@ -10,10 +9,6 @@ export interface ReportFilters {
   operator?: string | null;
   status?: string | null;
   user_id?: string | null;
-  device_id?: string | null;
-  trial_id?: string | null;
-  license_id?: string | null;
-  access_source?: string | null;
   period: ReportPeriod;
   page: number;
   page_size: number;
@@ -31,8 +26,6 @@ export interface ReportRow {
   operator: string;
   status: string;
   created_at: string;
-  license_id: string | null;
-  trial_id: string | null;
   access_source: string;
 }
 
@@ -66,7 +59,6 @@ export interface TransferReport {
   periods: ReportPeriodPoint[];
   by_operator: ReportDimension[];
   by_status: ReportDimension[];
-  by_access: ReportDimension[];
   by_device: ReportDimension[];
   by_user: ReportDimension[];
   by_sync_status: ReportDimension[];
@@ -103,7 +95,6 @@ function normalizeServerReport(data: Record<string, unknown>): TransferReport {
     })) : [],
     by_operator: normalizeDimensions(data.by_operator),
     by_status: normalizeDimensions(data.by_status),
-    by_access: normalizeDimensions(data.by_access),
     by_device: normalizeDimensions(data.by_device),
     by_user: normalizeDimensions(data.by_user),
     by_sync_status: normalizeDimensions(data.by_sync_status),
@@ -111,14 +102,13 @@ function normalizeServerReport(data: Record<string, unknown>): TransferReport {
 }
 
 function buildOfflineReport(filters: ReportFilters): TransferReport {
-  const deviceId = getDeviceId();
   const dateFrom = filters.date_from ? new Date(filters.date_from).getTime() : null;
   const dateTo = filters.date_to ? new Date(filters.date_to).getTime() : null;
   const rows = getHistory()
     .map((record, index): ReportRow => ({
       id: `offline-${record.timestamp}-${index}`,
       client_id: null,
-      device_id: deviceId,
+      device_id: "offline",
       user_id: null,
       email: null,
       display_name: null,
@@ -127,8 +117,6 @@ function buildOfflineReport(filters: ReportFilters): TransferReport {
       operator: (record.operator || "unknown").toLowerCase(),
       status: record.status,
       created_at: new Date(record.timestamp).toISOString(),
-      license_id: null,
-      trial_id: null,
       access_source: "offline_cache",
     }))
     .filter((row) => {
@@ -136,9 +124,7 @@ function buildOfflineReport(filters: ReportFilters): TransferReport {
       return (!dateFrom || timestamp >= dateFrom)
         && (!dateTo || timestamp < dateTo)
         && (!filters.operator || row.operator === filters.operator)
-        && (!filters.status || row.status === filters.status)
-        && (!filters.device_id || row.device_id === filters.device_id)
-        && (!filters.access_source || row.access_source === filters.access_source);
+        && (!filters.status || row.status === filters.status);
     });
 
   const pageSize = Math.min(Math.max(filters.page_size || 50, 1), 100);
@@ -161,7 +147,6 @@ function buildOfflineReport(filters: ReportFilters): TransferReport {
     periods: groupPeriods(rows, filters.period),
     by_operator: groupDimension(rows, (row) => row.operator),
     by_status: groupDimension(rows, (row) => row.status),
-    by_access: groupDimension(rows, (row) => row.access_source),
     by_device: groupDimension(rows, (row) => row.device_id),
     by_user: [],
     by_sync_status: [],
@@ -230,8 +215,6 @@ function normalizeRow(value: Record<string, unknown>): ReportRow {
     operator: String(value.operator ?? "unknown"),
     status: String(value.status ?? "unknown"),
     created_at: String(value.created_at ?? ""),
-    license_id: value.license_id ? String(value.license_id) : null,
-    trial_id: value.trial_id ? String(value.trial_id) : null,
     access_source: String(value.access_source ?? "none"),
   };
 }

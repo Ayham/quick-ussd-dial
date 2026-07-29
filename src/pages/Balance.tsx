@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Wallet, RefreshCw, Edit, Check, TrendingDown, Clock } from "lucide-react";
+import { Wallet, RefreshCw, Edit, Check, TrendingDown, Clock, ArrowDownToLine } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import {
@@ -14,6 +14,7 @@ import { getHistory } from "@/lib/transfer-history";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const BALANCE_STORAGE_KEY = "saved_balances_v1";
 
@@ -127,26 +128,29 @@ const Balance = () => {
     return (
       <div className="rounded-2xl overflow-hidden shadow-card animate-slide-up">
         {/* Header */}
-        <div className={`px-5 py-4 flex items-center justify-between ${
+        <div className={cn(
+          "px-5 py-4 flex items-center justify-between",
           isMtn ? "bg-operator-mtn" : "bg-operator-syriatel"
-        }`}>
+        )}>
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+            <div className={cn(
+              "w-11 h-11 rounded-xl flex items-center justify-center",
               isMtn ? "bg-operator-mtn-foreground/15" : "bg-operator-syriatel-foreground/15"
-            }`}>
-              <Wallet className={`w-5 h-5 ${isMtn ? "text-operator-mtn-foreground" : "text-operator-syriatel-foreground"}`} />
+            )}>
+              <Wallet className={cn("w-5 h-5", isMtn ? "text-operator-mtn-foreground" : "text-operator-syriatel-foreground")} />
             </div>
-            <span className={`font-bold text-lg ${isMtn ? "text-operator-mtn-foreground" : "text-operator-syriatel-foreground"}`}>
+            <span className={cn("font-bold text-lg", isMtn ? "text-operator-mtn-foreground" : "text-operator-syriatel-foreground")}>
               {isMtn ? "MTN" : "Syriatel"}
             </span>
           </div>
           <button
             onClick={() => handleBalanceCheck(operator)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-smooth ${
+            className={cn(
+              "flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-smooth active:scale-95",
               isMtn 
                 ? "bg-operator-mtn-foreground/20 text-operator-mtn-foreground hover:bg-operator-mtn-foreground/30" 
                 : "bg-operator-syriatel-foreground/20 text-operator-syriatel-foreground hover:bg-operator-syriatel-foreground/30"
-            }`}
+            )}
           >
             <RefreshCw className="w-3.5 h-3.5" />
             استعلام
@@ -159,9 +163,10 @@ const Balance = () => {
           {estimated !== null && !isEditing && (
             <div className="text-center space-y-1.5">
               <p className="text-xs text-muted-foreground">الرصيد المتوقع</p>
-              <p className={`text-4xl font-bold tracking-tight ${
+              <p className={cn(
+                "text-4xl font-bold tracking-tight",
                 isMtn ? "text-operator-mtn" : "text-operator-syriatel"
-              }`}>
+              )}>
                 {estimated.toLocaleString()}
               </p>
               {saved && (
@@ -175,9 +180,9 @@ const Balance = () => {
 
           {/* No balance saved */}
           {!saved && !isEditing && (
-            <div className="text-center py-4">
-              <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-2">
-                <Wallet className="w-6 h-6 text-muted-foreground" />
+            <div className="text-center py-6">
+              <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
+                <Wallet className="w-7 h-7 text-muted-foreground" />
               </div>
               <p className="text-sm text-muted-foreground">لم يتم إدخال الرصيد بعد</p>
             </div>
@@ -185,7 +190,7 @@ const Balance = () => {
 
           {/* Spent since last update */}
           {saved && spent.count > 0 && !isEditing && (
-            <div className="bg-muted rounded-xl p-4 space-y-2">
+            <div className="bg-muted rounded-xl p-4 space-y-2.5">
               <p className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
                 <TrendingDown className="w-3.5 h-3.5" />
                 التحويلات منذ آخر تحديث
@@ -223,7 +228,7 @@ const Balance = () => {
                   autoFocus
                   onKeyDown={(e) => e.key === "Enter" && handleSaveBalance(operator)}
                 />
-                <Button onClick={() => handleSaveBalance(operator)} className="h-12 px-4 rounded-xl">
+                <Button onClick={() => handleSaveBalance(operator)} className="h-12 px-4 rounded-xl active:scale-95">
                   <Check className="w-5 h-5" />
                 </Button>
               </div>
@@ -238,9 +243,9 @@ const Balance = () => {
                 setEditValue(saved ? String(saved.amount) : "");
               }}
               variant="outline"
-              className="w-full h-11 text-sm rounded-xl border-2"
+              className="w-full h-12 text-sm rounded-xl border-2"
             >
-              <Edit className="w-4 h-4 ml-1.5" />
+              <Edit className="w-4 h-4 me-1.5" />
               {saved ? "تحديث الرصيد" : "إدخال الرصيد"}
             </Button>
           )}
@@ -251,7 +256,7 @@ const Balance = () => {
 
   return (
     <AppLayout title="الرصيد">
-      <main className="flex-1 p-3 w-full flex flex-col gap-3 pb-safe" dir="rtl">
+      <main className="flex-1 w-full max-w-lg mx-auto p-3 flex flex-col gap-3 pb-4" dir="rtl">
         <OperatorCard operator="mtn" />
         <OperatorCard operator="syriatel" />
       </main>

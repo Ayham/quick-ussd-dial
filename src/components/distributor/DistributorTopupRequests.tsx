@@ -78,7 +78,7 @@ export function DistributorTopupRequests({ customerId }: Props) {
     switch (status) {
       case "pending": return <Clock className="w-4 h-4 text-accent" />;
       case "processing": return <Loader2 className="w-4 h-4 text-primary animate-spin" />;
-      case "completed": return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case "completed": return <CheckCircle className="w-4 h-4 text-success" />;
       case "cancelled": return <XCircle className="w-4 h-4 text-muted-foreground" />;
       default: return <Clock className="w-4 h-4" />;
     }
@@ -144,7 +144,7 @@ export function DistributorTopupRequests({ customerId }: Props) {
                       </span>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
                         req.status === "pending" ? "bg-accent/10 text-accent" :
-                        req.status === "completed" ? "bg-green-500/10 text-green-600" :
+                        req.status === "completed" ? "bg-success/10 text-success" :
                         "bg-muted text-muted-foreground"
                       }`}>
                         {statusLabel(req.status)}

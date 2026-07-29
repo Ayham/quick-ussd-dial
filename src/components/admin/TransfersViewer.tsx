@@ -144,28 +144,28 @@ export function TransfersViewer() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mb-4">
-        <div className="bg-card rounded p-2 text-center">
+        <div className="bg-card rounded-2xl p-2 text-center shadow-card">
           <div className="text-sm font-semibold">{stats.total}</div>
           <div className="text-xs text-muted-foreground">Total</div>
         </div>
-        <div className="bg-green-500/10 rounded p-2 text-center">
-          <div className="text-sm font-semibold text-green-600">{stats.succeeded}</div>
+        <div className="bg-success/10 rounded-2xl p-2 text-center shadow-card">
+          <div className="text-sm font-semibold text-success">{stats.succeeded}</div>
           <div className="text-xs text-muted-foreground">Success</div>
         </div>
-        <div className="bg-red-500/10 rounded p-2 text-center">
-          <div className="text-sm font-semibold text-red-600">{stats.failed}</div>
+        <div className="bg-destructive/10 rounded-2xl p-2 text-center shadow-card">
+          <div className="text-sm font-semibold text-destructive">{stats.failed}</div>
           <div className="text-xs text-muted-foreground">Failed</div>
         </div>
-        <div className="bg-blue-500/10 rounded p-2 text-center">
-          <div className="text-sm font-semibold text-blue-600">{stats.pending}</div>
+        <div className="bg-info/10 rounded-2xl p-2 text-center shadow-card">
+          <div className="text-sm font-semibold text-info">{stats.pending}</div>
           <div className="text-xs text-muted-foreground">Pending</div>
         </div>
-        <div className="bg-amber-500/10 rounded p-2 text-center">
-          <div className="text-sm font-semibold text-amber-600">{stats.mtn}</div>
+        <div className="bg-operator-mtn/10 rounded-2xl p-2 text-center shadow-card">
+          <div className="text-sm font-semibold text-operator-mtn">{stats.mtn}</div>
           <div className="text-xs text-muted-foreground">MTN</div>
         </div>
-        <div className="bg-purple-500/10 rounded p-2 text-center">
-          <div className="text-sm font-semibold text-purple-600">{stats.totalAmount.toLocaleString()}</div>
+        <div className="bg-primary/10 rounded-2xl p-2 text-center shadow-card">
+          <div className="text-sm font-semibold text-primary">{stats.totalAmount.toLocaleString()}</div>
           <div className="text-xs text-muted-foreground">Total Amount</div>
         </div>
       </div>
@@ -194,7 +194,7 @@ export function TransfersViewer() {
                 <td className="p-3 font-semibold">{transfer.amount.toLocaleString()}</td>
                 <td className="p-3 text-xs">{transfer.package_name ? `${transfer.package_name} / ${transfer.package_price ?? 0}` : '—'}</td>
                 <td className="p-3">
-                  <span className={`text-xs px-2 py-1 rounded ${transfer.sync_status === 'synced' ? 'bg-green-500/20 text-green-700' : 'bg-amber-500/20 text-amber-700'}`}>
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${transfer.sync_status === 'synced' ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning'}`}>
                     {transfer.sync_status || 'pending'}
                   </span>
                 </td>

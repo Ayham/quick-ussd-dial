@@ -4,10 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import Index from "./Index";
 
-vi.mock("@/lib/license", () => ({
-  getAppStatus: vi.fn(() => Promise.resolve({ status: "licensed" })),
-}));
-
 vi.mock("@/lib/cloud-sync", () => ({
   trackTransfer: vi.fn(),
 }));

@@ -70,7 +70,7 @@ export function TopupRequests({ distributorId }: { distributorId: string }) {
     switch (status) {
       case "pending": return <Clock className="w-4 h-4 text-accent" />;
       case "processing": return <Loader2 className="w-4 h-4 text-primary animate-spin" />;
-      case "completed": return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case "completed": return <CheckCircle className="w-4 h-4 text-success" />;
       case "cancelled": return <XCircle className="w-4 h-4 text-destructive" />;
       default: return null;
     }
@@ -80,7 +80,7 @@ export function TopupRequests({ distributorId }: { distributorId: string }) {
     switch (status) {
       case "pending": return "bg-accent/10 text-accent";
       case "processing": return "bg-primary/10 text-primary";
-      case "completed": return "bg-green-500/10 text-green-600";
+      case "completed": return "bg-success/10 text-success";
       case "cancelled": return "bg-destructive/10 text-destructive";
       default: return "bg-muted text-muted-foreground";
     }

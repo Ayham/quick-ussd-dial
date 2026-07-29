@@ -54,7 +54,7 @@ export function DistributorDashboard({ distributorId }: { distributorId: string 
       case "topup": return <ArrowDownCircle className="w-4 h-4 text-primary" />;
       case "payment": return <ArrowUpCircle className="w-4 h-4 text-accent" />;
       case "debt": return <TrendingDown className="w-4 h-4 text-destructive" />;
-      case "credit": return <TrendingUp className="w-4 h-4 text-green-500" />;
+      case "credit": return <TrendingUp className="w-4 h-4 text-success" />;
       default: return <Activity className="w-4 h-4 text-muted-foreground" />;
     }
   };

@@ -1,42 +1,7 @@
-import { APP_VERSION } from "@/config/version";
 import { pushEvent } from "./supabase-sync";
 
-export type SyncEventType =
-  | "device_register"
-  | "app_open"
-  | "trial_started"
-  | "trial_expired"
-  | "license_activated"
-  | "license_expired"
-  | "license_blocked"
-  | "license_suspended"
-  | "transfer"
-  | "settings_changed"
-  | "heartbeat"
-  | "user_action"
-  | "distributor_topup"
-  | "distributor_payment";
-
-export function trackEvent(event: SyncEventType, data: Record<string, unknown> = {}) {
+export function trackEvent(event: string, data: Record<string, unknown> = {}) {
   pushEvent(event, data);
-}
-
-export function startBackgroundSync() {
-  pushEvent("heartbeat", {
-    appVersion: APP_VERSION,
-    language: navigator.language,
-    online: navigator.onLine,
-  });
-}
-
-export function trackDeviceInfo() {
-  pushEvent("device_register", {
-    appVersion: APP_VERSION,
-    platform: navigator.platform,
-    userAgent: navigator.userAgent,
-    language: navigator.language,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-  });
 }
 
 export function trackAppOpen() {

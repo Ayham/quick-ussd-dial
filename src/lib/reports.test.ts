@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchTransferReport } from "./reports";
 
-vi.mock("./device-id", () => ({ getDeviceId: () => "device-1" }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: { functions: { invoke: vi.fn() } },
 }));

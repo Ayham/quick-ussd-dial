@@ -221,14 +221,14 @@ const Contacts = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="بحث بالاسم أو الرقم..."
-              className="h-10 pr-9 rounded-xl text-sm"
+              className="h-11 pr-9 rounded-xl text-sm"
               dir="rtl"
             />
           </div>
           <Button
             size="icon"
             variant="outline"
-            className="h-10 w-10 rounded-xl"
+            className="h-11 w-11 rounded-xl"
             onClick={handlePickContact}
             title="اختيار من سجل الهاتف"
           >
@@ -236,7 +236,7 @@ const Contacts = () => {
           </Button>
           <Button
             size="icon"
-            className="h-10 w-10 rounded-xl"
+            className="h-11 w-11 rounded-xl"
             onClick={() => setShowAdd(!showAdd)}
           >
             <UserPlus className="w-4 h-4" />

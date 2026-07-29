@@ -197,7 +197,7 @@ const [mode, setMode] = useState<"signin" | "signup">("signin");
             <h1 className="text-2xl font-bold">{isArabic ? "تم تسجيل الدخول" : "Signed in"}</h1>
             <p className="text-sm text-muted-foreground">{user.email}</p>
             {isAdmin && (
-              <span className="inline-block bg-amber-500/10 text-amber-600 text-xs px-3 py-1 rounded-full font-bold">
+              <span className="inline-block bg-warning/10 text-warning text-xs px-3 py-1 rounded-full font-bold">
                 <Crown className="w-3 h-3 inline mr-1" /> ADMIN
               </span>
             )}
@@ -230,39 +230,30 @@ const [mode, setMode] = useState<"signin" | "signup">("signin");
 
   return (
     <div className="min-h-dvh bg-background flex items-center justify-center p-6 safe-area-insets" dir={isArabic ? "rtl" : "ltr"}>
-      <div className="w-full max-w-sm space-y-5">
-        <div className="text-center space-y-2">
-          <Shield className="w-14 h-14 mx-auto text-primary" />
+      <div className="w-full max-w-sm space-y-6 animate-slide-up">
+        <div className="text-center space-y-3">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 mx-auto flex items-center justify-center">
+            <Shield className="w-8 h-8 text-primary" />
+          </div>
           <h1 className="text-2xl font-bold">{mode === "signup" ? (isArabic ? "إنشاء حساب" : "Create account") : (isArabic ? "تسجيل الدخول" : "Sign in")}</h1>
         </div>
 
-        {/* <Button variant="outline" className="w-full h-11" onClick={google}>
-          {isArabic ? "متابعة بحساب Google" : "Continue with Google"}
-        </Button>
-
-        <div className="relative my-2 text-center">
-          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-          <span className="relative bg-background px-2 text-xs text-muted-foreground">
-            {isArabic ? "أو" : "or"}
-          </span>
-        </div> */}
-
-        <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+        <div className="bg-card border border-border rounded-2xl p-5 space-y-4 shadow-card">
           {mode === "signup" && (
             <>
               <div className="relative">
                 <User className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder={isArabic ? "الاسم الكامل" : "Full name"} value={name} onChange={(e) => setName(e.target.value)} className="h-11 ps-10" />
+                <Input placeholder={isArabic ? "الاسم الكامل" : "Full name"} value={name} onChange={(e) => setName(e.target.value)} className="h-12 ps-10 rounded-xl" />
               </div>
               <div className="relative">
                 <Phone className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder={isArabic ? "رقم الهاتف" : "Phone"} value={phone} onChange={(e) => setPhone(e.target.value)} className="h-11 ps-10" dir="ltr" />
+                <Input placeholder={isArabic ? "رقم الهاتف" : "Phone"} value={phone} onChange={(e) => setPhone(e.target.value)} className="h-12 ps-10 rounded-xl" dir="ltr" />
               </div>
             </>
           )}
           <div className="relative">
             <Mail className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input type="email" placeholder={isArabic ? "البريد الإلكتروني" : "Email"} value={email} onChange={(e) => setEmail(e.target.value)} className="h-11 ps-10" dir="ltr" />
+            <Input type="email" placeholder={isArabic ? "البريد الإلكتروني" : "Email"} value={email} onChange={(e) => setEmail(e.target.value)} className="h-12 ps-10 rounded-xl" dir="ltr" />
           </div>
           <div className="relative">
             <Lock className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -271,27 +262,29 @@ const [mode, setMode] = useState<"signin" | "signup">("signin");
               placeholder={isArabic ? "كلمة السر" : "Password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="h-11 ps-10 pr-10"
+              className="h-12 ps-10 pr-10 rounded-xl"
               dir="ltr"
               onKeyDown={(e) => e.key === "Enter" && submit()}
             />
-            <button type="button" className="absolute top-1/2 end-3 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(!showPassword)}>
+            <button type="button" className="absolute top-1/2 end-3 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1" onClick={() => setShowPassword(!showPassword)}>
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
-          <Button className="w-full h-11 font-bold" onClick={submit} disabled={loading}>
+          <Button className="w-full h-12 font-bold rounded-xl" onClick={submit} disabled={loading}>
             {loading ? t("common.loading") : (mode === "signup" ? (isArabic ? "إنشاء الحساب" : "Sign up") : (isArabic ? "تسجيل الدخول" : "Sign in"))}
           </Button>
-          <button className="text-xs text-muted-foreground w-full" onClick={() => setMode(mode === "signin" ? "signup" : "signin")}>
-            {mode === "signin"
-              ? (isArabic ? "ليس لديك حساب؟ أنشئ واحداً" : "No account? Create one")
-              : (isArabic ? "لديك حساب؟ سجّل الدخول" : "Have an account? Sign in")}
-          </button>
-          {mode === "signin" && (
-            <button className="text-xs text-primary w-full" onClick={resetPassword} type="button">
-              {isArabic ? "نسيت كلمة السر؟" : "Forgot password?"}
+          <div className="flex flex-col gap-2">
+            <button className="text-xs text-muted-foreground w-full hover:text-foreground transition-colors" onClick={() => setMode(mode === "signin" ? "signup" : "signin")}>
+              {mode === "signin"
+                ? (isArabic ? "ليس لديك حساب؟ أنشئ واحداً" : "No account? Create one")
+                : (isArabic ? "لديك حساب؟ سجّل الدخول" : "Have an account? Sign in")}
             </button>
-          )}
+            {mode === "signin" && (
+              <button className="text-xs text-primary w-full font-medium hover:underline" onClick={resetPassword} type="button">
+                {isArabic ? "نسيت كلمة السر؟" : "Forgot password?"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

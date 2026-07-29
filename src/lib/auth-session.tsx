@@ -105,18 +105,6 @@ export function useAuthSession() {
   return ctx;
 }
 
-export function RequireAuth({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuthSession();
-  const location = useLocation();
-
-  if (loading) return <AuthLoading />;
-  if (!user) {
-    const next = encodeURIComponent(location.pathname + location.search);
-    return <Navigate to={`/auth?next=${next}`} replace />;
-  }
-  return <>{children}</>;
-}
-
 export function RequireAdmin({ children }: { children: ReactNode }) {
   const { user, isAdmin, loading } = useAuthSession();
   const location = useLocation();

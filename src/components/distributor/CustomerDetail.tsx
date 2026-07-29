@@ -317,7 +317,7 @@ export function CustomerDetail({ customerId, customer, onBack }: Props) {
                     { id: "debt" as const, label: "Debt", icon: AlertTriangle, color: "text-destructive" },
                     { id: "payment" as const, label: "Payment", icon: CreditCard, color: "text-primary" },
                     { id: "adjustment" as const, label: "Adjust", icon: Settings, color: "text-accent" },
-                    { id: "topup" as const, label: "Topup", icon: ArrowDownCircle, color: "text-green-500" },
+                    { id: "topup" as const, label: "Topup", icon: ArrowDownCircle, color: "text-success" },
                   ].map((op) => (
                     <button
                       key={op.id}

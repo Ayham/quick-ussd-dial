@@ -50,7 +50,7 @@ export function CustomerList({ distributorId, onSelectCustomer }: Props) {
 
   const statusColor = (status: string) => {
     switch (status) {
-      case "active": return "bg-green-500/10 text-green-600";
+      case "active": return "bg-success/10 text-success";
       case "blocked": return "bg-destructive/10 text-destructive";
       case "archived": return "bg-muted text-muted-foreground";
       default: return "bg-muted text-muted-foreground";

@@ -64,7 +64,7 @@ export function DistributorAccountStatement({ customerId, onBack }: Props) {
   const typeColor = (type: string) => {
     const map: Record<string, string> = {
       topup: "text-primary", payment: "text-accent", adjustment: "text-muted-foreground",
-      debt: "text-destructive", credit: "text-green-500"
+      debt: "text-destructive", credit: "text-success"
     };
     return map[type] || "text-foreground";
   };
@@ -72,7 +72,7 @@ export function DistributorAccountStatement({ customerId, onBack }: Props) {
   const typeIcon = (type: string) => {
     if (type === "payment") return <ArrowUpCircle className="w-4 h-4 text-accent" />;
     if (type === "debt") return <AlertTriangle className="w-4 h-4 text-destructive" />;
-    if (type === "credit") return <TrendingUp className="w-4 h-4 text-green-500" />;
+    if (type === "credit") return <TrendingUp className="w-4 h-4 text-success" />;
     return <ArrowDownCircle className="w-4 h-4 text-primary" />;
   };
 

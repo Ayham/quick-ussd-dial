@@ -381,19 +381,3 @@ export async function updateCustomerNotes(
   if (error) return { success: false, error: error.message };
   return parseRpcResult(data);
 }
-
-export async function updateCustomerDevice(
-  customerUserId: string,
-  secret?: string,
-  serial?: string,
-  notes?: string,
-): Promise<{ success: boolean; error?: string }> {
-  const { data, error } = await supabase.rpc("distributor_update_customer_device" as never, {
-    _customer_user_id: customerUserId,
-    _secret: secret || null,
-    _serial: serial || null,
-    _notes: notes || null,
-  } as never);
-  if (error) return { success: false, error: error.message };
-  return parseRpcResult(data);
-}
