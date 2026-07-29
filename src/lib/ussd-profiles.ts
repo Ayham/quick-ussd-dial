@@ -230,6 +230,21 @@ export function saveCredentials(credentials: OperatorCredentials) {
   localStorage.setItem(CREDENTIALS_KEY, JSON.stringify(credentials));
 }
 
+// Last selected operator for secret number transfers
+const LAST_SECRET_OPERATOR_KEY = "last-secret-operator";
+
+export function getLastSecretOperator(): Operator | null {
+  try {
+    const stored = localStorage.getItem(LAST_SECRET_OPERATOR_KEY);
+    if (stored === "mtn" || stored === "syriatel") return stored;
+  } catch {}
+  return null;
+}
+
+export function saveLastSecretOperator(op: Operator) {
+  localStorage.setItem(LAST_SECRET_OPERATOR_KEY, op);
+}
+
 // Reset ALL settings to defaults
 export function resetAllSettings() {
   localStorage.removeItem(STORAGE_KEY);

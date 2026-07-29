@@ -7,6 +7,8 @@ import {
   getPresets,
   getCredentials,
   getSimAssignment,
+  getLastSecretOperator,
+  saveLastSecretOperator,
   type Operator,
   type AmountPreset,
   type OperatorCredentials,
@@ -27,6 +29,8 @@ import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import AppContactsSearchDialog from "@/components/contacts/AppContactsSearchDialog";
 import { cn } from "@/lib/utils";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,6 +56,7 @@ const Index = () => {
   const [contactName, setContactName] = useState('');
   const [showSaveName, setShowSaveName] = useState(false);
   const [nameInput, setNameInput] = useState('');
+  const [secretOperator, setSecretOperator] = useState<Operator | null>(() => getLastSecretOperator());
   
   const contactsRef = useRef<HTMLDivElement>(null);
 
@@ -70,7 +75,9 @@ const Index = () => {
   };
 
   const operator = useMemo(() => detectOperator(phone), [phone]);
-  const currentPresets: AmountPreset[] = operator ? presets[operator] : [];
+  const isSecretNumber = phone.trim().length >= 3 && !operator;
+  const transferOperator: Operator | null = operator || (isSecretNumber ? secretOperator : null);
+  const currentPresets: AmountPreset[] = transferOperator ? presets[transferOperator] : [];
   const matchingContacts = useMemo(() => getMatchingContacts(phone), [phone]);
 
   useEffect(() => {
@@ -95,15 +102,19 @@ const Index = () => {
 
   useEffect(() => {
     setSelectedAmount(null);
-  }, [operator]);
+  }, [transferOperator]);
 
   const handleTransferClick = useCallback(() => {
-    if (!phone.trim() || phone.trim().length < 10) {
+    if (!phone.trim()) {
       toast.error("الرجاء إدخال رقم هاتف صحيح");
       return;
     }
-    if (!operator) {
-      toast.error("لم يتم التعرف على المشغّل");
+    if (!isSecretNumber && phone.trim().length < 10) {
+      toast.error("الرجاء إدخال رقم هاتف صحيح");
+      return;
+    }
+    if (!transferOperator) {
+      toast.error(isSecretNumber ? "الرجاء اختيار المشغّل" : "لم يتم التعرف على المشغّل");
       return;
     }
     if (!selectedAmount) {
@@ -111,14 +122,14 @@ const Index = () => {
       return;
     }
     setShowConfirm(true);
-  }, [phone, operator, selectedAmount]);
+  }, [phone, isSecretNumber, transferOperator, selectedAmount]);
 
   const handleConfirmTransfer = useCallback(async () => {
-    if (!operator || !selectedAmount) return;
+    if (!transferOperator || !selectedAmount) return;
     setShowConfirm(false);
-    const ussd = buildUssdCode(operator, phone.trim(), String(selectedAmount.amount), credentials);
+    const ussd = buildUssdCode(transferOperator, phone.trim(), String(selectedAmount.amount), credentials);
     const simAssignment = getSimAssignment();
-    const simSlot = simAssignment[operator];
+    const simSlot = simAssignment[transferOperator];
 
     setDialing(true);
 
@@ -128,12 +139,13 @@ const Index = () => {
       addToHistory({
         phone: phone.trim(),
         amount: String(selectedAmount.amount),
-        operator,
+        operator: transferOperator,
         timestamp: Date.now(),
         status: "success",
+        transferType: operator ? "phone" : "secret",
       });
       setHistory(getHistory());
-      trackTransfer(phone.trim(), String(selectedAmount.amount), operator, "success", {
+      trackTransfer(phone.trim(), String(selectedAmount.amount), transferOperator, "success", {
         package_price: selectedAmount.price,
         package_name: `${selectedAmount.amount}`,
       });
@@ -147,7 +159,7 @@ const Index = () => {
     } finally {
       setDialing(false);
     }
-  }, [phone, operator, selectedAmount, credentials]);
+  }, [phone, transferOperator, selectedAmount, credentials, operator]);
 
   const selectContact = (contact: SavedContact) => {
     setPhone(contact.phone);
@@ -355,8 +367,34 @@ const Index = () => {
           onPickNative={pickNativeContact}
         />
 
+        {/* Secret Number Operator Selector */}
+        {isSecretNumber && (
+          <div className="bg-card rounded-2xl p-4 shadow-card space-y-3 animate-slide-up">
+            <p className="text-xs font-semibold text-muted-foreground">تحويل عبر الرقم السري</p>
+            <RadioGroup
+              value={secretOperator || ""}
+              onValueChange={(value) => {
+                const op = value as Operator;
+                setSecretOperator(op);
+                saveLastSecretOperator(op);
+              }}
+              className="flex gap-3"
+              dir="ltr"
+            >
+              <div className="flex items-center gap-2 bg-operator-mtn/10 rounded-xl px-3 py-2.5 flex-1 border border-operator-mtn/20">
+                <RadioGroupItem value="mtn" id="s-mtn" />
+                <Label htmlFor="s-mtn" className="text-sm font-bold cursor-pointer text-operator-mtn">MTN</Label>
+              </div>
+              <div className="flex items-center gap-2 bg-operator-syriatel/10 rounded-xl px-3 py-2.5 flex-1 border border-operator-syriatel/20">
+                <RadioGroupItem value="syriatel" id="s-syr" />
+                <Label htmlFor="s-syr" className="text-sm font-bold cursor-pointer text-operator-syriatel">Syriatel</Label>
+              </div>
+            </RadioGroup>
+          </div>
+        )}
+
         {/* Preset Amounts */}
-        {operator && currentPresets.length > 0 && (
+        {transferOperator && currentPresets.length > 0 && (
           <div className="space-y-2.5 animate-slide-up">
             <p className="text-xs font-semibold text-muted-foreground px-1">اختر المبلغ</p>
             <div className="grid grid-cols-3 gap-2.5 max-h-[260px] overflow-y-auto scrollbar-thin pr-0.5">
@@ -369,7 +407,7 @@ const Index = () => {
                     className={cn(
                       "flex flex-col items-center p-3 rounded-xl border-2 transition-all duration-200 active:scale-95",
                       isSelected
-                        ? operator === "mtn"
+                        ? transferOperator === "mtn"
                           ? "border-operator-mtn bg-operator-mtn/10 shadow-card"
                           : "border-operator-syriatel bg-operator-syriatel/10 shadow-card"
                         : "border-border bg-card hover:border-primary/30 hover:shadow-card"
@@ -381,7 +419,7 @@ const Index = () => {
                     <span className={cn(
                       "text-sm mt-1 font-medium",
                       isSelected
-                        ? operator === "mtn" ? "text-operator-mtn" : "text-operator-syriatel"
+                        ? transferOperator === "mtn" ? "text-operator-mtn" : "text-operator-syriatel"
                         : "text-muted-foreground"
                     )}>
                       {preset.amount.toLocaleString()}
@@ -396,7 +434,7 @@ const Index = () => {
         {/* Transfer Button */}
         <Button
           onClick={handleTransferClick}
-          disabled={!operator || !selectedAmount || dialing}
+          disabled={!transferOperator || !selectedAmount || dialing}
           className="w-full h-14 text-base font-bold rounded-xl shadow-elevated"
           size="lg"
         >
@@ -433,9 +471,9 @@ const Index = () => {
                     <span className="text-muted-foreground text-sm">المشغّل</span>
                     <span className={cn(
                       "font-bold px-2.5 py-1 rounded-full text-xs",
-                      operator === "mtn" ? "bg-operator-mtn text-operator-mtn-foreground" : "bg-operator-syriatel text-operator-syriatel-foreground"
+                      transferOperator === "mtn" ? "bg-operator-mtn text-operator-mtn-foreground" : "bg-operator-syriatel text-operator-syriatel-foreground"
                     )}>
-                      {operator === "mtn" ? "MTN" : "Syriatel"}
+                      {transferOperator === "mtn" ? "MTN" : "Syriatel"}
                     </span>
                   </div>
                 </div>
@@ -491,6 +529,11 @@ const Index = () => {
                     <span className="font-bold text-foreground text-sm">
                       {Number(record.amount).toLocaleString()}
                     </span>
+                    {record.transferType === "secret" && (
+                      <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full font-medium leading-none">
+                        🔑
+                      </span>
+                    )}
                     <CheckCircle className="w-4 h-4 text-success" />
                   </div>
                 </div>

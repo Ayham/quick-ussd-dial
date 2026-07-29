@@ -6,6 +6,7 @@ export interface TransferRecord {
   operator: string;
   timestamp: number;
   status: "success" | "failed" | "pending";
+  transferType?: "phone" | "secret";
 }
 
 const HISTORY_KEY = "transfer-history";
