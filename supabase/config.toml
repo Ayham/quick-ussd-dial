@@ -1,4 +1,36 @@
-project_id = "tebyyidgcsivzslaohxd"
+[project]
+id = "tebyyidgcsivzslaohxd"
 
-[functions.admin-reset-user]
-verify_jwt = false
+[functions]
+[functions.admin-bootstrap]
+verify_jwt = true
+
+[functions.device-sync]
+verify_jwt = true
+
+[functions.distributor-rpc]
+verify_jwt = true
+
+[functions.reports]
+verify_jwt = true
+
+[functions.validate-session]
+verify_jwt = true
+
+[functions.validate-license]
+verify_jwt = true
+
+[functions.device-login]
+verify_jwt = true
+
+[functions.device-logout]
+verify_jwt = true
+
+[functions.request-activation]
+verify_jwt = true
+
+[functions.approve-license]
+verify_jwt = true
+
+[functions.reject-license]
+verify_jwt = true

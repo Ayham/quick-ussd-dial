@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Offline-safe: no external font requests */
-
 @layer base {
   :root {
     --background: 150 20% 97%;
@@ -138,7 +136,6 @@
   }
 }
 
-/* Safe area utilities */
 .safe-area-insets {
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -152,7 +149,6 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Only add status bar padding in native app */
 .native-app .pt-safe {
   padding-top: env(safe-area-inset-top, 28px);
 }
@@ -161,7 +157,6 @@
   padding-top: 0px;
 }
 
-/* Bottom navigation bar padding in native app */
 .native-app .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 16px);
 }
@@ -170,7 +165,6 @@
   padding-bottom: 0px;
 }
 
-/* Mobile-first centered container */
 .app-container {
   max-width: 500px;
   margin: 0 auto;
@@ -178,12 +172,10 @@
   min-height: 100dvh;
 }
 
-/* Custom gradient header */
 .header-gradient {
   background: var(--gradient-header);
 }
 
-/* Card shadow */
 .card-elevated {
   box-shadow: var(--shadow-elevated);
 }
@@ -192,7 +184,6 @@
   box-shadow: var(--shadow-float);
 }
 
-/* Smooth transitions */
 .transition-smooth {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -201,13 +192,11 @@
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Touch-friendly minimum sizes */
 .touch-target {
   min-height: 48px;
   min-width: 48px;
 }
 
-/* Active press effect */
 .press-effect {
   transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -215,7 +204,6 @@
   transform: scale(0.97);
 }
 
-/* Thin scrollbar for sidebar/drawers */
 .scrollbar-thin {
   scrollbar-width: thin;
   scrollbar-color: hsl(var(--border)) transparent;
@@ -231,7 +219,6 @@
   border-radius: 4px;
 }
 
-/* Hide scrollbar but keep scroll */
 .scrollbar-none {
   scrollbar-width: none;
 }
@@ -239,7 +226,6 @@
   display: none;
 }
 
-/* Z-index layering */
 .z-toast {
   z-index: 100;
 }
@@ -253,12 +239,10 @@
   z-index: 40;
 }
 
-/* Focus ring */
 .focus-ring {
   @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
 }
 
-/* Skeleton shimmer animation */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -275,16 +259,14 @@
   animation: shimmer 1.5s ease-in-out infinite;
 }
 
-/* Bottom nav safe area */
 .pb-nav {
-  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
 }
 
 .native-app .pb-nav {
-  padding-bottom: calc(64px + env(safe-area-inset-bottom, 16px));
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 16px));
 }
 
-/* Status bar background for seamless header */
 .status-bar-bg {
   background: linear-gradient(
     to bottom,

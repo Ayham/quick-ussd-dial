@@ -121,23 +121,6 @@ Deno.serve(async (req) => {
             user_id: userId,
             created_at: event.timestamp,
           }, { onConflict: "device_id,client_id" })
-        : event.event === "contact_upsert"
-        ? userId
-          ? await sb.from("contacts").upsert({
-              client_id: event.id,
-              device_id: deviceId,
-              user_id: userId,
-              name: String(data.name || ""),
-              phone: String(data.phone || ""),
-              phone_normalized: String(data.phone || ""),
-            }, { onConflict: "user_id,phone_normalized" })
-          : { error: new Error("auth_required") }
-        : event.event === "contact_delete"
-        ? userId
-          ? await sb.from("contacts").delete()
-              .eq("user_id", userId)
-              .eq("phone_normalized", String(data.phone || ""))
-          : { error: new Error("auth_required") }
         : event.event === "activation_request"
         ? userId
           ? await sb.from("activations").upsert({

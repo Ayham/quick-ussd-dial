@@ -9,12 +9,13 @@ import Settings from "./pages/Settings";
 import Balance from "./pages/Balance";
 import Admin from "./pages/Admin";
 import Distributor from "./pages/Distributor";
-import Contacts from "./pages/Contacts";
 import NotFound from "./pages/NotFound";
 import Updates from "./pages/Updates";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
-import { AuthSessionProvider, RequireAdmin, RequireDistributor } from "@/lib/auth-session";
+import Activation from "./pages/Activation";
+import LicenseLocked from "./pages/LicenseLocked";
+import { AuthSessionProvider, RequireAdmin, RequireDistributor, RequireAuth } from "@/lib/auth-session";
 
 import "./lib/i18n";
 import { isWebBrowser } from "@/lib/platform";
@@ -69,24 +70,27 @@ const AppContent = () => {
       <AuthSessionProvider>
         <Routes>
           <Route path="/auth" element={<Auth />} />
-          <Route path="/" element={<Index />} />
-          <Route path="/distributor" element={<Distributor />} />
-          <Route path="/dm" element={<RequireDistributor><DistributorDashboard /></RequireDistributor>} />
-          <Route path="/dm/customers" element={<RequireDistributor><DistributorCustomers /></RequireDistributor>} />
-          <Route path="/dm/customer/:id" element={<RequireDistributor><DistributorCustomerDetail /></RequireDistributor>} />
-          <Route path="/dm/requests" element={<RequireDistributor><DistributorRequests /></RequireDistributor>} />
-          <Route path="/contacts" element={<Contacts />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/activation" element={<RequireAuth><Activation /></RequireAuth>} />
+          <Route path="/license-locked" element={<RequireAuth><LicenseLocked /></RequireAuth>} />
+          <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
+          <Route path="/distributor" element={<RequireAuth><Distributor /></RequireAuth>} />
+          <Route path="/dm" element={<RequireAuth><RequireDistributor><DistributorDashboard /></RequireDistributor></RequireAuth>} />
+          <Route path="/dm/customers" element={<RequireAuth><RequireDistributor><DistributorCustomers /></RequireDistributor></RequireAuth>} />
+          <Route path="/dm/customer/:id" element={<RequireAuth><RequireDistributor><DistributorCustomerDetail /></RequireDistributor></RequireAuth>} />
+          <Route path="/dm/requests" element={<RequireAuth><RequireDistributor><DistributorRequests /></RequireDistributor></RequireAuth>} />
+          <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
           <Route path="/reports" element={
-            <Suspense fallback={<div className="min-h-dvh grid place-items-center text-sm text-muted-foreground">Loading reports...</div>}>
-              <Reports />
-            </Suspense>
+            <RequireAuth>
+              <Suspense fallback={<div className="min-h-dvh grid place-items-center text-sm text-muted-foreground">Loading reports...</div>}>
+                <Reports />
+              </Suspense>
+            </RequireAuth>
           } />
-          <Route path="/balance" element={<Balance />} />
-          <Route path="/sys-panel" element={<RequireAdmin><Admin /></RequireAdmin>} />
-          <Route path="/updates" element={<Updates />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="*" element={<NotFound />} />
+          <Route path="/balance" element={<RequireAuth><Balance /></RequireAuth>} />
+          <Route path="/sys-panel" element={<RequireAuth><RequireAdmin><Admin /></RequireAdmin></RequireAuth>} />
+          <Route path="/updates" element={<RequireAuth><Updates /></RequireAuth>} />
+          <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+          <Route path="*" element={<RequireAuth><NotFound /></RequireAuth>} />
         </Routes>
       </AuthSessionProvider>
     </BrowserRouter>

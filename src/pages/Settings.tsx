@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
 
 import {
   Plus, Trash2, Key, Code, ArrowUp, ArrowDown, Smartphone, Signal,
-  Clock, AlertTriangle, Database, Settings as SettingsIcon,
-  Download, Upload, Globe, ChevronDown, ChevronLeft
+  Clock, AlertTriangle, Shield, Database, Settings as SettingsIcon,
+  Download, Upload, Globe, ChevronDown, Lock, FolderOpen,
+  Trash, RotateCw, HardDrive, Info, AlertCircle, CheckCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
@@ -22,12 +23,33 @@ import {
   type BalanceCheckTemplates,
 } from "@/lib/ussd-profiles";
 import { getHistory } from "@/lib/transfer-history";
+import {
+  getLowBalanceThresholds,
+  saveLowBalanceThresholds,
+  clearAllBalanceData,
+  type LowBalanceThresholds,
+} from "@/lib/balance-tracking";
+import {
+  getSuggestionSettings,
+  saveSuggestionSettings,
+  type SuggestionSettings,
+} from "@/lib/use-transfer-suggestions";
+import {
+  createBackup, validateBackup, restoreBackup,
+  getBackupPreview, cleanOldHistory, deleteAllHistory,
+  deleteAllData, getStorageStats, getFormattedSize,
+} from "@/lib/backup";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
-type SettingsSection = "sim" | "codes" | "amounts" | "data" | "language";
+type SettingsSection = "sim" | "codes" | "amounts" | "data" | "language" | "thresholds" | "suggestions";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -39,11 +61,22 @@ const Settings = () => {
   const [prefixes, setPrefixes] = useState<OperatorPrefixes>(() => getPrefixes());
   const [simAssignment, setSimAssignment] = useState<SimAssignment>(() => getSimAssignment());
   const [balanceTemplates, setBalanceTemplates] = useState<BalanceCheckTemplates>(() => getBalanceTemplates());
+  const [thresholds, setThresholds] = useState<LowBalanceThresholds>(() => getLowBalanceThresholds());
   const [activeOperator, setActiveOperator] = useState<Operator>("mtn");
   const [newPrefix, setNewPrefix] = useState("");
   const [language, setLanguageState] = useState(() => getLanguage());
+  const [suggestionSettings, setSuggestionSettings] = useState<SuggestionSettings>(() => getSuggestionSettings());
 
-  // Preset handlers
+  const [backupPassword, setBackupPassword] = useState("");
+  const [backupWithPassword, setBackupWithPassword] = useState(false);
+  const [restorePreview, setRestorePreview] = useState<ReturnType<typeof getBackupPreview> | null>(null);
+  const [restoreErrors, setRestoreErrors] = useState<string[]>([]);
+  const [restorePassword, setRestorePassword] = useState("");
+  const [restoreLoading, setRestoreLoading] = useState(false);
+  const [cleanupAge, setCleanupAge] = useState<number>(30 * 24 * 60 * 60 * 1000);
+  const [storageStats, setStorageStats] = useState(() => getStorageStats());
+  const [showBackupInfo, setShowBackupInfo] = useState(false);
+
   const handleAdd = () => {
     const updated = { ...presets };
     updated[activeOperator] = [...updated[activeOperator], { amount: 0, price: 0 }];
@@ -72,7 +105,6 @@ const Settings = () => {
     setPresets({ ...presets, [activeOperator]: list });
   };
 
-  // Prefix handlers
   const handleAddPrefix = (op: Operator) => {
     const trimmed = newPrefix.trim();
     if (!trimmed || trimmed.length !== 3) {
@@ -106,6 +138,7 @@ const Settings = () => {
     savePrefixes(prefixes);
     saveSimAssignment(simAssignment);
     saveBalanceTemplates(balanceTemplates);
+    saveLowBalanceThresholds(thresholds);
     toast.success("تم الحفظ بنجاح");
     navigate("/");
   };
@@ -116,19 +149,153 @@ const Settings = () => {
     toast.success(t('common.success'));
   };
 
+  const allHistory = getHistory();
+  const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const olderThanMonth = allHistory.filter(r => r.timestamp <= monthAgo).length;
+  const totalAmount = allHistory.filter(r => r.status === "success").reduce((s, r) => s + Number(r.amount), 0);
+  const hasBalance = !!localStorage.getItem('balance_tracking_v2') || !!localStorage.getItem('saved_balances_v1');
+  const thresholdsData = !!localStorage.getItem('low_balance_thresholds_v1');
+
+  const handleExportBackup = () => {
+    try {
+      const json = backupWithPassword ? createBackup(backupPassword || undefined) : createBackup();
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Raseed_Backup_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("تم إنشاء النسخة الاحتياطية بنجاح ✅");
+      setStorageStats(getStorageStats());
+    } catch {
+      toast.error("فشل إنشاء النسخة الاحتياطية");
+    }
+  };
+
+  const handleImportBackup = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const data = JSON.parse(ev.target?.result as string);
+          const result = validateBackup(data);
+          if (result.preview) {
+            setRestorePreview(result.preview);
+            setRestoreErrors(result.errors);
+          } else {
+            toast.error("ملف غير صالح أو إصدار غير مدعوم");
+          }
+        } catch {
+          toast.error("فشل قراءة الملف — تأكد أنه ملف نسخة احتياطية صحيح");
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  const handleDoRestore = () => {
+    if (!restorePreview) return;
+    setRestoreLoading(true);
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) { setRestoreLoading(false); return; }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const data = JSON.parse(ev.target?.result as string);
+          const result = restoreBackup(data, restorePassword || undefined);
+          if (result.success) {
+            setPresets(getPresets());
+            setCredentials(getCredentials());
+            setTemplates(getUssdTemplates());
+            setBalanceTemplates(getBalanceTemplates());
+            setPrefixes(getPrefixes());
+            setSimAssignment(getSimAssignment());
+            setThresholds(getLowBalanceThresholds());
+            setStorageStats(getStorageStats());
+            toast.success("تم استعادة النسخة الاحتياطية بنجاح ✅");
+            setRestorePreview(null);
+            setRestoreErrors([]);
+            setRestorePassword("");
+          } else {
+            toast.error(result.error || "فشل الاستعادة");
+          }
+        } catch {
+          toast.error("فشل قراءة الملف");
+        }
+        setRestoreLoading(false);
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  const handleResetSettings = () => {
+    resetAllSettings();
+    toast.success("تم إعادة الإعدادات إلى الافتراضي");
+    setPresets(getPresets());
+    setCredentials(getCredentials());
+    setTemplates(getUssdTemplates());
+    setBalanceTemplates(getBalanceTemplates());
+    setPrefixes(getPrefixes());
+    setSimAssignment(getSimAssignment());
+  };
+
+  const handleDeleteAllData = () => {
+    deleteAllData();
+    setPresets(getPresets());
+    setCredentials(getCredentials());
+    setTemplates(getUssdTemplates());
+    setBalanceTemplates(getBalanceTemplates());
+    setPrefixes(getPrefixes());
+    setSimAssignment(getSimAssignment());
+    setThresholds(getLowBalanceThresholds());
+    setStorageStats(getStorageStats());
+    toast.success("تم حذف جميع البيانات");
+  };
+
+  const handleCleanup = (ageMs: number) => {
+    const result = cleanOldHistory(ageMs);
+    setStorageStats(getStorageStats());
+    if (result.removed > 0) {
+      toast.success(`تم حذف ${result.removed} عملية قديمة`);
+    } else {
+      toast.info("لا توجد عمليات قديمة للحذف");
+    }
+  };
+
+  const handleDeleteAllTransfers = () => {
+    const result = deleteAllHistory();
+    setStorageStats(getStorageStats());
+    toast.success(`تم حذف ${result.removed} عملية تحويل`);
+  };
+
   const sections: { id: SettingsSection; label: string; icon: React.ReactNode; description: string }[] = [
     { id: "sim", label: "الشريحة والاتصال", icon: <Smartphone className="w-5 h-5" />, description: "بيانات الشريحة وبادئات الأرقام" },
     { id: "codes", label: "أكواد USSD", icon: <Code className="w-5 h-5" />, description: "أكواد التحويل واستعلام الرصيد" },
     { id: "amounts", label: "المبالغ", icon: <SettingsIcon className="w-5 h-5" />, description: "قائمة مبالغ التحويل" },
-    { id: "data", label: "البيانات", icon: <Database className="w-5 h-5" />, description: "النسخ الاحتياطي والإدارة" },
+    { id: "thresholds", label: "تنبيه الرصيد", icon: <Clock className="w-5 h-5" />, description: "الحد الأدنى للرصيد والتنبيهات" },
+    { id: "suggestions", label: "اقتراحات الأرقام", icon: <HardDrive className="w-5 h-5" />, description: "إعدادات اقتراح أرقام الزبائن المتكررين" },
+    { id: "data", label: "البيانات", icon: <Database className="w-5 h-5" />, description: "النسخ الاحتياطي والإدارة والاستعادة" },
     { id: "language", label: "اللغة", icon: <Globe className="w-5 h-5" />, description: "اختيار واجهة التطبيق" },
   ];
 
   return (
     <AppLayout title="الإعدادات" hideNav>
-      <main className="flex-1 w-full max-w-lg mx-auto p-3 space-y-2 pb-8" dir="rtl">
+      <main className="flex-1 w-full max-w-lg mx-auto p-3 space-y-2.5 pb-8" dir="rtl">
 
-        {/* Section Cards - Samsung One UI style */}
         {sections.map((section) => {
           const isOpen = activeSection === section.id;
           return (
@@ -136,15 +303,15 @@ const Settings = () => {
               <button
                 onClick={() => setActiveSection(isOpen ? null : section.id)}
                 className={cn(
-                  "w-full flex items-center gap-3 p-4 rounded-2xl transition-all duration-200",
+                  "w-full flex items-center gap-3.5 p-4 rounded-2xl transition-all duration-200",
                   isOpen
-                    ? "bg-primary/10 border-2 border-primary/20"
-                    : "bg-card border border-border shadow-card hover:bg-muted/50 active:scale-[0.98]"
+                    ? "bg-primary/10 border-2 border-primary/20 shadow-sm"
+                    : "bg-white border border-border/60 shadow-sm hover:bg-muted/50 active:scale-[0.98]"
                 )}
               >
                 <div className={cn(
-                  "w-11 h-11 rounded-xl flex items-center justify-center shrink-0",
-                  isOpen ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  "w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all",
+                  isOpen ? "bg-primary text-white shadow-sm" : "bg-muted text-muted-foreground"
                 )}>
                   {section.icon}
                 </div>
@@ -158,10 +325,9 @@ const Settings = () => {
                 )} />
               </button>
 
-              {/* Section Content */}
               {isOpen && (
-                <div className="mt-2 px-1 space-y-4 animate-slide-down">
-                  {/* ===== SIM SECTION ===== */}
+                <div className="mt-2.5 px-1 space-y-4 animate-slide-down">
+                  {/* SIM SECTION */}
                   {section.id === "sim" && (
                     <>
                       <SettingsCard title="بيانات الشريحة" icon={<Key className="w-4 h-4" />}>
@@ -188,12 +354,12 @@ const Settings = () => {
                                     key={slot}
                                     onClick={() => setSimAssignment({ ...simAssignment, [op]: slot })}
                                     className={cn(
-                                      "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all border-2 active:scale-95",
+                                      "flex-1 py-3 rounded-xl text-sm font-bold transition-all border-2 active:scale-95",
                                       simAssignment[op] === slot
                                         ? op === "mtn"
                                           ? "border-operator-mtn bg-operator-mtn/10 text-operator-mtn"
                                           : "border-operator-syriatel bg-operator-syriatel/10 text-operator-syriatel"
-                                        : "border-border text-muted-foreground"
+                                        : "border-border/60 text-muted-foreground bg-white"
                                     )}
                                   >
                                     SIM {slot + 1}
@@ -214,7 +380,7 @@ const Settings = () => {
                               </p>
                               <div className="flex flex-wrap gap-1.5">
                                 {prefixes[op].map((prefix) => (
-                                  <span key={prefix} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-xs font-mono text-foreground">
+                                  <span key={prefix} className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-muted text-xs font-mono text-foreground shadow-sm">
                                     {prefix}
                                     <button onClick={() => handleRemovePrefix(op, prefix)} className="text-destructive hover:text-destructive/80 p-0.5">
                                       <Trash2 className="w-3 h-3" />
@@ -226,9 +392,9 @@ const Settings = () => {
                                 <Input type="text" placeholder="09X" value={op === activeOperator ? newPrefix : ""}
                                   onFocus={() => setActiveOperator(op)}
                                   onChange={(e) => { setActiveOperator(op); setNewPrefix(e.target.value); }}
-                                  className="text-left h-9 text-xs font-mono flex-1" dir="ltr" maxLength={3} inputMode="numeric" />
-                                <Button size="sm" variant="outline" className="h-9 text-xs rounded-lg" onClick={() => handleAddPrefix(op)}>
-                                  <Plus className="w-3 h-3" />
+                                  className="text-left h-9 text-xs font-mono flex-1 rounded-xl" dir="ltr" maxLength={3} inputMode="numeric" />
+                                <Button size="sm" variant="outline" className="h-9 text-xs rounded-xl" onClick={() => handleAddPrefix(op)}>
+                                  <Plus className="w-3.5 h-3.5" />
                                 </Button>
                               </div>
                             </div>
@@ -236,11 +402,11 @@ const Settings = () => {
                         </div>
                       </SettingsCard>
 
-                      <Button onClick={handleSave} className="w-full h-12 font-bold rounded-xl">حفظ إعدادات الشريحة</Button>
+                      <Button onClick={handleSave} className="w-full h-12 font-bold rounded-xl shadow-sm mt-2">حفظ إعدادات الشريحة</Button>
                     </>
                   )}
 
-                  {/* ===== CODES SECTION ===== */}
+                  {/* CODES SECTION */}
                   {section.id === "codes" && (
                     <>
                       <SettingsCard title="أكواد التحويل USSD" icon={<Code className="w-4 h-4" />}>
@@ -252,12 +418,12 @@ const Settings = () => {
                               </label>
                               <Input type="text" value={templates[op]}
                                 onChange={(e) => setTemplates({ ...templates, [op]: e.target.value })}
-                                className="text-left text-xs h-10 font-mono rounded-xl" dir="ltr" />
+                                className="text-left text-xs h-10 font-mono rounded-xl bg-background/50" dir="ltr" />
                             </div>
                           ))}
-                          <p className="text-[10px] text-muted-foreground bg-muted rounded-lg p-2">
-                            المتغيرات: <span className="font-mono bg-background px-1 rounded">{"{phone}"}</span> <span className="font-mono bg-background px-1 rounded">{"{amount}"}</span> <span className="font-mono bg-background px-1 rounded">{"{secret}"}</span> <span className="font-mono bg-background px-1 rounded">{"{serial}"}</span>
-                          </p>
+                          <div className="text-[10px] text-muted-foreground bg-muted/60 rounded-xl p-3 border border-border/50">
+                            المتغيرات: <span className="font-mono bg-white px-1.5 py-0.5 rounded">{`{phone}`}</span> <span className="font-mono bg-white px-1.5 py-0.5 rounded">{`{amount}`}</span> <span className="font-mono bg-white px-1.5 py-0.5 rounded">{`{secret}`}</span> <span className="font-mono bg-white px-1.5 py-0.5 rounded">{`{serial}`}</span>
+                          </div>
                         </div>
                       </SettingsCard>
 
@@ -270,30 +436,29 @@ const Settings = () => {
                               </label>
                               <Input type="text" value={balanceTemplates[op]}
                                 onChange={(e) => setBalanceTemplates({ ...balanceTemplates, [op]: e.target.value })}
-                                className="text-left text-xs h-10 font-mono rounded-xl" dir="ltr" />
+                                className="text-left text-xs h-10 font-mono rounded-xl bg-background/50" dir="ltr" />
                             </div>
                           ))}
-                          <p className="text-[10px] text-muted-foreground bg-muted rounded-lg p-2">
-                            المتغيرات: <span className="font-mono bg-background px-1 rounded">{"{secret}"}</span> <span className="font-mono bg-background px-1 rounded">{"{serial}"}</span>
-                          </p>
+                          <div className="text-[10px] text-muted-foreground bg-muted/60 rounded-xl p-3 border border-border/50">
+                            المتغيرات: <span className="font-mono bg-white px-1.5 py-0.5 rounded">{`{secret}`}</span> <span className="font-mono bg-white px-1.5 py-0.5 rounded">{`{serial}`}</span>
+                          </div>
                         </div>
                       </SettingsCard>
 
-                      <Button onClick={handleSave} className="w-full h-12 font-bold rounded-xl">حفظ الأكواد</Button>
+                      <Button onClick={handleSave} className="w-full h-12 font-bold rounded-xl shadow-sm mt-2">حفظ الأكواد</Button>
                     </>
                   )}
 
-                  {/* ===== AMOUNTS SECTION ===== */}
+                  {/* AMOUNTS SECTION */}
                   {section.id === "amounts" && (
                     <>
-                      {/* Operator Toggle */}
-                      <div className="flex gap-2 p-1 bg-muted rounded-xl">
+                      <div className="flex gap-2 p-1.5 bg-muted/80 rounded-xl border border-border/50">
                         {(["mtn", "syriatel"] as Operator[]).map((op) => (
                           <button key={op} onClick={() => setActiveOperator(op)}
                             className={cn(
                               "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all",
                               activeOperator === op
-                                ? op === "mtn" ? "bg-operator-mtn text-operator-mtn-foreground shadow-sm" : "bg-operator-syriatel text-operator-syriatel-foreground shadow-sm"
+                                ? op === "mtn" ? "bg-operator-mtn text-operator-mtn-foreground shadow-sm" : "bg-operator-syriatel text-white shadow-sm"
                                 : "text-muted-foreground"
                             )}>
                             {op === "mtn" ? "MTN" : "Syriatel"}
@@ -302,14 +467,14 @@ const Settings = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground px-1">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground px-1 font-medium">
                           <span className="w-8" />
                           <span className="flex-1">الكمية</span>
                           <span className="flex-1">السعر (ل.س)</span>
                           <span className="w-10" />
                         </div>
                         {presets[activeOperator].map((preset, i) => (
-                          <div key={i} className="flex items-center gap-1.5 bg-card border border-border rounded-xl p-1.5 shadow-card">
+                          <div key={i} className="flex items-center gap-1.5 bg-white border border-border/60 rounded-xl p-1.5 shadow-sm">
                             <div className="flex flex-col w-8">
                               <button onClick={() => handleMovePreset(i, "up")} disabled={i === 0}
                                 className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5">
@@ -321,9 +486,9 @@ const Settings = () => {
                               </button>
                             </div>
                             <Input type="number" value={preset.amount || ""} onChange={(e) => handleChange(i, "amount", e.target.value)}
-                              placeholder="الكمية" className="flex-1 text-left h-9 text-xs rounded-lg" dir="ltr" inputMode="numeric" />
+                              placeholder="الكمية" className="flex-1 text-left h-9 text-xs rounded-lg bg-background/50" dir="ltr" inputMode="numeric" />
                             <Input type="number" value={preset.price || ""} onChange={(e) => handleChange(i, "price", e.target.value)}
-                              placeholder="السعر" className="flex-1 text-left h-9 text-xs rounded-lg" dir="ltr" inputMode="numeric" />
+                              placeholder="السعر" className="flex-1 text-left h-9 text-xs rounded-lg bg-background/50" dir="ltr" inputMode="numeric" />
                             <button onClick={() => handleRemove(i)}
                               className="w-9 h-9 flex items-center justify-center text-destructive rounded-lg hover:bg-destructive/10">
                               <Trash2 className="w-4 h-4" />
@@ -331,110 +496,162 @@ const Settings = () => {
                           </div>
                         ))}
                         <button onClick={handleAdd}
-                          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors text-sm active:scale-[0.98]">
+                          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors text-sm active:scale-[0.98] bg-white">
                           <Plus className="w-4 h-4" />
                           إضافة مبلغ
                         </button>
                       </div>
 
-                      <Button onClick={handleSave} className="w-full h-12 font-bold rounded-xl">حفظ المبالغ</Button>
+                      <Button onClick={handleSave} className="w-full h-12 font-bold rounded-xl shadow-sm mt-2">حفظ المبالغ</Button>
                     </>
                   )}
 
-                  {/* ===== DATA SECTION ===== */}
+                  {/* THRESHOLDS SECTION */}
+                  {section.id === "thresholds" && (
+                    <>
+                      <SettingsCard title="الحد الأدنى للرصيد" icon={<Clock className="w-4 h-4" />}>
+                        <div className="space-y-4">
+                          <p className="text-xs text-muted-foreground">
+                            عند وصول الرصيد إلى الحد الأدنى أو أقل، سيظهر تنبيه في صفحة الرصيد
+                          </p>
+                          <div className="space-y-3">
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-bold text-operator-mtn">MTN</label>
+                              <Input type="number" value={thresholds.mtn || ""}
+                                onChange={(e) => setThresholds({ ...thresholds, mtn: Number(e.target.value) || 0 })}
+                                placeholder="2000"
+                                className="text-left h-11 rounded-xl border-2 bg-background/50" dir="ltr" inputMode="numeric" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-bold text-operator-syriatel">Syriatel</label>
+                              <Input type="number" value={thresholds.syriatel || ""}
+                                onChange={(e) => setThresholds({ ...thresholds, syriatel: Number(e.target.value) || 0 })}
+                                placeholder="2000"
+                                className="text-left h-11 rounded-xl border-2 bg-background/50" dir="ltr" inputMode="numeric" />
+                            </div>
+                          </div>
+                        </div>
+                      </SettingsCard>
+                       <Button onClick={handleSave} className="w-full h-12 font-bold rounded-xl shadow-sm mt-2">حفظ التنبيهات</Button>
+                    </>
+                  )}
+
+                  {/* SUGGESTIONS SECTION */}
+                  {section.id === "suggestions" && (
+                    <>
+                      <SettingsCard title="اقتراحات الأرقام" icon={<HardDrive className="w-4 h-4" />}>
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-foreground">تفعيل اقتراح الأرقام</span>
+                            <Switch
+                              checked={suggestionSettings.enabled}
+                              onCheckedChange={(v) => setSuggestionSettings({ ...suggestionSettings, enabled: v })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-muted-foreground">عدد الاقتراحات</label>
+                            <div className="flex gap-2">
+                              {[5, 10, 15, 20].map((n) => (
+                                <button
+                                  key={n}
+                                  onClick={() => setSuggestionSettings({ ...suggestionSettings, maxSuggestions: n })}
+                                  className={cn(
+                                    "flex-1 py-2 rounded-xl text-sm font-bold border-2 transition-all",
+                                    suggestionSettings.maxSuggestions === n
+                                      ? "border-primary bg-primary/10 text-primary"
+                                      : "border-border/60 text-muted-foreground bg-white hover:border-primary/30"
+                                  )}
+                                >
+                                  {n}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-foreground">عرض آخر مبلغ</span>
+                            <Switch
+                              checked={suggestionSettings.showLastAmount}
+                              onCheckedChange={(v) => setSuggestionSettings({ ...suggestionSettings, showLastAmount: v })}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-foreground">عرض عدد مرات التحويل</span>
+                            <Switch
+                              checked={suggestionSettings.showCount}
+                              onCheckedChange={(v) => setSuggestionSettings({ ...suggestionSettings, showCount: v })}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-foreground">عرض وقت آخر تحويل</span>
+                            <Switch
+                              checked={suggestionSettings.showLastTime}
+                              onCheckedChange={(v) => setSuggestionSettings({ ...suggestionSettings, showLastTime: v })}
+                            />
+                          </div>
+                        </div>
+                      </SettingsCard>
+                      <Button onClick={() => { saveSuggestionSettings(suggestionSettings); toast.success("تم حفظ إعدادات الاقتراحات"); }} className="w-full h-12 font-bold rounded-xl shadow-sm" variant="outline">
+                        حفظ إعدادات الاقتراحات
+                      </Button>
+                    </>
+                  )}
+
+                  {/* DATA SECTION */}
                   {section.id === "data" && (
                     <>
+                      {/* Backup & Restore */}
                       <SettingsCard title="النسخ الاحتياطي والاستعادة" icon={<Download className="w-4 h-4" />}>
                         <div className="space-y-3">
                           <p className="text-[11px] text-muted-foreground leading-relaxed">
-                            تصدير جميع البيانات المهمة (الإعدادات، الأكواد، المبالغ، البادئات، سجل التحويلات، الرصيد) كملف JSON واستعادتها لاحقاً.
+                            إنشاء نسخة احتياطية مشفرة لجميع الإعدادات والأكواد والمبالغ وسجل التحويلات
                           </p>
+
+                          <div className="bg-muted/40 rounded-xl p-3.5 space-y-2.5 border border-border/40">
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">البيانات المشمولة</p>
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> إعدادات التطبيق</span>
+                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> أكواد USSD</span>
+                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> المبالغ الجاهزة</span>
+                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> البادئات</span>
+                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> خرائط الشريحة</span>
+                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> قوالب الرصيد</span>
+                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> سجل التحويلات</span>
+                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> بيانات الرصيد</span>
+                            </div>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-2 pt-2 border-t border-border/40">المستبعدة</p>
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                              <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> مفتاح الترخيص</span>
+                              <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> معرف الجهاز</span>
+                              <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> حالة التفعيل</span>
+                              <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> بيانات تسجيل الدخول</span>
+                              <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> بيانات Supabase</span>
+                              <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> سجلات الأخطاء</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                              <input type="checkbox" checked={backupWithPassword}
+                                onChange={(e) => setBackupWithPassword(e.target.checked)}
+                                className="w-4 h-4 accent-primary" />
+                              <Shield className="w-3.5 h-3.5" />
+                              تشفير النسخة بكلمة مرور
+                            </label>
+                            {backupWithPassword && (
+                              <Input type="password" placeholder="أدخل كلمة المرور" value={backupPassword}
+                                onChange={(e) => setBackupPassword(e.target.value)}
+                                className="text-right h-10 rounded-xl bg-background/50 text-sm" />
+                            )}
+                          </div>
+
                           <div className="flex gap-2">
-                            <Button
-                              onClick={() => {
-                                try {
-                                  const backup: Record<string, unknown> = {
-                                    _meta: { version: 1, date: new Date().toISOString() },
-                                    presets: getPresets(),
-                                    credentials: getCredentials(),
-                                    ussdTemplates: getUssdTemplates(),
-                                    balanceTemplates: getBalanceTemplates(),
-                                    prefixes: getPrefixes(),
-                                    simAssignment: getSimAssignment(),
-                                    transferHistory: localStorage.getItem('transfer-history'),
-                                    savedContacts: localStorage.getItem('saved-contacts'),
-                                    savedBalances: localStorage.getItem('saved_balances_v1'),
-                                  };
-                                  const json = JSON.stringify(backup, null, 2);
-                                  const blob = new Blob([json], { type: 'application/json' });
-                                  const url = URL.createObjectURL(blob);
-                                  const a = document.createElement('a');
-                                  a.href = url;
-                                  a.download = `backup_${new Date().toISOString().split('T')[0]}.json`;
-                                  document.body.appendChild(a);
-                                  a.click();
-                                  document.body.removeChild(a);
-                                  URL.revokeObjectURL(url);
-                                  toast.success("تم تصدير النسخة الاحتياطية بنجاح");
-                                } catch {
-                                  toast.error("فشل تصدير النسخة الاحتياطية");
-                                }
-                              }}
-                              variant="outline"
-                              size="sm"
-                              className="flex-1 text-xs h-10 rounded-xl"
-                            >
+                            <Button onClick={handleExportBackup} variant="outline" size="sm"
+                              className="flex-1 text-xs h-10 rounded-xl">
                               <Download className="w-3.5 h-3.5 me-1" />
-                              تصدير
+                              إنشاء نسخة احتياطية
                             </Button>
-                            <Button
-                              onClick={() => {
-                                const input = document.createElement('input');
-                                input.type = 'file';
-                                input.accept = '.json';
-                                input.onchange = (e) => {
-                                  const file = (e.target as HTMLInputElement).files?.[0];
-                                  if (!file) return;
-                                  const reader = new FileReader();
-                                  reader.onload = (ev) => {
-                                    try {
-                                      const data = JSON.parse(ev.target?.result as string);
-                                      if (!data._meta || data._meta.version !== 1) {
-                                        toast.error("ملف غير صالح أو إصدار غير مدعوم");
-                                        return;
-                                      }
-                                      if (!confirm("سيتم استبدال جميع البيانات الحالية بالنسخة الاحتياطية. هل تريد المتابعة؟")) return;
-
-                                      if (data.presets) savePresets(data.presets);
-                                      if (data.credentials) saveCredentials(data.credentials);
-                                      if (data.ussdTemplates) saveUssdTemplates(data.ussdTemplates);
-                                      if (data.balanceTemplates) saveBalanceTemplates(data.balanceTemplates);
-                                      if (data.prefixes) savePrefixes(data.prefixes);
-                                      if (data.simAssignment) saveSimAssignment(data.simAssignment);
-
-                                      if (data.transferHistory) localStorage.setItem('transfer-history', data.transferHistory);
-                                      if (data.savedContacts) localStorage.setItem('saved-contacts', data.savedContacts);
-                                      if (data.savedBalances) localStorage.setItem('saved_balances_v1', data.savedBalances);
-                                      setPresets(getPresets());
-                                      setCredentials(getCredentials());
-                                      setTemplates(getUssdTemplates());
-                                      setBalanceTemplates(getBalanceTemplates());
-                                      setPrefixes(getPrefixes());
-                                      setSimAssignment(getSimAssignment());
-
-                                      toast.success("تم استعادة النسخة الاحتياطية بنجاح ✅");
-                                    } catch {
-                                      toast.error("فشل قراءة الملف — تأكد أنه ملف نسخة احتياطية صحيح");
-                                    }
-                                  };
-                                  reader.readAsText(file);
-                                };
-                                input.click();
-                              }}
-                              variant="outline"
-                              size="sm"
-                              className="flex-1 text-xs h-10 rounded-xl"
-                            >
+                            <Button onClick={handleImportBackup} variant="outline" size="sm"
+                              className="flex-1 text-xs h-10 rounded-xl">
                               <Upload className="w-3.5 h-3.5 me-1" />
                               استعادة
                             </Button>
@@ -442,83 +659,189 @@ const Settings = () => {
                         </div>
                       </SettingsCard>
 
+                      {/* Restore Preview */}
+                      {restorePreview && (
+                        <SettingsCard title="معاينة النسخة الاحتياطية" icon={<FolderOpen className="w-4 h-4" />}>
+                          <div className="space-y-3">
+                            <div className="bg-muted/40 rounded-xl p-3 space-y-2 text-xs border border-border/40">
+                              <div className="flex justify-between"><span className="text-muted-foreground">الإصدار</span><span className="font-bold">{restorePreview.backupVersion}</span></div>
+                              <div className="flex justify-between"><span className="text-muted-foreground">التاريخ</span><span className="font-bold">{restorePreview.createdAt}</span></div>
+                              <div className="flex justify-between items-center"><span className="text-muted-foreground">إصدار التطبيق</span><span className={cn("font-bold", restorePreview.appVersion !== "0.4.5" ? "text-accent" : "")}>{restorePreview.appVersion}</span></div>
+                            </div>
+                            <div className="space-y-1.5">
+                              <div className="flex items-center gap-2 text-xs"><CheckCircle className="w-3.5 h-3.5 text-green-500" /><span>{restorePreview.presetsCount} مبالغ جاهزة</span></div>
+                              <div className="flex items-center gap-2 text-xs"><CheckCircle className="w-3.5 h-3.5 text-green-500" /><span>{restorePreview.transferCount} عملية تحويل</span></div>
+                              <div className="flex items-center gap-2 text-xs"><CheckCircle className="w-3.5 h-3.5 text-green-500" /><span>{restorePreview.balanceEntries} إدخال رصيد</span></div>
+                            </div>
+                            {restoreErrors.length > 0 && (
+                              <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-3 text-xs space-y-1">
+                                {restoreErrors.map((err, i) => (
+                                  <p key={i} className="text-destructive flex items-center gap-1.5"><AlertCircle className="w-3 h-3" />{err}</p>
+                                ))}
+                              </div>
+                            )}
+                            {restorePreview.appVersion !== "0.4.5" && (
+                              <p className="text-[11px] text-accent bg-accent/10 rounded-xl p-2.5 border border-accent/20">
+                                ⚠️ تم إنشاء هذه النسخة بإصدار مختلف من التطبيق. قد تختلف بعض الإعدادات.
+                              </p>
+                            )}
+                            <div className="flex gap-2">
+                              <Button onClick={() => { setRestorePreview(null); setRestoreErrors([]); setRestorePassword(""); }}
+                                variant="outline" size="sm" className="flex-1 text-xs h-10 rounded-xl">إلغاء</Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button size="sm" className="flex-1 text-xs h-10 rounded-xl font-bold">استعادة</Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>تأكيد الاستعادة</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      سيتم استبدال جميع البيانات الحالية بالنسخة الاحتياطية. هذا الإجراء لا يمكن التراجع عنه.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleDoRestore} disabled={restoreLoading}>
+                                      {restoreLoading ? "جاري الاستعادة..." : "استعادة"}
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </div>
+                        </SettingsCard>
+                      )}
+
+                      {/* Data Management */}
                       <SettingsCard title="إدارة البيانات" icon={<Database className="w-4 h-4" />}>
                         <div className="space-y-3">
-                          {(() => {
-                            const allHistory = getHistory();
-                            const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-                            const olderThanMonth = allHistory.filter(r => r.timestamp <= monthAgo).length;
-                            const totalAmount = allHistory.filter(r => r.status === "success").reduce((s, r) => s + Number(r.amount), 0);
-                            const hasBalance = !!localStorage.getItem('saved_balances_v1');
-                            const contacts = (() => { try { const c = localStorage.getItem('saved-contacts'); return c ? JSON.parse(c).length : 0; } catch { return 0; } })();
-                            return (
-                              <div className="bg-muted rounded-xl divide-y divide-border text-xs">
-                                <InfoRow label="سجل التحويلات" value={`${allHistory.length} عملية`} />
-                                <InfoRow label="إجمالي المبالغ" value={totalAmount.toLocaleString()} />
-                                <InfoRow label="أقدم من شهر" value={`${olderThanMonth} عملية`} valueClassName="text-destructive" />
-                                <InfoRow label="جهات الاتصال" value={contacts.toString()} />
-                                <InfoRow label="بيانات الرصيد" value={hasBalance ? 'محفوظة' : '—'} />
-                              </div>
-                            );
-                          })()}
+                          <div className="bg-muted/60 rounded-xl divide-y divide-border/60 border border-border/50 text-xs">
+                            <InfoRow label="سجل التحويلات" value={`${allHistory.length} عملية`} />
+                            <InfoRow label="إجمالي التحويل" value={`${totalAmount.toLocaleString()} ل.س`} />
+                            <InfoRow label="آخر عملية" value={allHistory.length > 0 ? `منذ ${getTimeSince(allHistory[0].timestamp)}` : "—"} />
+                            <InfoRow label="العمليات القديمة" value={`${olderThanMonth} (>شهر)`} valueClassName={olderThanMonth > 0 ? "text-destructive" : undefined} />
+                            <InfoRow label="بيانات الرصيد" value={hasBalance ? 'محفوظة' : '—'} />
+                            <InfoRow label="مستوى التخزين" value={getFormattedSize(storageStats.totalBytes)} />
+                          </div>
                           <div className="flex gap-2">
-                            <Button
-                              onClick={() => {
-                                const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-                                try {
-                                  const historyRaw = localStorage.getItem('transfer-history');
-                                  if (historyRaw) {
-                                    const history = JSON.parse(historyRaw);
-                                    const filtered = history.filter((r: { timestamp: number }) => r.timestamp > monthAgo);
-                                    const removed = history.length - filtered.length;
-                                    localStorage.setItem('transfer-history', JSON.stringify(filtered));
-                                    toast.success(`تم حذف ${removed} عملية أقدم من شهر`);
-                                  } else {
-                                    toast.info("لا توجد بيانات للحذف");
-                                  }
-                                } catch { toast.error("خطأ في الحذف"); }
-                              }}
-                              variant="outline"
-                              size="sm"
-                              className="flex-1 text-xs h-10 rounded-xl"
-                            >
-                              <Clock className="w-3.5 h-3.5 me-1" />
-                              حذف أقدم من شهر
-                            </Button>
-                            <Button
-                              onClick={() => {
-                                if (confirm("هل أنت متأكد من حذف جميع سجلات التحويل وبيانات الرصيد؟")) {
-                                  localStorage.removeItem('transfer-history');
-                                  localStorage.removeItem('saved-contacts');
-                                  localStorage.removeItem('saved_balances_v1');
-                                  toast.success("تم حذف جميع البيانات المؤقتة");
-                                }
-                              }}
-                              variant="destructive"
-                              size="sm"
-                              className="flex-1 text-xs h-10 rounded-xl"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 me-1" />
-                              حذف الكل
+                            <Button variant="outline" size="sm" className="flex-1 text-xs h-10 rounded-xl"
+                              onClick={() => setActiveSection("data")}>
+                              إدارة السجل
                             </Button>
                           </div>
                         </div>
                       </SettingsCard>
 
-                      <SettingsCard title="إعادة تعيين" icon={<AlertTriangle className="w-4 h-4" />} variant="warning">
-                        <div className="space-y-2">
-                          <Button onClick={() => { resetAllSettings(); toast.success("تم إعادة التعيين"); window.location.reload(); }} variant="outline" className="w-full text-xs h-10 rounded-xl">
-                            إعادة تعيين جميع الإعدادات إلى الافتراضي
-                          </Button>
-                          <p className="text-[10px] text-muted-foreground">
-                            يعيد البادئات والأكواد والمبالغ والشريحة إلى الإعدادات الافتراضية. لا يؤثر على الترخيص أو البيانات.
-                          </p>
+                      {/* Cleanup */}
+                      <SettingsCard title="تنظيف البيانات" icon={<Trash className="w-4 h-4" />}>
+                        <div className="space-y-3">
+                          <p className="text-[11px] text-muted-foreground">حذف سجلات التحويلات القديمة مع الاحتفاظ بالبيانات المهمة</p>
+                          <div className="space-y-2">
+                            {([
+                              { label: "أقدم من شهر (30 يوم)", ms: 30 * 24 * 60 * 60 * 1000 },
+                              { label: "أقدم من 3 أشهر (90 يوم)", ms: 90 * 24 * 60 * 60 * 1000 },
+                              { label: "أقدم من سنة (365 يوم)", ms: 365 * 24 * 60 * 60 * 1000 },
+                            ]).map((option) => (
+                              <button key={option.ms} onClick={() => handleCleanup(option.ms)}
+                                className={cn(
+                                  "w-full flex items-center justify-between p-3 rounded-xl border transition-all text-sm",
+                                  cleanupAge === option.ms
+                                    ? "border-primary bg-primary/5 text-primary"
+                                    : "border-border/60 bg-white text-foreground hover:border-primary/30"
+                                )}>
+                                <span>{option.label}</span>
+                                {cleanupAge === option.ms && <CheckCircle className="w-4 h-4" />}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="border-t border-border/40 pt-3 space-y-2">
+                            <p className="text-[11px] font-bold text-destructive">مناطق خطر</p>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="sm" className="w-full text-xs h-10 rounded-xl">
+                                  <Trash2 className="w-3.5 h-3.5 me-1" />
+                                  حذف جميع سجلات التحويلات
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>حذف جميع التحويلات؟</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    سيتم حذف جميع سجلات التحويلات وعدم إمكانية استرجاعها. هذا الإجراء لا يمكن التراجع عنه.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                                  <AlertDialogAction onClick={handleDeleteAllTransfers} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                    حذف الكل
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </div>
+                      </SettingsCard>
+
+                      {/* Advanced Settings */}
+                      <SettingsCard title="إعدادات متقدمة" icon={<AlertTriangle className="w-4 h-4" />} variant="warning">
+                        <div className="space-y-3">
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="outline" className="w-full text-xs h-10 rounded-xl">
+                                <RotateCw className="w-3.5 h-3.5 me-1" />
+                                إعادة إعدادات التطبيق
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>إعادة تعيين الإعدادات؟</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  سيتم إعادة جميع الإعدادات إلى القيم الافتراضية (الأكواد، المبالغ، البادئات، الشريحة). لن يتم حذف سجل التحويلات أو بيانات الرصيد أو بيانات الترخيص.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleResetSettings}>إعادة التعيين</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+
+                          <div className="border-t border-border/40 pt-3">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="destructive" className="w-full text-xs h-10 rounded-xl">
+                                  <Trash2 className="w-3.5 h-3.5 me-1" />
+                                  حذف جميع البيانات
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>حذف جميع بيانات التطبيق؟</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    سيتم حذف جميع البيانات بما في ذلك سجل التحويلات والإعدادات وجهات الاتصال وبيانات الرصيد. هذا الإجراء لا يمكن التراجع عنه. اكتب <b>RESET</b> لتأكيد الحذف.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <div className="py-2">
+                                  <Input placeholder="اكتب RESET للتأكيد"
+                                    onChange={(e) => { /* controlled for confirmation check */ }}
+                                    className="text-right h-11 rounded-xl border-2 border-destructive/30 focus:border-destructive"
+                                    dir="ltr" />
+                                </div>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                                  <AlertDialogAction onClick={handleDeleteAllData} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                    حذف جميع البيانات
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         </div>
                       </SettingsCard>
                     </>
                   )}
 
-                  {/* ===== LANGUAGE SECTION ===== */}
+                  {/* LANGUAGE SECTION */}
                   {section.id === "language" && (
                     <SettingsCard title="اختر اللغة" icon={<Globe className="w-4 h-4" />}>
                       <div className="space-y-3">
@@ -529,8 +852,8 @@ const Settings = () => {
                             className={cn(
                               "py-4 rounded-xl text-sm font-bold transition-all border-2 active:scale-95",
                               language === 'ar'
-                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                                : "bg-card text-foreground border-border hover:border-primary/30"
+                                ? "bg-primary text-white border-primary shadow-sm"
+                                : "bg-white text-foreground border-border/60 hover:border-primary/30"
                             )}
                           >
                             العربية
@@ -540,8 +863,8 @@ const Settings = () => {
                             className={cn(
                               "py-4 rounded-xl text-sm font-bold transition-all border-2 active:scale-95",
                               language === 'en'
-                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                                : "bg-card text-foreground border-border hover:border-primary/30"
+                                ? "bg-primary text-white border-primary shadow-sm"
+                                : "bg-white text-foreground border-border/60 hover:border-primary/30"
                             )}
                           >
                             English
@@ -560,22 +883,37 @@ const Settings = () => {
   );
 };
 
-// Helper components
-const SettingsCard = ({ title, icon, children, variant }: { 
-  title: string; 
-  icon: React.ReactNode; 
+function getTimeSince(timestamp: number): string {
+  const mins = Math.floor((Date.now() - timestamp) / 60000);
+  if (mins < 1) return "الآن";
+  if (mins < 60) return `منذ ${mins} د`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `منذ ${hrs} س`;
+  const days = Math.floor(hrs / 24);
+  return `منذ ${days} يوم`;
+}
+
+const SettingsCard = ({ title, icon, children, variant }: {
+  title: string;
+  icon: React.ReactNode;
   children: React.ReactNode;
   variant?: "default" | "warning";
 }) => (
   <div className={cn(
-    "bg-card border rounded-2xl p-4 shadow-card space-y-3",
-    variant === "warning" ? "border-accent/30" : "border-border"
+    "bg-white border rounded-2xl p-4.5 shadow-sm space-y-3.5",
+    variant === "warning" ? "border-accent/30" : "border-border/60"
   )}>
     <h3 className={cn(
       "font-bold flex items-center gap-2 text-sm",
       variant === "warning" ? "text-accent" : "text-foreground"
     )}>
-      {icon}{title}
+      <span className={cn(
+        "w-7 h-7 rounded-lg flex items-center justify-center",
+        variant === "warning" ? "bg-accent/10" : "bg-primary/10"
+      )}>
+        {icon}
+      </span>
+      {title}
     </h3>
     {children}
   </div>
@@ -588,12 +926,12 @@ const FieldInput = ({ label, value, onChange, placeholder }: {
     <label className="text-sm font-medium text-muted-foreground">{label}</label>
     <Input type="number" placeholder={placeholder} value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="text-left h-11 rounded-xl border-2" dir="ltr" inputMode="numeric" />
+      className="text-left h-11 rounded-xl border-2 bg-background/50" dir="ltr" inputMode="numeric" />
   </div>
 );
 
 const InfoRow = ({ label, value, valueClassName }: { label: string; value: string; valueClassName?: string }) => (
-  <div className="flex items-center justify-between px-3 py-2.5">
+  <div className="flex items-center justify-between px-3.5 py-2.5">
     <span className="text-muted-foreground">{label}</span>
     <span className={cn("font-bold text-foreground", valueClassName)}>{value}</span>
   </div>

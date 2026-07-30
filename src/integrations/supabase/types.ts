@@ -1657,11 +1657,80 @@ export type Database = {
         Args: { _role: string; _user_id: string }
         Returns: Json
       }
+      request_activation: {
+        Args: { _device_id: string; _contact_name?: string; _contact_phone?: string; _ussd_numbers?: string[] }
+        Returns: Json
+      }
+      admin_approve_activation: {
+        Args: { _request_id: string; _license_type?: string; _duration_days?: number; _notes?: string }
+        Returns: Json
+      }
+      admin_reject_activation: {
+        Args: { _request_id: string; _reason?: string }
+        Returns: Json
+      }
+      admin_modify_activation: {
+        Args: { _request_id: string; _license_type?: string; _duration_days?: number; _notes?: string }
+        Returns: Json
+      }
+      admin_revoke_activation: {
+        Args: { _request_id: string; _reason?: string }
+        Returns: Json
+      }
+      get_user_license_status: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      admin_get_all_users_license: {
+        Args: { _search?: string; _status?: string; _page?: number; _page_size?: number }
+        Returns: Json
+      }
+      admin_set_license: {
+        Args: { _target_user_id: string; _license_status: string; _license_type?: string; _expiry_date?: string; _notes?: string }
+        Returns: Json
+      }
+      admin_extend_trial: {
+        Args: { _target_user_id: string; _extra_days?: number }
+        Returns: Json
+      }
+      admin_suspend_user: {
+        Args: { _target_user_id: string; _status: string; _reason?: string }
+        Returns: Json
+      }
+      get_activation_requests: {
+        Args: { _status?: string }
+        Returns: Json
+      }
+      log_last_login: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      get_pending_activation_request: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      admin_get_activation_history: {
+        Args: { _target_user_id: string }
+        Returns: Json
+      }
+      update_last_sync: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      admin_get_license_summary: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      validate_device_session: {
+        Args: { _device_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       activation_status: "pending" | "approved" | "rejected"
       app_role: "admin" | "user" | "distributor"
-      license_status: "active" | "expired" | "revoked" | "pending" | "suspended"
+      license_status: "active" | "expired" | "revoked" | "pending" | "suspended" | "trial" | "rejected" | "permanent" | "blocked"
+      license_type: "trial" | "days_30" | "days_90" | "days_180" | "days_365" | "permanent"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1791,7 +1860,8 @@ export const Constants = {
     Enums: {
       activation_status: ["pending", "approved", "rejected"],
       app_role: ["admin", "user", "distributor"],
-      license_status: ["active", "expired", "revoked", "pending", "suspended"],
+      license_status: ["active", "expired", "revoked", "pending", "suspended", "trial", "rejected", "permanent", "blocked"],
+      license_type: ["trial", "days_30", "days_90", "days_180", "days_365", "permanent"],
     },
   },
 } as const

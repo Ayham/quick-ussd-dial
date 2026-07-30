@@ -1,62 +1,68 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Users, Search, ChevronLeft, UserPlus, ArrowRightLeft } from "lucide-react";
+import { Users, Search, UserPlus, ArrowRightLeft, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { isAdminUser } from "@/lib/auth";
 
 export function DistributorsManager() {
   const { i18n } = useTranslation();
   const isArabic = i18n.language === "ar";
-  const [admins, setAdmins] = useState<any[]>([]);
   const [distributors, setDistributors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showAssign, setShowAssign] = useState(false);
   const [selectedDist, setSelectedDist] = useState<any>(null);
   const [customers, setCustomers] = useState<any[]>([]);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
-      const { data: profiles } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
-      if (profiles) {
-        setAdmins(profiles.filter((p) => p.role === "admin"));
-        setDistributors(profiles.filter((p) => p.role === "distributor"));
-      }
+      const { data: profiles, error } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      setDistributors((profiles || []).filter((p: any) => p.role === "distributor"));
     } catch (err: any) {
-      toast.error(err.message || "Failed to load data");
+      const msg = err?.message || (err instanceof Error ? err.message : JSON.stringify(err));
+      setLoadError(msg);
+      toast.error(msg || "Failed to load data");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   const openAssign = async (dist: any) => {
     setSelectedDist(dist);
     setShowAssign(true);
-    const { data } = await supabase.from("profiles").select("*").eq("role", "customer").order("display_name");
-    setCustomers(data || []);
+    try {
+      const { data, error } = await supabase.from("profiles").select("*").eq("role", "customer").order("display_name");
+      if (error) throw error;
+      setCustomers(data || []);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to load customers");
+      setCustomers([]);
+    }
   };
 
   const handleAssign = async (customerId: string) => {
     if (!selectedDist) return;
-    const { error } = await supabase.from("distributor_customers").upsert({
-      distributor_id: selectedDist.user_id,
-      customer_id: customerId,
-      assigned_by: (await supabase.auth.getUser()).data.user?.id || "",
-    });
-    if (error) {
-      toast.error(error.message);
-    } else {
+    try {
+      const user = await supabase.auth.getUser();
+      const { error } = await supabase.from("distributor_customers").upsert({
+        distributor_id: selectedDist.user_id,
+        customer_id: customerId,
+        assigned_by: user.data.user?.id || "",
+      });
+      if (error) throw error;
       toast.success(isArabic ? "تم تعيين العميل" : "Customer assigned");
       setShowAssign(false);
       loadData();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to assign customer");
     }
   };
 
@@ -74,6 +80,16 @@ export function DistributorsManager() {
         <Users className="w-5 h-5 text-primary" />
         <h2 className="text-lg font-bold">{isArabic ? "الموزعون" : "Distributors"}</h2>
       </div>
+
+      {loadError && (
+        <div className="border border-destructive/30 bg-destructive/5 rounded-2xl p-3 flex items-center gap-2 text-sm text-destructive">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span className="flex-1">{loadError}</span>
+          <Button variant="outline" size="sm" onClick={loadData}>
+            Retry
+          </Button>
+        </div>
+      )}
 
       <div className="flex gap-2">
         <div className="relative flex-1">

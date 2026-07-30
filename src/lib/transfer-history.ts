@@ -1,5 +1,3 @@
-import { saveContact, searchContacts, type SavedContact } from './contacts';
-
 export interface TransferRecord {
   phone: string;
   amount: string;
@@ -23,9 +21,6 @@ export function addToHistory(record: TransferRecord) {
   const history = getHistory();
   history.unshift(record);
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 100)));
-  saveContact(record.phone);
 }
 
-export function getMatchingContacts(input: string): SavedContact[] {
-  return searchContacts(input);
-}
+

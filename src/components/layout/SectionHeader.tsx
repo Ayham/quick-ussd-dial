@@ -12,7 +12,7 @@ interface SectionHeaderProps {
 export function SectionHeader({ title, description, action, icon, className }: SectionHeaderProps) {
   return (
     <div className={cn("flex items-center justify-between px-1", className)}>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
         {icon && <span className="text-primary">{icon}</span>}
         <div>
           <h2 className="text-sm font-bold text-foreground">{title}</h2>

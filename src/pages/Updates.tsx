@@ -41,17 +41,19 @@ const Updates = () => {
   useEffect(() => { doCheck(); }, []);
 
   return (
-    <AppLayout title="التحديثات" titleIcon={<div className="w-8 h-8 rounded-lg bg-primary-foreground/15 flex items-center justify-center"><Download className="w-4.5 h-4.5 text-primary-foreground" /></div>}>
+    <AppLayout title="التحديثات" titleIcon={<div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><Download className="w-4.5 h-4.5 text-white" /></div>}>
       <div className="flex-1 overflow-auto pb-safe" dir="rtl">
         <div className="p-4 space-y-4 max-w-lg mx-auto">
 
-          {/* Current Version Card */}
-          <div className="bg-card border border-border rounded-2xl p-5">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-sm border border-border/60 p-5">
+            <div className="flex items-center gap-3.5 mb-4">
+              <div className={cn(
+                "w-12 h-12 rounded-xl flex items-center justify-center",
+                updateInfo?.hasUpdate ? "bg-primary/10" : "bg-success/10"
+              )}>
                 {updateInfo?.hasUpdate
                   ? <ArrowUpCircle className="w-6 h-6 text-primary" />
-                  : <CheckCircle2 className="w-6 h-6 text-primary" />
+                  : <CheckCircle2 className="w-6 h-6 text-success" />
                 }
               </div>
               <div>
@@ -64,7 +66,6 @@ const Updates = () => {
               </div>
             </div>
 
-            {/* Update available */}
             {updateInfo?.hasUpdate && !checking && (
               <div className="space-y-3">
                 <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-2">
@@ -81,7 +82,7 @@ const Updates = () => {
                 </div>
 
                 {updateInfo.changelog && (
-                  <div className="bg-muted rounded-xl p-3">
+                  <div className="bg-muted/60 rounded-xl p-3 border border-border/50">
                     <p className="text-[11px] text-muted-foreground font-medium mb-1.5 flex items-center gap-1">
                       <FileText className="w-3 h-3" /> ما الجديد:
                     </p>
@@ -92,7 +93,7 @@ const Updates = () => {
                 {updateInfo.downloadUrl && (
                   <Button
                     onClick={() => handleDownload(updateInfo.downloadUrl)}
-                    className="w-full h-12 font-bold rounded-xl text-sm"
+                    className="w-full h-12 font-bold rounded-xl text-sm shadow-sm"
                     size="lg"
                     disabled={isDownloading}
                   >
@@ -104,7 +105,7 @@ const Updates = () => {
                 )}
 
                 {isDownloading && (
-                  <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                  <div className="w-full bg-muted/60 rounded-full h-2 overflow-hidden">
                     <div
                       className="bg-primary h-full rounded-full transition-all duration-300"
                       style={{ width: `${dlProgress.progress}%` }}
@@ -114,12 +115,10 @@ const Updates = () => {
               </div>
             )}
 
-            {/* Up to date */}
             {!updateInfo?.hasUpdate && !checking && (
               <p className="text-xs text-muted-foreground">أنت تستخدم أحدث إصدار من التطبيق.</p>
             )}
 
-            {/* Check button */}
             <Button
               onClick={doCheck}
               variant="outline"
@@ -136,5 +135,9 @@ const Updates = () => {
     </AppLayout>
   );
 };
+
+function cn(...inputs: any[]): string {
+  return inputs.filter(Boolean).join(" ");
+}
 
 export default Updates;

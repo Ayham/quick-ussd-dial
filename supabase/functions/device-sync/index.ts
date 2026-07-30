@@ -48,18 +48,6 @@ Deno.serve(async (req) => {
             status: String(data.status || "completed"),
             created_at: event.timestamp,
           }, { onConflict: "client_id" })
-        : event.event === "contact_upsert" && userId
-        ? await sb.from("contacts").upsert({
-            client_id: event.id,
-            user_id: userId,
-            name: String(data.name || ""),
-            phone: String(data.phone || ""),
-            phone_normalized: String(data.phone || ""),
-          }, { onConflict: "user_id,phone_normalized" })
-        : event.event === "contact_delete" && userId
-        ? await sb.from("contacts").delete()
-            .eq("user_id", userId)
-            .eq("phone_normalized", String(data.phone || ""))
         : await sb.from("app_events").upsert({
             client_id: event.id,
             user_id: userId,

@@ -8,14 +8,32 @@ vi.mock("@/lib/cloud-sync", () => ({
   trackTransfer: vi.fn(),
 }));
 
+vi.mock("@/lib/android-contacts", () => ({
+  saveContactAfterTransfer: vi.fn(),
+  getContactByPhone: vi.fn(),
+  pickContactFromDevice: vi.fn().mockResolvedValue(null),
+  normalizePhone: vi.fn((p: string) => p.replace(/[^\d+]/g, '')),
+  searchContactsSync: vi.fn().mockResolvedValue([
+    { contactId: "1", displayName: "Ahmad Store", phones: ["0991234567"] },
+  ]),
+  ensureContactsPermissions: vi.fn().mockResolvedValue(false),
+  getAllAndroidContacts: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@capacitor/core", () => ({
+  Capacitor: {
+    isNativePlatform: () => true,
+    Plugins: {},
+  },
+  WebPlugin: class {},
+}));
+
 describe("Transfer phone input", () => {
   beforeEach(() => {
     localStorage.clear();
   });
 
-  it("keeps the main field as tel while app contact search uses text input", async () => {
-    localStorage.setItem("named-contacts-v1", JSON.stringify([{ name: "Ahmad Store", phone: "0991234567" }]));
-
+  it("renders a phone input with tel type and searches Android contacts on focus", async () => {
     render(
       <MemoryRouter>
         <Index />
@@ -26,14 +44,13 @@ describe("Transfer phone input", () => {
     expect(phoneInput).toBeInTheDocument();
     expect(phoneInput).toHaveAttribute("inputmode", "tel");
 
-    fireEvent.click(screen.getByTestId("app-contacts-search-button"));
+    fireEvent.focus(phoneInput!);
+    fireEvent.change(phoneInput!, { target: { value: "0991" } });
 
-    const searchInput = await screen.findByTestId("app-contact-search-input");
-    expect(searchInput).toHaveAttribute("type", "text");
-    expect(searchInput).toHaveAttribute("inputmode", "text");
+    const contactItem = await screen.findByText("Ahmad Store");
+    expect(contactItem).toBeInTheDocument();
 
-    fireEvent.change(searchInput, { target: { value: "Ahmad" } });
-    fireEvent.click(await screen.findByText("Ahmad Store"));
+    fireEvent.click(contactItem);
 
     expect(phoneInput).toHaveValue("0991234567");
     expect(await screen.findByText("Ahmad Store")).toBeInTheDocument();

@@ -1,0 +1,72 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { AlertTriangle, Clock, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { getLicenseStatus, getTrialRemainingDays, type LicenseInfo, shouldShowTrialWarning } from "@/lib/license";
+import { cn } from "@/lib/utils";
+
+const TrialBanner = () => {
+  const { i18n } = useTranslation();
+  const nav = useNavigate();
+  const isArabic = i18n.language === "ar";
+  const [warning, setWarning] = useState<{ show: boolean; days: number } | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    const check = async () => {
+      const lic = await getLicenseStatus();
+      const w = shouldShowTrialWarning(lic);
+      setWarning(w);
+    };
+    check();
+    const interval = setInterval(check, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!warning || !warning.show || dismissed) return null;
+
+  const getMessage = () => {
+    if (warning.days === 1) return isArabic ? "يوم واحد متبقي من الفترة التجريبية" : "1 day remaining in trial";
+    if (warning.days === 2) return isArabic ? "يومان متبقيان من الفترة التجريبية" : "2 days remaining in trial";
+    return isArabic ? `${warning.days} أيام متبقية من الفترة التجريبية` : `${warning.days} days remaining in trial`;
+  };
+
+  return (
+    <div className={cn(
+      "px-4 py-3 flex items-center gap-3 border-b",
+      warning.days <= 1
+        ? "bg-destructive/10 border-destructive/20 text-destructive"
+        : "bg-warning/10 border-warning/20 text-warning",
+    )}>
+      {warning.days <= 1
+        ? <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+        : <Clock className="w-5 h-5 flex-shrink-0" />
+      }
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold">{getMessage()}</p>
+        <p className="text-xs opacity-80">
+          {isArabic ? "فعّل حسابك لمواصلة استخدام التطبيق" : "Activate your account to continue using the app"}
+        </p>
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-xs h-8 px-3 whitespace-nowrap rounded-lg"
+          onClick={() => nav("/activation")}
+        >
+          {isArabic ? "تفعيل" : "Activate"}
+        </Button>
+        <button
+          onClick={() => setDismissed(true)}
+          className="p-1 rounded-lg hover:bg-background/50 transition-smooth"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default TrialBanner;

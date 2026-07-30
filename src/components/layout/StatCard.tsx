@@ -14,7 +14,7 @@ interface StatCardProps {
 
 export function StatCard({ icon, label, value, suffix, trend, className, iconBg = "bg-primary/10", iconColor = "text-primary" }: StatCardProps) {
   return (
-    <div className={cn("bg-card border border-border rounded-2xl p-4 shadow-card", className)}>
+    <div className={cn("bg-white border border-border/60 rounded-2xl p-4.5 shadow-sm", className)}>
       <div className="flex items-center gap-3 mb-3">
         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", iconBg)}>
           <span className={iconColor}>{icon}</span>

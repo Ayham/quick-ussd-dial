@@ -1,8 +1,11 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { isAdminUser, getUserRole, type UserRole } from "@/lib/auth";
+import { validateAndRefreshSession } from "@/lib/session-service";
+import { getDeviceId, registerDeviceLogin } from "@/lib/device";
+import { refreshLicenseCacheIfNeeded, validateDeviceSession } from "@/lib/license-cache";
 
 type AuthState = {
   user: User | null;
@@ -80,6 +83,9 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
           setIsAdmin(adminStatus);
           setIsDistributor(role === "distributor");
           setUserRole(role);
+          if (role === "customer" || role === "admin") {
+            await registerDeviceLogin();
+          }
         } catch {
           setIsAdmin(false);
           setIsDistributor(false);
@@ -94,6 +100,16 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+    validateDeviceSession();
+    const intervalId = setInterval(
+      () => { refreshLicenseCacheIfNeeded(); },
+      7 * 24 * 60 * 60 * 1000,
+    );
+    return () => clearInterval(intervalId);
+  }, [user]);
+
   const value = useMemo(() => ({ user, isAdmin, isDistributor, userRole, loading, refresh }), [user, isAdmin, isDistributor, userRole, loading]);
 
   return <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>;
@@ -103,6 +119,18 @@ export function useAuthSession() {
   const ctx = useContext(AuthSessionContext);
   if (!ctx) throw new Error("useAuthSession must be used inside AuthSessionProvider");
   return ctx;
+}
+
+export function RequireAuth({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuthSession();
+  const location = useLocation();
+
+  if (loading) return <AuthLoading />;
+  if (!user) {
+    const next = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/auth?next=${next}`} replace />;
+  }
+  return <>{children}</>;
 }
 
 export function RequireAdmin({ children }: { children: ReactNode }) {

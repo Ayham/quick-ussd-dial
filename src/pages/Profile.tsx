@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { User, LogOut, Globe, Mail, Phone as PhoneIcon } from "lucide-react";
+import { User, LogOut, Globe, Mail, Phone as PhoneIcon, Save, Loader2 } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getCurrentUser, getProfile, updateProfile, signOut, type UserProfile } from "@/lib/auth";
 import { setLanguage, getLanguage } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 const Profile = () => {
   const { t, i18n } = useTranslation();
@@ -68,53 +69,64 @@ const Profile = () => {
   return (
     <AppLayout title={isArabic ? "الملف الشخصي" : "Profile"}>
       <div className="p-4 space-y-4 max-w-md mx-auto pb-8">
-        <div className="bg-card border border-border rounded-2xl p-5 text-center space-y-2">
-          <div className="w-16 h-16 rounded-full bg-primary/10 mx-auto flex items-center justify-center">
-            <User className="w-8 h-8 text-primary" />
+        {/* Avatar Card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-border/60 p-6 text-center space-y-3">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-[hsl(215_80%_48%)] mx-auto flex items-center justify-center shadow-lg shadow-primary/25">
+            <User className="w-10 h-10 text-white" />
           </div>
-          <h2 className="text-lg font-bold">{name || profile?.email || (isArabic ? "مستخدم" : "User")}</h2>
-          <p className="text-xs text-muted-foreground inline-flex items-center gap-1">
-            <Mail className="w-3 h-3" /> {profile?.email}
-          </p>
+          <div>
+            <h2 className="text-lg font-bold">{name || profile?.email || (isArabic ? "مستخدم" : "User")}</h2>
+            <p className="text-xs text-muted-foreground inline-flex items-center gap-1.5 mt-1">
+              <Mail className="w-3.5 h-3.5" /> {profile?.email}
+            </p>
+          </div>
         </div>
 
-        <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-          <label className="text-sm font-semibold flex items-center gap-2">
-            <User className="w-4 h-4" /> {isArabic ? "الاسم" : "Name"}
-          </label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} className="h-11" />
-
-          <label className="text-sm font-semibold flex items-center gap-2 pt-2">
-            <PhoneIcon className="w-4 h-4" /> {isArabic ? "الهاتف" : "Phone"}
-          </label>
-          <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="h-11" dir="ltr" />
-
-          <label className="text-sm font-semibold flex items-center gap-2 pt-2">
-            <Globe className="w-4 h-4" /> {isArabic ? "اللغة" : "Language"}
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              variant={lang === "ar" ? "default" : "outline"}
-              onClick={() => setLang("ar")}
-              className="h-10"
-            >
-              العربية
-            </Button>
-            <Button
-              variant={lang === "en" ? "default" : "outline"}
-              onClick={() => setLang("en")}
-              className="h-10"
-            >
-              English
-            </Button>
+        {/* Profile Form */}
+        <div className="bg-white rounded-2xl shadow-sm border border-border/60 p-4.5 space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold flex items-center gap-2 text-muted-foreground">
+              <User className="w-4 h-4" /> {isArabic ? "الاسم" : "Name"}
+            </label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} className="h-11 rounded-xl bg-background/50" />
           </div>
 
-          <Button onClick={save} disabled={saving} className="w-full h-11 mt-2 font-bold">
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold flex items-center gap-2 text-muted-foreground">
+              <PhoneIcon className="w-4 h-4" /> {isArabic ? "الهاتف" : "Phone"}
+            </label>
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="h-11 rounded-xl bg-background/50" dir="ltr" />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold flex items-center gap-2 text-muted-foreground">
+              <Globe className="w-4 h-4" /> {isArabic ? "اللغة" : "Language"}
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant={lang === "ar" ? "default" : "outline"}
+                onClick={() => setLang("ar")}
+                className={cn("h-10 rounded-xl", lang === "ar" && "shadow-sm")}
+              >
+                العربية
+              </Button>
+              <Button
+                variant={lang === "en" ? "default" : "outline"}
+                onClick={() => setLang("en")}
+                className={cn("h-10 rounded-xl", lang === "en" && "shadow-sm")}
+              >
+                English
+              </Button>
+            </div>
+          </div>
+
+          <Button onClick={save} disabled={saving} className="w-full h-11 mt-2 font-bold rounded-xl shadow-sm">
+            {saving ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Save className="w-4 h-4 ml-2" />}
             {saving ? t("common.loading") : t("common.save")}
           </Button>
         </div>
 
-        <Button variant="outline" className="w-full h-11 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={doSignOut}>
+        <Button variant="outline" className="w-full h-11 text-destructive border-destructive/30 hover:bg-destructive/10 rounded-xl" onClick={doSignOut}>
           <LogOut className="w-4 h-4 mr-2" /> {t("common.logout")}
         </Button>
       </div>

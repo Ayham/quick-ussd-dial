@@ -36,7 +36,7 @@ export async function signUpWithEmail(
     email,
     password,
     options: {
-      emailRedirectTo: `${window.location.origin}/auth`,
+      emailRedirectTo: `${window.location.origin}/auth?mode=verify`,
       data: {
         full_name: displayName,
         phone: normalizedPhone,
@@ -55,6 +55,31 @@ export async function signUpWithEmail(
   }
 
   return result;
+}
+
+export function validateEmail(email: string): string | null {
+  if (!email.trim()) return "Email is required";
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!re.test(email)) return "Invalid email format";
+  return null;
+}
+
+export function validatePhone(phone: string): string | null {
+  if (!phone.trim()) return null;
+  const cleaned = phone.replace(/[^\d+]/g, "");
+  if (cleaned.length < 10) return "Phone number too short";
+  return null;
+}
+
+export function validatePasswordStrength(password: string): string | null {
+  if (!password) return "Password is required";
+  if (password.length < 6) return "Password must be at least 6 characters";
+  return null;
+}
+
+export function validatePasswordsMatch(password: string, confirm: string): string | null {
+  if (password !== confirm) return "Passwords do not match";
+  return null;
 }
 
 export async function signOut() {

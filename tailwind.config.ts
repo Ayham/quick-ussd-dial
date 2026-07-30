@@ -125,6 +125,17 @@ export default {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
         },
+        "nav-item-active": {
+          "0%": { transform: "scale(0.85)" },
+          "50%": { transform: "scale(1.05)" },
+          "100%": { transform: "scale(1)" },
+        },
+        "bounce-in": {
+          "0%": { opacity: "0", transform: "scale(0.3)" },
+          "50%": { transform: "scale(1.05)" },
+          "70%": { transform: "scale(0.9)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -135,9 +146,12 @@ export default {
         "fade-in": "fade-in 0.2s ease-out",
         "scale-in": "scale-in 0.2s ease-out",
         "shimmer": "shimmer 1.5s ease-in-out infinite",
+        "nav-item-active": "nav-item-active 0.3s ease-out",
+        "bounce-in": "bounce-in 0.4s ease-out",
       },
       spacing: {
         "4.5": "1.125rem",
+        "5.5": "1.375rem",
         "13": "3.25rem",
         "15": "3.75rem",
         "18": "4.5rem",
