@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
-import { Search, AlertTriangle } from "lucide-react";
+import { Search, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export interface Transfer {
@@ -89,7 +89,7 @@ export function TransfersViewer() {
     succeeded: transfers.filter((t) => t.status === "success" || t.status === "completed").length,
     failed: transfers.filter((t) => t.status === "failed").length,
     pending: transfers.filter((t) => t.status === "pending").length,
-    totalAmount: transfers.reduce((sum, t) => sum + (t.amount || 0), 0),
+    totalAmount: transfers.reduce((sum, t) => sum + (t.package_price ?? (t.amount !== undefined ? t.amount : 0)), 0),
     mtn: transfers.filter((t) => (t.operator || "").toLowerCase() === "mtn").length,
     syriatel: transfers.filter((t) => (t.operator || "").toLowerCase() === "syriatel").length,
   };
@@ -114,10 +114,19 @@ export function TransfersViewer() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input placeholder="Search by phone, device, user..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
-        </div>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+        <Input placeholder="Search by phone, device, user..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+        <Button
+          size="sm"
+          variant="ghost"
+          className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0 rounded-lg"
+          onClick={loadTransfers}
+          title="Refresh transfers"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+        </Button>
+      </div>
         <div className="flex gap-2">
           <Input type="date" value={dateRange.start} onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })} className="h-10" placeholder="From date" />
           <Input type="date" value={dateRange.end} onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })} className="h-10" placeholder="To date" />
@@ -169,7 +178,7 @@ export function TransfersViewer() {
               <th className="text-left p-3 font-semibold">Device</th>
               <th className="text-left p-3 font-semibold">Phone</th>
               <th className="text-left p-3 font-semibold">Operator</th>
-              <th className="text-left p-3 font-semibold">Amount</th>
+               <th className="text-left p-3 font-semibold">السعر</th>
               <th className="text-left p-3 font-semibold">Package</th>
               <th className="text-left p-3 font-semibold">Sync</th>
               <th className="text-left p-3 font-semibold">Date</th>
@@ -182,7 +191,7 @@ export function TransfersViewer() {
                 <td className="p-3 text-xs font-mono whitespace-nowrap">{transfer.device_id}</td>
                 <td className="p-3 font-mono text-xs" dir="ltr">{transfer.phone}</td>
                 <td className="p-3 text-xs">{(transfer.operator || "unknown").toUpperCase()}</td>
-                <td className="p-3 font-semibold">{transfer.amount.toLocaleString()}</td>
+                <td className="p-3 font-semibold">{(transfer.package_price ?? transfer.amount).toLocaleString()} ل.س</td>
                 <td className="p-3 text-xs">{transfer.package_name ? `${transfer.package_name} / ${transfer.package_price ?? 0}` : "—"}</td>
                 <td className="p-3">
                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${transfer.sync_status === "synced" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>

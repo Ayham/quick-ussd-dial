@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { getHistory, type TransferRecord } from './transfer-history';
+import { getHistory, recordPrice, type TransferRecord } from './transfer-history';
 
 export interface TransferSuggestion {
   phone: string;
   count: number;
-  lastAmount: number;
+  lastPrice: number;
   lastTimestamp: number;
   operator: string | null;
 }
@@ -14,7 +14,7 @@ const SETTINGS_KEY = 'suggestion-settings';
 export interface SuggestionSettings {
   enabled: boolean;
   maxSuggestions: number;
-  showLastAmount: boolean;
+  showLastPrice: boolean;
   showCount: boolean;
   showLastTime: boolean;
 }
@@ -22,7 +22,7 @@ export interface SuggestionSettings {
 export const DEFAULT_SUGGESTION_SETTINGS: SuggestionSettings = {
   enabled: true,
   maxSuggestions: 5,
-  showLastAmount: true,
+  showLastPrice: true,
   showCount: true,
   showLastTime: true,
 };
@@ -40,7 +40,7 @@ export function saveSuggestionSettings(settings: SuggestionSettings) {
 }
 
 function buildSuggestions(records: TransferRecord[]): TransferSuggestion[] {
-  const map = new Map<string, { count: number; lastAmount: number; lastTimestamp: number; operator: string | null }>();
+  const map = new Map<string, { count: number; lastPrice: number; lastTimestamp: number; operator: string | null }>();
   for (const r of records) {
     if (r.status !== 'success') continue;
     const existing = map.get(r.phone);
@@ -48,13 +48,13 @@ function buildSuggestions(records: TransferRecord[]): TransferSuggestion[] {
       existing.count++;
       if (r.timestamp > existing.lastTimestamp) {
         existing.lastTimestamp = r.timestamp;
-        existing.lastAmount = Number(r.amount);
+        existing.lastPrice = recordPrice(r);
         existing.operator = r.operator || existing.operator;
       }
     } else {
       map.set(r.phone, {
         count: 1,
-        lastAmount: Number(r.amount),
+        lastPrice: recordPrice(r),
         lastTimestamp: r.timestamp,
         operator: r.operator || null,
       });

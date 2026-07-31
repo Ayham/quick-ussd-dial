@@ -14,161 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      customer_accounts: {
-        Row: {
-          created_at: string | null
-          current_balance: number
-          current_debt: number
-          customer_id: string
-          id: string
-          last_payment: string | null
-          last_topup: string | null
-          total_payments: number
-          total_topups: number
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string | null
-          current_balance?: number
-          current_debt?: number
-          customer_id: string
-          id?: string
-          last_payment?: string | null
-          last_topup?: string | null
-          total_payments?: number
-          total_topups?: number
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string | null
-          current_balance?: number
-          current_debt?: number
-          customer_id?: string
-          id?: string
-          last_payment?: string | null
-          last_topup?: string | null
-          total_payments?: number
-          total_topups?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "customer_accounts_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
-          },
-        ]
-      }
-      customer_transactions: {
-        Row: {
-          amount: number
-          balance_after: number
-          balance_before: number
-          created_at: string
-          created_by: string | null
-          customer_id: string
-          debt_after: number
-          debt_before: number
-          distributor_id: string | null
-          id: string
-          notes: string | null
-          type: string
-        }
-        Insert: {
-          amount: number
-          balance_after?: number
-          balance_before?: number
-          created_at?: string
-          created_by?: string | null
-          customer_id: string
-          debt_after?: number
-          debt_before?: number
-          distributor_id?: string | null
-          id?: string
-          notes?: string | null
-          type: string
-        }
-        Update: {
-          amount?: number
-          balance_after?: number
-          balance_before?: number
-          created_at?: string
-          created_by?: string | null
-          customer_id?: string
-          debt_after?: number
-          debt_before?: number
-          distributor_id?: string | null
-          id?: string
-          notes?: string | null
-          type?: string
-        }
-        Relationships: []
-      }
-      distributor_customers: {
-        Row: {
-          assigned_at: string
-          assigned_by: string | null
-          customer_id: string
-          distributor_id: string
-          id: string
-        }
-        Insert: {
-          assigned_at?: string
-          assigned_by?: string | null
-          customer_id: string
-          distributor_id: string
-          id?: string
-        }
-        Update: {
-          assigned_at?: string
-          assigned_by?: string | null
-          customer_id?: string
-          distributor_id?: string
-          id?: string
-        }
-        Relationships: []
-      }
-      topup_requests: {
-        Row: {
-          amount: number
-          completed_at: string | null
-          completed_by: string | null
-          created_at: string
-          customer_id: string
-          distributor_id: string
-          id: string
-          notes: string | null
-          operator: string
-          status: string
-        }
-        Insert: {
-          amount: number
-          completed_at?: string | null
-          completed_by?: string | null
-          created_at?: string
-          customer_id: string
-          distributor_id: string
-          id?: string
-          notes?: string | null
-          operator: string
-          status?: string
-        }
-        Update: {
-          amount?: number
-          completed_at?: string | null
-          completed_by?: string | null
-          created_at?: string
-          customer_id?: string
-          distributor_id?: string
-          id?: string
-          notes?: string | null
-          operator?: string
-          status?: string
-        }
-        Relationships: []
-      }
       account_lockouts: {
         Row: {
           created_at: string
@@ -639,83 +484,6 @@ export type Database = {
         }
         Relationships: []
       }
-      distributor_transactions: {
-        Row: {
-          amount: number
-          client_id: string | null
-          created_at: string
-          device_id: string
-          distributor_id: string
-          id: string
-          notes: string | null
-          type: string
-        }
-        Insert: {
-          amount: number
-          client_id?: string | null
-          created_at?: string
-          device_id: string
-          distributor_id: string
-          id?: string
-          notes?: string | null
-          type: string
-        }
-        Update: {
-          amount?: number
-          client_id?: string | null
-          created_at?: string
-          device_id?: string
-          distributor_id?: string
-          id?: string
-          notes?: string | null
-          type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "distributor_transactions_distributor_id_fkey"
-            columns: ["distributor_id"]
-            isOneToOne: false
-            referencedRelation: "distributors"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      distributors: {
-        Row: {
-          balance: number
-          client_id: string | null
-          created_at: string
-          device_id: string
-          id: string
-          name: string
-          phone: string | null
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          balance?: number
-          client_id?: string | null
-          created_at?: string
-          device_id: string
-          id?: string
-          name: string
-          phone?: string | null
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          balance?: number
-          client_id?: string | null
-          created_at?: string
-          device_id?: string
-          id?: string
-          name?: string
-          phone?: string | null
-          updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       failed_logins: {
         Row: {
           created_at: string
@@ -903,46 +671,31 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
-          created_by: string | null
-          customer_status: string
           display_name: string | null
-          distributor_id: string | null
           email: string | null
           id: string
           language: string
-          notes: string | null
           phone: string | null
-          role: string
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
-          created_by?: string | null
-          customer_status?: string
           display_name?: string | null
-          distributor_id?: string | null
           email?: string | null
           id?: string
           language?: string
-          notes?: string | null
           phone?: string | null
-          role?: string
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
-          created_by?: string | null
-          customer_status?: string
           display_name?: string | null
-          distributor_id?: string | null
           email?: string | null
           id?: string
           language?: string
-          notes?: string | null
           phone?: string | null
-          role?: string
           updated_at?: string
           user_id?: string
         }
@@ -1208,6 +961,7 @@ export type Database = {
           device_id: string
           id: string
           operator: string
+          package_price: number | null
           phone: string
           status: string
           synced_at: string
@@ -1220,6 +974,7 @@ export type Database = {
           device_id: string
           id?: string
           operator: string
+          package_price?: number | null
           phone: string
           status?: string
           synced_at?: string
@@ -1232,6 +987,7 @@ export type Database = {
           device_id?: string
           id?: string
           operator?: string
+          package_price?: number | null
           phone?: string
           status?: string
           synced_at?: string
@@ -1451,212 +1207,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      get_user_role: {
-        Args: { _user_id: string }
-        Returns: string
-      }
-      is_distributor: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
-      get_customer_distributor: {
-        Args: { _customer_id: string }
-        Returns: string | null
-      }
-      process_accounting: {
-        Args: {
-          _customer_id: string
-          _distributor_id: string
-          _type: string
-          _amount: number
-          _notes?: string
-          _created_by?: string
-        }
-        Returns: Json
-      }
-      add_customer_debt: {
-        Args: {
-          _customer_id: string
-          _amount: number
-          _notes?: string
-        }
-        Returns: Json
-      }
-      register_payment: {
-        Args: {
-          _customer_id: string
-          _amount: number
-          _notes?: string
-        }
-        Returns: Json
-      }
-      adjust_customer_balance: {
-        Args: {
-          _customer_id: string
-          _amount: number
-          _notes?: string
-        }
-        Returns: Json
-      }
-      topup_customer: {
-        Args: {
-          _customer_id: string
-          _amount: number
-          _operator: string
-          _notes?: string
-        }
-        Returns: Json
-      }
-      cancel_topup_request: {
-        Args: {
-          _request_id: string
-          _notes?: string
-        }
-        Returns: Json
-      }
-      assign_customer_to_distributor: {
-        Args: {
-          _customer_id: string
-          _distributor_id: string
-        }
-        Returns: Json
-      }
-      unassign_customer: {
-        Args: {
-          _customer_id: string
-        }
-        Returns: Json
-      }
-      can_access_customer: {
-        Args: {
-          _actor_id: string
-          _customer_id: string
-        }
-        Returns: boolean
-      }
-      get_my_distributor_id: {
-        Args: {
-          _user_id: string
-        }
-        Returns: string | null
-      }
-      complete_topup_request: {
-        Args: {
-          _request_id: string
-        }
-        Returns: Json
-      }
-      move_customer: {
-        Args: {
-          _customer_id: string
-          _new_distributor_id: string
-        }
-        Returns: Json
-      }
-      has_distributor_role: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
-      distributor_set_role: {
-        Args: { _target_user: string; _role: string }
-        Returns: Json
-      }
-      distributor_assign_customer: {
-        Args: { _distributor_id: string; _customer_id: string }
-        Returns: Json
-      }
-      distributor_move_customer: {
-        Args: { _customer_id: string; _new_distributor_id: string }
-        Returns: Json
-      }
-      distributor_add_transaction: {
-        Args: { _customer_id: string; _type: string; _amount: number; _notes?: string }
-        Returns: Json
-      }
-      distributor_complete_topup: {
-        Args: { _request_id: string; _notes?: string }
-        Returns: Json
-      }
-      distributor_cancel_topup: {
-        Args: { _request_id: string; _notes?: string }
-        Returns: Json
-      }
-      customer_create_topup_request: {
-        Args: { _operator: string; _amount: number; _notes?: string }
-        Returns: Json
-      }
-      distributor_get_dashboard_stats: {
-        Args: Record<string, never>
-        Returns: Json
-      }
-      distributor_get_customers: {
-        Args: { _search?: string; _page?: number; _page_size?: number }
-        Returns: Json
-      }
-      distributor_get_customer_detail: {
-        Args: { _customer_id: string }
-        Returns: Json
-      }
-      distributor_get_transactions: {
-        Args: { _customer_id?: string; _page?: number; _page_size?: number; _date_from?: string; _date_to?: string; _type?: string }
-        Returns: Json
-      }
-      distributor_get_topup_requests: {
-        Args: { _status?: string; _page?: number; _page_size?: number }
-        Returns: Json
-      }
-      distributor_update_customer_notes: {
-        Args: { _customer_id: string; _notes: string }
-        Returns: Json
-      }
-      distributor_update_customer_secret: {
-        Args: { _customer_id: string; _secret: string }
-        Returns: Json
-      }
-      distributor_get_all: {
-        Args: { _search?: string; _page?: number; _page_size?: number }
-        Returns: Json
-      }
-      admin_set_customer_status: {
-        Args: { _customer_id: string; _status: string }
-        Returns: Json
-      }
-      validate_license: {
-        Args: {
-          _device_id: string
-          _fingerprint?: string
-          _license_key: string
-        }
-        Returns: Json
-      }
-      has_profile_role: {
-        Args: { _role: string; _user_id: string }
-        Returns: boolean
-      }
-      distributor_add_debt: {
-        Args: { _customer_id: string; _amount: number; _notes?: string }
-        Returns: Json
-      }
-      distributor_register_payment: {
-        Args: { _customer_id: string; _amount: number; _notes?: string }
-        Returns: Json
-      }
-      distributor_adjust_balance: {
-        Args: { _customer_id: string; _amount: number; _notes?: string }
-        Returns: Json
-      }
-      admin_assign_customer: {
-        Args: { _customer_id: string; _distributor_id: string }
-        Returns: Json
-      }
-      admin_move_customer: {
-        Args: { _customer_id: string; _new_distributor_id: string }
-        Returns: Json
-      }
-      admin_set_user_role: {
-        Args: { _role: string; _user_id: string }
-        Returns: Json
-      }
       request_activation: {
         Args: { _device_id: string; _contact_name?: string; _contact_phone?: string; _ussd_numbers?: string[] }
         Returns: Json
@@ -1728,7 +1278,7 @@ export type Database = {
     }
     Enums: {
       activation_status: "pending" | "approved" | "rejected"
-      app_role: "admin" | "user" | "distributor"
+       app_role: "admin" | "user"
       license_status: "active" | "expired" | "revoked" | "pending" | "suspended" | "trial" | "rejected" | "permanent" | "blocked"
       license_type: "trial" | "days_30" | "days_90" | "days_180" | "days_365" | "permanent"
     }
@@ -1859,7 +1409,7 @@ export const Constants = {
   public: {
     Enums: {
       activation_status: ["pending", "approved", "rejected"],
-      app_role: ["admin", "user", "distributor"],
+       app_role: ["admin", "user"],
       license_status: ["active", "expired", "revoked", "pending", "suspended", "trial", "rejected", "permanent", "blocked"],
       license_type: ["trial", "days_30", "days_90", "days_180", "days_365", "permanent"],
     },

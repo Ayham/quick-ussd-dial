@@ -333,7 +333,7 @@ BEGIN
       p.email,
       p.display_name,
       t.phone,
-      t.amount,
+      COALESCE(t.package_price, t.amount) AS amount,
       t.operator,
       t.status,
       t.created_at,

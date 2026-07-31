@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Search, ChevronLeft, ChevronRight, Shield, CheckCircle2, XCircle, Ban, Clock, UserCheck, History, ArrowUpDown, Wrench } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Shield, CheckCircle2, XCircle, Ban, Clock, UserCheck, History, ArrowUpDown, Wrench, RefreshCw } from "lucide-react";
 
 interface UserLicense {
   user_id: string;
@@ -29,6 +29,8 @@ interface UserLicense {
   last_sync: string | null;
   account_status: string;
   trial_remaining_days: number | null;
+  activation_status: string | null;
+  activation_processed_at: string | null;
 }
 
 interface ActivationRequest {
@@ -196,6 +198,15 @@ const LicenseManagement = () => {
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="h-10 ps-9 rounded-xl"
           />
+          <Button
+            size="sm"
+            variant="ghost"
+            className="absolute end-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0 rounded-lg"
+            onClick={loadUsers}
+            title={isArabic ? "تحديث" : "Refresh"}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+          </Button>
         </div>
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
           <SelectTrigger className="w-[140px] h-10 rounded-xl">
@@ -238,6 +249,7 @@ const LicenseManagement = () => {
                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{isArabic ? "البريد" : "Email"}</th>
                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{isArabic ? "الهاتف" : "Phone"}</th>
                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{isArabic ? "الحالة" : "Status"}</th>
+                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{isArabic ? "نوع الترخيص" : "License Type"}</th>
                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{isArabic ? "المتبقي" : "Remaining"}</th>
                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{isArabic ? "الجهاز" : "Device"}</th>
                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{isArabic ? "آخر دخول" : "Last Login"}</th>
@@ -253,8 +265,9 @@ const LicenseManagement = () => {
                     <td className="p-3"><Skeleton className="h-5 w-40" /></td>
                     <td className="p-3"><Skeleton className="h-5 w-28" /></td>
                     <td className="p-3"><Skeleton className="h-5 w-20" /></td>
-                    <td className="p-3"><Skeleton className="h-5 w-16" /></td>
                     <td className="p-3"><Skeleton className="h-5 w-24" /></td>
+                    <td className="p-3"><Skeleton className="h-5 w-16" /></td>
+                    <td className="p-3"><Skeleton className="h-5 w-20" /></td>
                     <td className="p-3"><Skeleton className="h-5 w-24" /></td>
                     <td className="p-3"><Skeleton className="h-5 w-24" /></td>
                     <td className="p-3"><Skeleton className="h-8 w-32" /></td>
@@ -262,7 +275,7 @@ const LicenseManagement = () => {
                 ))
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="p-8 text-center text-sm text-muted-foreground">
+                  <td colSpan={10} className="p-8 text-center text-sm text-muted-foreground">
                     {isArabic ? "لا يوجد مستخدمين" : "No users found"}
                   </td>
                 </tr>
@@ -280,6 +293,7 @@ const LicenseManagement = () => {
                     <td className="p-3 text-xs text-muted-foreground" dir="ltr">{u.email}</td>
                     <td className="p-3 text-xs text-muted-foreground" dir="ltr">{u.phone || "-"}</td>
                     <td className="p-3"><LicenseBadge status={u.license_status} isArabic={isArabic} /></td>
+                    <td className="p-3 text-xs text-muted-foreground">{formatLicenseType(u.license_type, isArabic)}</td>
                     <td className="p-3 text-xs">
                       {u.trial_remaining_days !== null
                         ? <span className={u.trial_remaining_days <= 1 ? "text-destructive font-bold" : ""}>{u.trial_remaining_days} {isArabic ? "ي" : "d"}</span>
@@ -430,6 +444,18 @@ const LicenseManagement = () => {
     </div>
   );
 };
+
+function formatLicenseType(type: string, isArabic: boolean): string {
+  const map: Record<string, string> = {
+    trial: isArabic ? "تجريبي" : "Trial",
+    days_30: isArabic ? "30 يوم" : "30 Days",
+    days_90: isArabic ? "90 يوم" : "90 Days",
+    days_180: isArabic ? "180 يوم" : "180 Days",
+    days_365: isArabic ? "365 يوم" : "365 Days",
+    permanent: isArabic ? "دائم" : "Permanent",
+  };
+  return map[type] ?? type;
+}
 
 function LicenseBadge({ status, isArabic }: { status: string; isArabic: boolean }) {
   const config: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {

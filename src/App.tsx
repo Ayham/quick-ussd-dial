@@ -8,24 +8,18 @@ import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import Balance from "./pages/Balance";
 import Admin from "./pages/Admin";
-import Distributor from "./pages/Distributor";
 import NotFound from "./pages/NotFound";
 import Updates from "./pages/Updates";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import Activation from "./pages/Activation";
 import LicenseLocked from "./pages/LicenseLocked";
-import { AuthSessionProvider, RequireAdmin, RequireDistributor, RequireAuth } from "@/lib/auth-session";
+import { AuthSessionProvider, RequireAdmin, RequireAuth } from "@/lib/auth-session";
 
 import "./lib/i18n";
 import { isWebBrowser } from "@/lib/platform";
 import { checkForUpdate, type UpdateInfo } from "@/lib/update-checker";
 import ForceUpdate from "@/components/ForceUpdate";
-
-import DistributorDashboard from "@/pages/distributor/DistributorDashboard";
-import DistributorCustomers from "@/pages/distributor/DistributorCustomers";
-import DistributorCustomerDetail from "@/pages/distributor/DistributorCustomerDetail";
-import DistributorRequests from "@/pages/distributor/DistributorRequests";
 
 const queryClient = new QueryClient();
 const Reports = lazy(() => import("./pages/Reports"));
@@ -73,11 +67,6 @@ const AppContent = () => {
           <Route path="/activation" element={<RequireAuth><Activation /></RequireAuth>} />
           <Route path="/license-locked" element={<RequireAuth><LicenseLocked /></RequireAuth>} />
           <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
-          <Route path="/distributor" element={<RequireAuth><Distributor /></RequireAuth>} />
-          <Route path="/dm" element={<RequireAuth><RequireDistributor><DistributorDashboard /></RequireDistributor></RequireAuth>} />
-          <Route path="/dm/customers" element={<RequireAuth><RequireDistributor><DistributorCustomers /></RequireDistributor></RequireAuth>} />
-          <Route path="/dm/customer/:id" element={<RequireAuth><RequireDistributor><DistributorCustomerDetail /></RequireDistributor></RequireAuth>} />
-          <Route path="/dm/requests" element={<RequireAuth><RequireDistributor><DistributorRequests /></RequireDistributor></RequireAuth>} />
           <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
           <Route path="/reports" element={
             <RequireAuth>

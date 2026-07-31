@@ -28,7 +28,7 @@ TABLES=(
   devices trials licenses device_bans activations
   sim_assignments
   # Financial
-  distributors distributor_transactions payments
+  payments
   # Contacts & transfers
   contacts transfers daily_summaries
   # Ops / audit / sync

@@ -1,6 +1,9 @@
+import { getPresets, type Operator } from './ussd-profiles';
+
 export interface TransferRecord {
   phone: string;
   amount: string;
+  price?: string;
   operator: string;
   timestamp: number;
   status: "success" | "failed" | "pending";
@@ -21,6 +24,30 @@ export function addToHistory(record: TransferRecord) {
   const history = getHistory();
   history.unshift(record);
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 100)));
+}
+
+/**
+ * Returns the selling price (in SYP) of a transfer record.
+ * The selling price is what the customer pays; `amount` is the transfer
+ * quantity (the SIM balance being moved). Reports and customer-facing displays
+ * must always prefer `price` over `amount`. Falls back to `amount` for records
+ * that predate the `price` field being persisted.
+ */
+export function recordPrice(record: TransferRecord): number {
+  if (record.price != null && record.price !== "") {
+    const parsed = Number(record.price);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  const amount = Number(record.amount);
+  if (Number.isFinite(amount)) {
+    try {
+      const presets = getPresets();
+      const op = record.operator as Operator;
+      const match = presets[op]?.find(p => p.amount === amount);
+      if (match) return match.price;
+    } catch {}
+  }
+  return Number(record.amount) || 0;
 }
 
 

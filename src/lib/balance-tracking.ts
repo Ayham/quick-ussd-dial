@@ -31,8 +31,8 @@ export interface LowBalanceThresholds {
 }
 
 const DEFAULT_THRESHOLDS: LowBalanceThresholds = {
-  mtn: 2000,
-  syriatel: 2000,
+  mtn: 10000,
+  syriatel: 10000,
 };
 
 function getStore(): BalanceStore {

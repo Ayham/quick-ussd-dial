@@ -11,11 +11,27 @@ import {
   type SimAssignment, type BalanceCheckTemplates, type AmountPreset,
 } from "@/lib/ussd-profiles";
 import { getHistory } from "@/lib/transfer-history";
-import {
-  getBalances, getLowBalanceThresholds, saveLowBalanceThresholds,
-  clearAllBalanceData,
-  type BalanceStore, type LowBalanceThresholds,
-} from "@/lib/balance-tracking";
+import { getLowBalanceThresholds, saveLowBalanceThresholds, clearAllBalanceData } from "@/lib/balance-tracking";
+
+const BALANCE_STORAGE_KEY = "saved_balances_v1";
+const BALANCE_TRACKING_KEY = "balance_tracking_v2";
+const LOW_BALANCE_THRESHOLD_KEY = "low_balance_thresholds_v1";
+const WARNING_SHOWN_KEY = "low_balance_warning_shown_v1";
+
+interface SavedBalance {
+  amount: number;
+  timestamp: number;
+}
+
+type BalanceStore = Record<string, SavedBalance | null>;
+
+function getSavedBalances(): BalanceStore | null {
+  try {
+    const stored = localStorage.getItem(BALANCE_STORAGE_KEY);
+    if (stored) return JSON.parse(stored) as BalanceStore;
+  } catch {}
+  return null;
+}
 
 export const BACKUP_VERSION = "1.0";
 
@@ -32,13 +48,15 @@ export interface BackupData {
   transferHistory: Array<{
     phone: string;
     amount: string;
+    price?: string;
     operator: string;
     timestamp: number;
     status: "success" | "failed" | "pending";
     transferType?: "phone" | "secret";
   }>;
-  balanceStore: BalanceStore;
-  lowBalanceThresholds: LowBalanceThresholds;
+  balanceStore: BalanceStore | null;
+  balanceTracking: unknown | null;
+  lowBalanceThresholds: unknown | null;
 }
 
 export interface BackupPreview {
@@ -48,7 +66,6 @@ export interface BackupPreview {
   presetsCount: number;
   transferCount: number;
   balanceEntries: number;
-  thresholdsConfigured: boolean;
 }
 
 export interface CleanupResult {
@@ -69,8 +86,9 @@ function buildBackupData(): BackupData {
     prefixes: getPrefixes(),
     simAssignment: getSimAssignment(),
     transferHistory: getHistory(),
-    balanceStore: getBalances(),
-    lowBalanceThresholds: getLowBalanceThresholds(),
+    balanceStore: getSavedBalances(),
+    balanceTracking: localStorage.getItem(BALANCE_TRACKING_KEY),
+    lowBalanceThresholds: localStorage.getItem(LOW_BALANCE_THRESHOLD_KEY),
   };
 }
 
@@ -146,7 +164,6 @@ export function validateBackup(data: unknown): { valid: boolean; errors: string[
       presetsCount: 0,
       transferCount: 0,
       balanceEntries: 0,
-      thresholdsConfigured: false,
     };
     return { valid: true, errors: [], preview };
   }
@@ -174,10 +191,9 @@ export function validateBackup(data: unknown): { valid: boolean; errors: string[
     transferCount: hasHistory ? (obj.transferHistory as unknown[]).length : 0,
     balanceEntries: hasBalance
       ? Object.values(obj.balanceStore as Record<string, unknown>).filter(
-          (v) => v && typeof v === "object" && "current" in (v as object)
+          (v) => v && typeof v === "object" && "amount" in (v as object)
         ).length
       : 0,
-    thresholdsConfigured: !!obj.lowBalanceThresholds,
   };
 
   if (!hasPresets && !hasHistory && !hasBalance) {
@@ -199,7 +215,6 @@ export function getBackupPreview(data: unknown): BackupPreview | null {
       presetsCount: 0,
       transferCount: 0,
       balanceEntries: 0,
-      thresholdsConfigured: false,
     };
   }
 
@@ -217,10 +232,9 @@ export function getBackupPreview(data: unknown): BackupPreview | null {
     transferCount: hasHistory ? (obj.transferHistory as unknown[]).length : 0,
     balanceEntries: hasBalance
       ? Object.values(obj.balanceStore as Record<string, unknown>).filter(
-          (v) => v && typeof v === "object" && "current" in (v as object)
+          (v) => v && typeof v === "object" && "amount" in (v as object)
         ).length
       : 0,
-    thresholdsConfigured: !!obj.lowBalanceThresholds,
   };
 }
 
@@ -302,13 +316,6 @@ export function restoreBackup(data: unknown, password?: string): { success: bool
     } catch { /* skip */ }
   }
 
-  if (obj.lowBalanceThresholds) {
-    try {
-      saveLowBalanceThresholds(obj.lowBalanceThresholds as LowBalanceThresholds);
-      restored.push("lowBalanceThresholds");
-    } catch { /* skip */ }
-  }
-
   if (obj.transferHistory && Array.isArray(obj.transferHistory)) {
     try {
       localStorage.setItem("transfer-history", JSON.stringify(obj.transferHistory));
@@ -318,8 +325,23 @@ export function restoreBackup(data: unknown, password?: string): { success: bool
 
   if (obj.balanceStore && typeof obj.balanceStore === "object") {
     try {
-      localStorage.setItem("balance_tracking_v2", JSON.stringify(obj.balanceStore));
+      localStorage.setItem(BALANCE_STORAGE_KEY, JSON.stringify(obj.balanceStore));
       restored.push("balanceStore");
+    } catch { /* skip */ }
+  }
+
+  if (obj.balanceTracking) {
+    try {
+      localStorage.setItem(BALANCE_TRACKING_KEY, obj.balanceTracking);
+      restored.push("balanceTracking");
+    } catch { /* skip */ }
+  }
+
+  if (obj.lowBalanceThresholds) {
+    try {
+      localStorage.setItem(LOW_BALANCE_THRESHOLD_KEY, obj.lowBalanceThresholds);
+      saveLowBalanceThresholds(JSON.parse(obj.lowBalanceThresholds as string));
+      restored.push("lowBalanceThresholds");
     } catch { /* skip */ }
   }
 
@@ -348,11 +370,8 @@ export function deleteAllHistory(): CleanupResult {
 export function deleteAllData(): void {
   localStorage.removeItem("transfer-history");
   localStorage.removeItem("saved_balances_v1");
-  localStorage.removeItem("balance_tracking_v2");
-  localStorage.removeItem("low_balance_thresholds_v1");
-  localStorage.removeItem("low_balance_warning_shown_v1");
-  resetAllSettings();
   clearAllBalanceData();
+  resetAllSettings();
 }
 
 export function getStorageStats(): { totalBytes: number; breakdown: Record<string, number> } {
@@ -362,8 +381,9 @@ export function getStorageStats(): { totalBytes: number; breakdown: Record<strin
   const keys = [
     "ussd-presets", "ussd-credentials", "ussd-templates",
     "operator-prefixes", "sim-assignment", "balance-templates",
-    "transfer-history", "balance_tracking_v2", "low_balance_thresholds_v1",
-    "low_balance_warning_shown_v1", "saved_balances_v1",
+    "transfer-history", "saved_balances_v1",
+    "balance_tracking_v2", "low_balance_thresholds_v1",
+    "low_balance_warning_shown_v1",
     "app_lang_v1", "last-secret-operator",
   ];
 

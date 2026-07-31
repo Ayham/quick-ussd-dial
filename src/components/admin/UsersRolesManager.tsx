@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Shield, ShieldOff, Search, AlertTriangle } from "lucide-react";
+import { Shield, ShieldOff, Search, AlertTriangle, RefreshCw } from "lucide-react";
 
 interface Row {
   user_id: string;
@@ -79,6 +79,15 @@ export function UsersRolesManager() {
       <div className="relative">
         <Search className="w-4 h-4 absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <Input className="ps-9 h-10 rounded-xl" placeholder="Search email or name" value={q} onChange={(e) => setQ(e.target.value)} />
+        <Button
+          size="sm"
+          variant="ghost"
+          className="absolute end-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0 rounded-lg"
+          onClick={load}
+          title="Refresh users"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+        </Button>
       </div>
       {loading ? (
         <p className="text-sm text-muted-foreground text-center py-8">Loading…</p>

@@ -10,8 +10,8 @@ describe("offline reports", () => {
     localStorage.clear();
     Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
     localStorage.setItem("transfer-history", JSON.stringify([
-      { phone: "0999000000", amount: "1000", operator: "mtn", timestamp: Date.UTC(2026, 6, 1), status: "success" },
-      { phone: "0933000000", amount: "2000", operator: "syriatel", timestamp: Date.UTC(2026, 6, 1), status: "failed" },
+      { phone: "0999000000", amount: "20", price: "25", operator: "mtn", timestamp: Date.UTC(2026, 6, 1), status: "success" },
+      { phone: "0933000000", amount: "2019", price: "25", operator: "syriatel", timestamp: Date.UTC(2026, 6, 1), status: "failed" },
     ]));
   });
 
@@ -25,8 +25,8 @@ describe("offline reports", () => {
 
     expect(report.source).toBe("offline");
     expect(report.total).toBe(1);
-    expect(report.amount_total).toBe(1000);
+    expect(report.amount_total).toBe(25);
     expect(report.success_count).toBe(1);
-    expect(report.by_operator).toEqual([{ key: "mtn", count: 1, amount: 1000 }]);
+    expect(report.by_operator).toEqual([{ key: "mtn", count: 1, amount: 25 }]);
   });
 });

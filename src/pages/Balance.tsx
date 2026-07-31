@@ -9,7 +9,7 @@ import {
   type Operator,
 } from "@/lib/ussd-profiles";
 import { dialUssdDirect } from "@/lib/ussd-dialer";
-import { getHistory } from "@/lib/transfer-history";
+import { getHistory, recordPrice } from "@/lib/transfer-history";
 import {
   getBalance,
   getEstimatedBalance,
@@ -131,9 +131,11 @@ const Balance = () => {
     const operatorPresets = presets[operator] || [];
 
     transfers.forEach((r) => {
-      const amt = Number(r.amount);
-      const preset = operatorPresets.find((p) => p.amount === amt);
-      totalPrice += preset ? preset.price : 0;
+      // Always prefer the persisted selling price; fall back to the preset lookup
+      // for legacy records that predate the `price` field.
+      totalPrice += r.price != null && r.price !== ""
+        ? Number(r.price)
+        : (operatorPresets.find((p) => p.amount === Number(r.amount))?.price ?? 0);
     });
 
     return {

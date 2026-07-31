@@ -9,16 +9,14 @@ import { DashboardOverview } from "@/components/admin/DashboardOverview";
 import { EventsViewer } from "@/components/admin/EventsViewer";
 import { TransfersViewer } from "@/components/admin/TransfersViewer";
 import { UsersRolesManager } from "@/components/admin/UsersRolesManager";
-import { DistributorsManager } from "@/components/admin/DistributorsManager";
 import LicenseManagement from "@/components/admin/LicenseManagement";
 import ActivationRequests from "@/components/admin/ActivationRequests";
 import { cn } from "@/lib/utils";
 
 const tabs = [
   { value: "overview", labelKey: "admin.dashboard", icon: LayoutGrid },
-  { value: "users", labelKey: "admin.users", icon: Users },
-  { value: "distributors", labelKey: "admin.distributors", icon: Users },
-  { value: "transfers", labelKey: "admin.transfers", icon: Activity },
+   { value: "users", labelKey: "admin.users", icon: Users },
+   { value: "transfers", labelKey: "admin.transfers", icon: Activity },
   { value: "licenses", labelKey: "admin.licenses", icon: KeyRound },
   { value: "activations", labelKey: "admin.activationRequests", icon: UserCheck },
   { value: "events", labelKey: "admin.events", icon: Database },
@@ -78,11 +76,9 @@ const Admin = () => {
         return <EventsViewer />;
       case "licenses":
         return <LicenseManagement />;
-      case "activations":
-        return <ActivationRequests />;
-      case "distributors":
-        return <DistributorsManager />;
-      default:
+       case "activations":
+         return <ActivationRequests />;
+       default:
         return <DashboardOverview />;
     }
   };

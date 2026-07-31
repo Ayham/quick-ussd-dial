@@ -2,9 +2,10 @@ import { useState, useCallback } from "react";
 
 import {
   Plus, Trash2, Key, Code, ArrowUp, ArrowDown, Smartphone, Signal,
-  Clock, AlertTriangle, Shield, Database, Settings as SettingsIcon,
+  AlertTriangle, Shield, Database, Settings as SettingsIcon,
   Download, Upload, Globe, ChevronDown, Lock, FolderOpen,
   Trash, RotateCw, HardDrive, Info, AlertCircle, CheckCircle,
+  Bell,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
@@ -22,11 +23,10 @@ import {
   type UssdTemplates, type OperatorPrefixes, type SimSlot, type SimAssignment,
   type BalanceCheckTemplates,
 } from "@/lib/ussd-profiles";
-import { getHistory } from "@/lib/transfer-history";
+import { getHistory, recordPrice } from "@/lib/transfer-history";
 import {
   getLowBalanceThresholds,
   saveLowBalanceThresholds,
-  clearAllBalanceData,
   type LowBalanceThresholds,
 } from "@/lib/balance-tracking";
 import {
@@ -49,7 +49,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-type SettingsSection = "sim" | "codes" | "amounts" | "data" | "language" | "thresholds" | "suggestions";
+type SettingsSection = "sim" | "codes" | "amounts" | "thresholds" | "suggestions" | "data" | "language";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -61,11 +61,11 @@ const Settings = () => {
   const [prefixes, setPrefixes] = useState<OperatorPrefixes>(() => getPrefixes());
   const [simAssignment, setSimAssignment] = useState<SimAssignment>(() => getSimAssignment());
   const [balanceTemplates, setBalanceTemplates] = useState<BalanceCheckTemplates>(() => getBalanceTemplates());
-  const [thresholds, setThresholds] = useState<LowBalanceThresholds>(() => getLowBalanceThresholds());
   const [activeOperator, setActiveOperator] = useState<Operator>("mtn");
   const [newPrefix, setNewPrefix] = useState("");
   const [language, setLanguageState] = useState(() => getLanguage());
   const [suggestionSettings, setSuggestionSettings] = useState<SuggestionSettings>(() => getSuggestionSettings());
+  const [thresholds, setThresholds] = useState<LowBalanceThresholds>(() => getLowBalanceThresholds());
 
   const [backupPassword, setBackupPassword] = useState("");
   const [backupWithPassword, setBackupWithPassword] = useState(false);
@@ -152,9 +152,8 @@ const Settings = () => {
   const allHistory = getHistory();
   const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const olderThanMonth = allHistory.filter(r => r.timestamp <= monthAgo).length;
-  const totalAmount = allHistory.filter(r => r.status === "success").reduce((s, r) => s + Number(r.amount), 0);
-  const hasBalance = !!localStorage.getItem('balance_tracking_v2') || !!localStorage.getItem('saved_balances_v1');
-  const thresholdsData = !!localStorage.getItem('low_balance_thresholds_v1');
+  const totalAmount = allHistory.filter(r => r.status === "success").reduce((s, r) => s + recordPrice(r), 0);
+
 
   const handleExportBackup = () => {
     try {
@@ -223,7 +222,6 @@ const Settings = () => {
             setBalanceTemplates(getBalanceTemplates());
             setPrefixes(getPrefixes());
             setSimAssignment(getSimAssignment());
-            setThresholds(getLowBalanceThresholds());
             setStorageStats(getStorageStats());
             toast.success("تم استعادة النسخة الاحتياطية بنجاح ✅");
             setRestorePreview(null);
@@ -261,7 +259,6 @@ const Settings = () => {
     setBalanceTemplates(getBalanceTemplates());
     setPrefixes(getPrefixes());
     setSimAssignment(getSimAssignment());
-    setThresholds(getLowBalanceThresholds());
     setStorageStats(getStorageStats());
     toast.success("تم حذف جميع البيانات");
   };
@@ -284,9 +281,9 @@ const Settings = () => {
 
   const sections: { id: SettingsSection; label: string; icon: React.ReactNode; description: string }[] = [
     { id: "sim", label: "الشريحة والاتصال", icon: <Smartphone className="w-5 h-5" />, description: "بيانات الشريحة وبادئات الأرقام" },
-    { id: "codes", label: "أكواد USSD", icon: <Code className="w-5 h-5" />, description: "أكواد التحويل واستعلام الرصيد" },
+{ id: "codes", label: "أكواد USSD", icon: <Code className="w-5 h-5" />, description: "أكواد التحويل واستعلام الرصيد" },
     { id: "amounts", label: "المبالغ", icon: <SettingsIcon className="w-5 h-5" />, description: "قائمة مبالغ التحويل" },
-    { id: "thresholds", label: "تنبيه الرصيد", icon: <Clock className="w-5 h-5" />, description: "الحد الأدنى للرصيد والتنبيهات" },
+    { id: "thresholds", label: "تنبيه الرصيد", icon: <Bell className="w-5 h-5" />, description: "الحد الأدنى للرصيد والتنبيهات" },
     { id: "suggestions", label: "اقتراحات الأرقام", icon: <HardDrive className="w-5 h-5" />, description: "إعدادات اقتراح أرقام الزبائن المتكررين" },
     { id: "data", label: "البيانات", icon: <Database className="w-5 h-5" />, description: "النسخ الاحتياطي والإدارة والاستعادة" },
     { id: "language", label: "اللغة", icon: <Globe className="w-5 h-5" />, description: "اختيار واجهة التطبيق" },
@@ -506,36 +503,6 @@ const Settings = () => {
                     </>
                   )}
 
-                  {/* THRESHOLDS SECTION */}
-                  {section.id === "thresholds" && (
-                    <>
-                      <SettingsCard title="الحد الأدنى للرصيد" icon={<Clock className="w-4 h-4" />}>
-                        <div className="space-y-4">
-                          <p className="text-xs text-muted-foreground">
-                            عند وصول الرصيد إلى الحد الأدنى أو أقل، سيظهر تنبيه في صفحة الرصيد
-                          </p>
-                          <div className="space-y-3">
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-bold text-operator-mtn">MTN</label>
-                              <Input type="number" value={thresholds.mtn || ""}
-                                onChange={(e) => setThresholds({ ...thresholds, mtn: Number(e.target.value) || 0 })}
-                                placeholder="2000"
-                                className="text-left h-11 rounded-xl border-2 bg-background/50" dir="ltr" inputMode="numeric" />
-                            </div>
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-bold text-operator-syriatel">Syriatel</label>
-                              <Input type="number" value={thresholds.syriatel || ""}
-                                onChange={(e) => setThresholds({ ...thresholds, syriatel: Number(e.target.value) || 0 })}
-                                placeholder="2000"
-                                className="text-left h-11 rounded-xl border-2 bg-background/50" dir="ltr" inputMode="numeric" />
-                            </div>
-                          </div>
-                        </div>
-                      </SettingsCard>
-                       <Button onClick={handleSave} className="w-full h-12 font-bold rounded-xl shadow-sm mt-2">حفظ التنبيهات</Button>
-                    </>
-                  )}
-
                   {/* SUGGESTIONS SECTION */}
                   {section.id === "suggestions" && (
                     <>
@@ -568,10 +535,10 @@ const Settings = () => {
                             </div>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-foreground">عرض آخر مبلغ</span>
+                            <span className="text-sm font-medium text-foreground">عرض السعر الأخير</span>
                             <Switch
-                              checked={suggestionSettings.showLastAmount}
-                              onCheckedChange={(v) => setSuggestionSettings({ ...suggestionSettings, showLastAmount: v })}
+                              checked={suggestionSettings.showLastPrice}
+                              onCheckedChange={(v) => setSuggestionSettings({ ...suggestionSettings, showLastPrice: v })}
                             />
                           </div>
                           <div className="flex items-center justify-between">
@@ -596,7 +563,37 @@ const Settings = () => {
                     </>
                   )}
 
-                  {/* DATA SECTION */}
+                  {/* THRESHOLDS SECTION */}
+                  {section.id === "thresholds" && (
+                    <>
+                      <SettingsCard title="الحد الأدنى للرصيد" icon={<Bell className="w-4 h-4" />}>
+                        <div className="space-y-4">
+                          <p className="text-xs text-muted-foreground">
+                            عند وصول الرصيد إلى الحد الأدنى أو أقل، سيظهر تنبيه في صفحة الرصيد
+                          </p>
+                          <div className="space-y-3">
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-bold text-operator-mtn">MTN</label>
+                              <Input type="number" value={thresholds.mtn || ""}
+                                onChange={(e) => setThresholds({ ...thresholds, mtn: Number(e.target.value) || 0 })}
+                                placeholder="10000"
+                                className="text-left h-11 rounded-xl border-2 bg-background/50" dir="ltr" inputMode="numeric" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-bold text-operator-syriatel">Syriatel</label>
+                              <Input type="number" value={thresholds.syriatel || ""}
+                                onChange={(e) => setThresholds({ ...thresholds, syriatel: Number(e.target.value) || 0 })}
+                                placeholder="10000"
+                                className="text-left h-11 rounded-xl border-2 bg-background/50" dir="ltr" inputMode="numeric" />
+                            </div>
+                          </div>
+                        </div>
+                      </SettingsCard>
+                      <Button onClick={handleSave} className="w-full h-12 font-bold rounded-xl shadow-sm mt-2">حفظ التنبيهات</Button>
+                    </>
+                  )}
+
+                   {/* DATA SECTION */}
                   {section.id === "data" && (
                     <>
                       {/* Backup & Restore */}
@@ -720,7 +717,6 @@ const Settings = () => {
                             <InfoRow label="إجمالي التحويل" value={`${totalAmount.toLocaleString()} ل.س`} />
                             <InfoRow label="آخر عملية" value={allHistory.length > 0 ? `منذ ${getTimeSince(allHistory[0].timestamp)}` : "—"} />
                             <InfoRow label="العمليات القديمة" value={`${olderThanMonth} (>شهر)`} valueClassName={olderThanMonth > 0 ? "text-destructive" : undefined} />
-                            <InfoRow label="بيانات الرصيد" value={hasBalance ? 'محفوظة' : '—'} />
                             <InfoRow label="مستوى التخزين" value={getFormattedSize(storageStats.totalBytes)} />
                           </div>
                           <div className="flex gap-2">

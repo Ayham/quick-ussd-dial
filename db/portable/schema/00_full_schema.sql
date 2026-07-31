@@ -1,8 +1,12 @@
 
 -- ============ ROLES ============
-CREATE TYPE public.app_role AS ENUM ('admin', 'user');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role') THEN
+    CREATE TYPE public.app_role AS ENUM ('admin', 'user');
+  END IF;
+END $$;
 
-CREATE TABLE public.user_roles (
+CREATE TABLE IF NOT EXISTS public.user_roles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   role app_role NOT NULL DEFAULT 'user',
@@ -27,7 +31,7 @@ RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public AS $$
 BEGIN NEW.updated_at = now(); RETURN NEW; END; $$;
 
 -- ============ PROFILES ============
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   display_name TEXT,
@@ -56,7 +60,7 @@ END; $$;
 CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- ============ DEVICES ============
-CREATE TABLE public.devices (
+CREATE TABLE IF NOT EXISTS public.devices (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   device_id TEXT NOT NULL UNIQUE,
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -82,9 +86,13 @@ CREATE POLICY "Admins manage devices" ON public.devices FOR ALL USING (public.ha
 CREATE TRIGGER devices_updated BEFORE UPDATE ON public.devices FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- ============ LICENSES ============
-CREATE TYPE public.license_status AS ENUM ('active', 'expired', 'revoked', 'pending');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'license_status') THEN
+    CREATE TYPE public.license_status AS ENUM ('active', 'expired', 'revoked', 'pending');
+  END IF;
+END $$;
 
-CREATE TABLE public.licenses (
+CREATE TABLE IF NOT EXISTS public.licenses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   license_key TEXT NOT NULL UNIQUE,
   device_id TEXT REFERENCES public.devices(device_id) ON DELETE SET NULL,
@@ -109,9 +117,13 @@ CREATE POLICY "Admins manage licenses" ON public.licenses FOR ALL USING (public.
 CREATE TRIGGER licenses_updated BEFORE UPDATE ON public.licenses FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- ============ ACTIVATIONS (request flow from trial expired) ============
-CREATE TYPE public.activation_status AS ENUM ('pending', 'approved', 'rejected');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'activation_status') THEN
+    CREATE TYPE public.activation_status AS ENUM ('pending', 'approved', 'rejected');
+  END IF;
+END $$;
 
-CREATE TABLE public.activations (
+CREATE TABLE IF NOT EXISTS public.activations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   request_token TEXT NOT NULL UNIQUE,
   device_id TEXT NOT NULL,
@@ -133,7 +145,7 @@ CREATE POLICY "Users view own activation" ON public.activations FOR SELECT USING
 CREATE POLICY "Admins manage activations" ON public.activations FOR ALL USING (public.has_role(auth.uid(), 'admin'));
 
 -- ============ TRIALS ============
-CREATE TABLE public.trials (
+CREATE TABLE IF NOT EXISTS public.trials (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   device_id TEXT NOT NULL UNIQUE,
   started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -149,13 +161,14 @@ CREATE POLICY "Admins manage trials" ON public.trials FOR ALL USING (public.has_
 CREATE TRIGGER trials_updated BEFORE UPDATE ON public.trials FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- ============ TRANSFERS ============
-CREATE TABLE public.transfers (
+CREATE TABLE IF NOT EXISTS public.transfers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   client_id TEXT,
   device_id TEXT NOT NULL,
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   phone TEXT NOT NULL,
   amount NUMERIC NOT NULL,
+  package_price NUMERIC,
   operator TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'completed',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -169,7 +182,7 @@ CREATE POLICY "Users view own transfers" ON public.transfers FOR SELECT USING (a
 CREATE POLICY "Admins manage transfers" ON public.transfers FOR ALL USING (public.has_role(auth.uid(), 'admin'));
 
 -- ============ USSD CODES ============
-CREATE TABLE public.ussd_codes (
+CREATE TABLE IF NOT EXISTS public.ussd_codes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   device_id TEXT NOT NULL,
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -188,7 +201,7 @@ CREATE POLICY "Admins manage ussd" ON public.ussd_codes FOR ALL USING (public.ha
 CREATE TRIGGER ussd_updated BEFORE UPDATE ON public.ussd_codes FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- ============ USER SETTINGS ============
-CREATE TABLE public.user_settings (
+CREATE TABLE IF NOT EXISTS public.user_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   device_id TEXT NOT NULL,
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -201,41 +214,6 @@ ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users view own settings" ON public.user_settings FOR SELECT USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
 CREATE POLICY "Admins manage settings" ON public.user_settings FOR ALL USING (public.has_role(auth.uid(), 'admin'));
 CREATE TRIGGER settings_updated BEFORE UPDATE ON public.user_settings FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
--- ============ DISTRIBUTORS ============
-CREATE TABLE public.distributors (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  client_id TEXT,
-  device_id TEXT NOT NULL,
-  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-  name TEXT NOT NULL,
-  phone TEXT,
-  balance NUMERIC NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (device_id, client_id)
-);
-ALTER TABLE public.distributors ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users view own distributors" ON public.distributors FOR SELECT USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-CREATE POLICY "Admins manage distributors" ON public.distributors FOR ALL USING (public.has_role(auth.uid(), 'admin'));
-CREATE TRIGGER distributors_updated BEFORE UPDATE ON public.distributors FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-CREATE TABLE public.distributor_transactions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  client_id TEXT,
-  distributor_id UUID NOT NULL REFERENCES public.distributors(id) ON DELETE CASCADE,
-  device_id TEXT NOT NULL,
-  type TEXT NOT NULL,
-  amount NUMERIC NOT NULL,
-  notes TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (device_id, client_id)
-);
-ALTER TABLE public.distributor_transactions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Admins manage dist tx" ON public.distributor_transactions FOR ALL USING (public.has_role(auth.uid(), 'admin'));
-CREATE POLICY "Users view own dist tx" ON public.distributor_transactions FOR SELECT USING (
-  EXISTS (SELECT 1 FROM public.distributors d WHERE d.id = distributor_id AND (d.user_id = auth.uid()))
-);
 
 -- ============ ADMIN ACTIONS AUDIT LOG ============
 CREATE TABLE public.admin_actions (

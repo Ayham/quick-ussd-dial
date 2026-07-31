@@ -16,8 +16,9 @@ TABLES=(
   profiles user_roles user_settings
   devices trials licenses device_bans activations
   sim_assignments
-  distributors distributor_transactions payments
-  contacts transfers daily_summaries
+  # Financial
+  payments
+  # Contacts & transfers
   sessions app_events audit_logs admin_actions notifications
   sync_logs sync_metrics sync_conflicts
   account_lockouts failed_logins

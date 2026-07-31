@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 interface SmartPhoneSuggestionsProps {
   query: string;
-  onSelect: (phone: string, lastAmount?: number) => void;
+  onSelect: (phone: string, lastPrice?: number) => void;
   className?: string;
 }
 
@@ -40,14 +40,14 @@ function SuggestionCard({
   settings,
 }: {
   suggestion: TransferSuggestion;
-  onSelect: (phone: string, lastAmount?: number) => void;
-  settings: { showLastAmount: boolean; showCount: boolean; showLastTime: boolean };
+  onSelect: (phone: string, lastPrice?: number) => void;
+  settings: { showLastPrice: boolean; showCount: boolean; showLastTime: boolean };
 }) {
   const op = detectOperator(suggestion.phone);
 
   return (
     <button
-      onClick={() => onSelect(suggestion.phone, suggestion.lastAmount)}
+      onClick={() => onSelect(suggestion.phone, suggestion.lastPrice)}
       className="w-full flex items-center bg-white border border-border/60 rounded-xl px-4 py-3 shadow-sm hover:shadow-md hover:border-primary/20 active:scale-[0.98] transition-all duration-150 text-right"
       dir="ltr"
     >
@@ -67,10 +67,10 @@ function SuggestionCard({
           )}
         </div>
         <div className="flex items-center gap-3 mt-0.5">
-          {settings.showLastAmount && (
+          {settings.showLastPrice && (
             <span className="text-[11px] text-muted-foreground flex items-center gap-1">
               <TrendingUp className="w-3 h-3" />
-              آخر تحويل: {suggestion.lastAmount.toLocaleString()} ل.س
+              السعر: {suggestion.lastPrice.toLocaleString()} ل.س
             </span>
           )}
           {settings.showCount && (

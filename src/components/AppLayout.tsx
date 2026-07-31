@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import {
   Send, Wallet, BarChart3, Settings, Zap, Menu, ChevronLeft,
-  Users, Download, Shield, ChevronDown, Home, LogIn, LogOut, User,
-  LayoutDashboard, FileText, UserCheck, X, ExternalLink, KeyRound
+  Download, Shield, ChevronDown, Home, LogIn, LogOut, User,
+  X, ExternalLink, KeyRound
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { getCurrentUser, signOut, isAdminUser, isDistributorUser } from "@/lib/auth";
+import { getCurrentUser, signOut, isAdminUser } from "@/lib/auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -46,14 +46,12 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<{ email?: string } | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isDistributor, setIsDistributor] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
     getCurrentUser().then((u) => setUser(u ? { email: u.email } : null));
     isAdminUser().then(setIsAdmin).catch(() => setIsAdmin(false));
-    isDistributorUser().then(setIsDistributor).catch(() => setIsDistributor(false));
   }, [menuOpen]);
 
   const isBottomNavActive = (path: string) => {
@@ -218,71 +216,6 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
               </>
             )}
 
-            {/* Distributor section */}
-            {isDistributor && !isAdmin && (
-              <>
-                <div className="px-3 py-1.5 mt-4 mb-1">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">الموزع</span>
-                </div>
-                <button
-                  onClick={() => { setMenuOpen(false); navigate("/dm"); }}
-                  className={cn(
-                    "flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all w-full text-start",
-                    location.pathname === "/dm" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
-                  )}
-                >
-                  <div className={cn(
-                    "w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center",
-                    location.pathname === "/dm" ? "bg-primary text-white shadow-sm" : "bg-muted text-muted-foreground"
-                  )}>
-                    <LayoutDashboard className="w-4.5 h-4.5" />
-                  </div>
-                  <div className="text-right flex-1">
-                    <span className={cn("text-sm font-semibold block", location.pathname === "/dm" ? "text-primary" : "")}>الرئيسية</span>
-                    <span className="text-[11px] text-muted-foreground line-clamp-1">لوحة تحكم الموزع</span>
-                  </div>
-                  {location.pathname === "/dm" && <ChevronLeft className="w-4 h-4 text-primary me-auto flex-shrink-0" />}
-                </button>
-                <button
-                  onClick={() => { setMenuOpen(false); navigate("/dm/customers"); }}
-                  className={cn(
-                    "flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all w-full text-start",
-                    location.pathname.startsWith("/dm/customers") || location.pathname.startsWith("/dm/customer") ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
-                  )}
-                >
-                  <div className={cn(
-                    "w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center",
-                    location.pathname.startsWith("/dm/customers") || location.pathname.startsWith("/dm/customer") ? "bg-primary text-white shadow-sm" : "bg-muted text-muted-foreground"
-                  )}>
-                    <Users className="w-4.5 h-4.5" />
-                  </div>
-                  <div className="text-right flex-1">
-                    <span className={cn("text-sm font-semibold block", location.pathname.startsWith("/dm/customers") || location.pathname.startsWith("/dm/customer") ? "text-primary" : "")}>العملاء</span>
-                    <span className="text-[11px] text-muted-foreground line-clamp-1">إدارة العملاء</span>
-                  </div>
-                  {(location.pathname.startsWith("/dm/customers") || location.pathname.startsWith("/dm/customer")) && <ChevronLeft className="w-4 h-4 text-primary me-auto flex-shrink-0" />}
-                </button>
-                <button
-                  onClick={() => { setMenuOpen(false); navigate("/dm/requests"); }}
-                  className={cn(
-                    "flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all w-full text-start",
-                    location.pathname === "/dm/requests" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
-                  )}
-                >
-                  <div className={cn(
-                    "w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center",
-                    location.pathname === "/dm/requests" ? "bg-primary text-white shadow-sm" : "bg-muted text-muted-foreground"
-                  )}>
-                    <FileText className="w-4.5 h-4.5" />
-                  </div>
-                  <div className="text-right flex-1">
-                    <span className={cn("text-sm font-semibold block", location.pathname === "/dm/requests" ? "text-primary" : "")}>طلبات الرصيد</span>
-                    <span className="text-[11px] text-muted-foreground line-clamp-1">طلبات التعبئة</span>
-                  </div>
-                  {location.pathname === "/dm/requests" && <ChevronLeft className="w-4 h-4 text-primary me-auto flex-shrink-0" />}
-                </button>
-              </>
-            )}
           </nav>
 
           {/* Menu Footer - Sign In / Sign Out */}

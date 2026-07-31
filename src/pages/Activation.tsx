@@ -82,8 +82,8 @@ const Activation = () => {
   }
 
   const remainingDays = license ? getTrialRemainingDays(license.trial_end) : 0;
-  const isTrialActive = license?.license_status === "trial" && remainingDays > 0;
-  const isTrialExpired = license?.license_status === "trial" && remainingDays === 0;
+  const isTrialActive = license?.license_status === "trial" && (license.trial_end === null || remainingDays > 0);
+  const isTrialExpired = license?.license_status === "trial" && license.trial_end !== null && remainingDays === 0;
   const isActive = license?.license_status === "active";
   const isPermanent = license?.license_status === "permanent";
   const isLicensed = isActive || isPermanent;
@@ -152,6 +152,9 @@ const Activation = () => {
 
 function renderStatusBanner(license: any, remainingDays: number, isArabic: boolean, isTrialActive: boolean, isTrialExpired: boolean, isActive: boolean, isPermanent: boolean) {
   if (isTrialActive) {
+    if (license?.trial_end === null) {
+      return <StatusBanner type="success" icon={CheckCircle2} title={isArabic ? "الفترة التجريبية نشطة" : "Trial Active"} subtitle={isArabic ? "الترخيص التجريبي لا ينتهي" : "Trial license with no expiry"} />;
+    }
     const isUrgent = remainingDays <= 1;
     return (
       <div className={cn(

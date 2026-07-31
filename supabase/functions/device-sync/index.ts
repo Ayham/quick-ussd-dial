@@ -1,10 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const ALLOWED_ORIGINS = [Deno.env.get("APP_SITE_URL") || "http://localhost:5173", "http://localhost:5173", "http://localhost:3000", "http://localhost:8080"];
 function getCorsHeaders(origin: string | null) {
-  const safeOrigin = origin || Deno.env.get("APP_SITE_URL") || "http://localhost:5173";
   return {
-    "Access-Control-Allow-Origin": safeOrigin,
+    "Access-Control-Allow-Origin": origin ?? "*",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
@@ -41,15 +39,18 @@ Deno.serve(async (req) => {
       const result = event.event === "transfer"
         ? await sb.from("transfers").upsert({
             client_id: event.id,
+            device_id: clientId,
             user_id: userId,
             phone: String(data.phone || ""),
             amount: Number(data.amount || 0),
+            package_price: Number(data.package_price || 0),
             operator: String(data.operator || "unknown"),
             status: String(data.status || "completed"),
             created_at: event.timestamp,
-          }, { onConflict: "client_id" })
+          }, { onConflict: "device_id,client_id" })
         : await sb.from("app_events").upsert({
             client_id: event.id,
+            device_id: clientId,
             user_id: userId,
             event: event.event,
             data,

@@ -116,6 +116,7 @@ Deno.serve(async (req) => {
             device_id: deviceId,
             phone: String(data.phone || ""),
             amount: Number(data.amount || 0),
+            package_price: Number(data.package_price || 0),
             operator: String(data.operator || "unknown"),
             status: String(data.status || "completed"),
             user_id: userId,

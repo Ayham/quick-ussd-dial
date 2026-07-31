@@ -15,6 +15,7 @@ import {
 import {
   addToHistory,
   getHistory,
+  recordPrice,
   type TransferRecord,
 } from "@/lib/transfer-history";
 import {
@@ -195,6 +196,7 @@ const Index = () => {
       addToHistory({
         phone: phone.trim(),
         amount: String(selectedAmount.amount),
+        price: String(selectedAmount.price),
         operator: transferOperator,
         timestamp: Date.now(),
         status: "success",
@@ -259,7 +261,7 @@ const Index = () => {
     let totalSum = 0;
 
     phoneHistory.forEach((r) => {
-      const amt = Number(r.amount);
+      const amt = recordPrice(r);
       totalSum += amt;
       if (r.timestamp >= todayStart) { todaySum += amt; todayCount++; }
       if (r.timestamp >= weekAgo) { weekSum += amt; weekCount++; }
@@ -389,13 +391,13 @@ const Index = () => {
         {/* Smart Transfer Suggestions */}
         <SmartPhoneSuggestions
           query={phone}
-          onSelect={(suggestedPhone, lastAmount) => {
-            setPhone(suggestedPhone);
-            setShowContacts(false);
-            if (lastAmount && currentPresets.some(p => p.amount === lastAmount)) {
-              setSelectedAmount(currentPresets.find(p => p.amount === lastAmount)!);
-            }
-          }}
+         onSelect={(suggestedPhone, lastPrice) => {
+             setPhone(suggestedPhone);
+             setShowContacts(false);
+             if (lastPrice && currentPresets.some(p => p.price === lastPrice)) {
+               setSelectedAmount(currentPresets.find(p => p.price === lastPrice)!);
+             }
+           }}
         />
 
         {/* Secret Number Operator Selector */}
@@ -603,10 +605,10 @@ const Index = () => {
                       minute: "2-digit",
                     })}
                   </span>
-                  <div className="flex items-center gap-2.5">
-                    <span className="font-bold text-foreground text-sm">
-                      {Number(record.amount).toLocaleString()}
-                    </span>
+                   <div className="flex items-center gap-2.5">
+                     <span className="font-bold text-foreground text-sm">
+                       {recordPrice(record).toLocaleString()}
+                     </span>
                     {record.transferType === "secret" && (
                       <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full font-medium leading-none">
                         🔑

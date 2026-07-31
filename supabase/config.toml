@@ -8,9 +8,6 @@ verify_jwt = true
 [functions.device-sync]
 verify_jwt = true
 
-[functions.distributor-rpc]
-verify_jwt = true
-
 [functions.reports]
 verify_jwt = true
 

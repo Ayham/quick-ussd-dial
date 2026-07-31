@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { CheckCircle2, XCircle, Search, Clock, Mail, Phone, User } from "lucide-react";
+import { CheckCircle2, XCircle, Search, Clock, Mail, Phone, User, RefreshCw } from "lucide-react";
 
 interface ActivationRequest {
   id: string;
@@ -143,6 +143,15 @@ const ActivationRequests = () => {
         <span className="text-xs text-muted-foreground">
           {loading ? "" : `${requests.length} ${isArabic ? "طلب" : "request(s)"}`}
         </span>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 w-7 p-0 rounded-lg"
+          onClick={load}
+          title={isArabic ? "تحديث" : "Refresh"}
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+        </Button>
       </div>
 
       {loadRequestsError && (
