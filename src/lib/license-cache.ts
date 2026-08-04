@@ -4,7 +4,8 @@ import type { LicenseInfo } from "./license";
 
 const CACHE_KEY = "app_license_cache";
 const CACHE_AGE_KEY = "app_license_cache_age";
-const REFRESH_INTERVAL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
+const REFRESH_INTERVAL_MS = 1000 * 60 * 60 * 24 * 7;
+const MAX_OFFLINE_GRACE_MS = 1000 * 60 * 60 * 24; // 7 days
 
 export interface ValidationResult {
   valid: boolean;
@@ -58,8 +59,8 @@ export async function validateDeviceSession(): Promise<ValidationResult> {
     setCachedRaw(result);
     return result;
   } catch {
-    const cached = getCachedRaw().data;
-    if (cached) return cached;
+    const cached = getCachedRaw();
+    if (cached.data && cached.age <= MAX_OFFLINE_GRACE_MS) return cached.data;
     return { valid: false, reason: "no_connection", error: "تعذر التحقق / Unable to verify" };
   }
 }
@@ -74,8 +75,9 @@ export async function refreshLicenseCacheIfNeeded(): Promise<ValidationResult | 
 }
 
 export function getTransferGuard(): TransferGuardResult {
-  const cached = getCachedRaw().data;
-  if (!cached) return { allowed: false, reason: "unverified" };
+  const cached = getCachedRaw();
+  if (!cached.data) return { allowed: false, reason: "unverified" };
+  if (cached.age > MAX_OFFLINE_GRACE_MS) return { allowed: false, reason: "offline_grace_expired" };
 
   if (cached.account_status === "suspended") {
     return { allowed: false, reason: "حسابك موقوف / Account suspended" };

@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+import { Browser } from "@capacitor/browser";
+import { App } from "@capacitor/app";
 
 function normalizePhoneValue(phone?: string | null): string | null {
   if (!phone) return null;
@@ -6,6 +8,28 @@ function normalizePhoneValue(phone?: string | null): string | null {
   if (value.startsWith("+963")) value = "0" + value.slice(4);
   if (value.startsWith("963")) value = "0" + value.slice(3);
   return value.length >= 10 ? value : null;
+}
+
+const CAPACITOR_SCHEME = "com.BlueOrbitTechnologies.Raseed";
+const OAUTH_REDIRECT_PATH = "/auth";
+
+function getCapacitorRedirectUrl(): string {
+  return `${CAPACITOR_SCHEME}://auth`;
+}
+
+function isCapacitorNativePlatform(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    (window.location.protocol === "https:" && window.location.host === "localhost") ||
+    window.location.protocol === "capacitor:"
+  );
+}
+
+function getRedirectUrl(): string {
+  if (isCapacitorNativePlatform()) {
+    return getCapacitorRedirectUrl();
+  }
+  return window.location.origin;
 }
 
 export interface UserProfile {
@@ -53,8 +77,8 @@ export async function signUpWithEmail(
 }
 
 export async function signInWithGoogle(next = "/") {
-  const redirectTo = `${window.location.origin}/auth?next=${encodeURIComponent(next)}`;
-  return supabase.auth.signInWithOAuth({
+  const redirectTo = getRedirectUrl();
+  const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
       redirectTo,
@@ -64,6 +88,48 @@ export async function signInWithGoogle(next = "/") {
       },
     },
   });
+
+  if (error) return { error };
+
+  const oauthUrl = data?.url;
+  if (!oauthUrl) return { error: new Error("No OAuth URL returned") };
+
+  await Browser.open({ url: oauthUrl, windowName: "_system" });
+
+  return { error: null };
+}
+
+export async function handleOAuthDeepLink(url: string) {
+  const urlObj = new URL(url);
+  const code = urlObj.searchParams.get("code");
+  if (!code) return { error: new Error("No auth code in URL") };
+
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+  if (error) return { error };
+  return { data, error: null };
+}
+
+export async function listenForOAuthCallback(): Promise<() => void> {
+  const remove = await App.addListener("appUrlOpen", (event) => {
+    const url = event.url;
+    if (url && url.startsWith(`${CAPACITOR_SCHEME}://`)) {
+      handleOAuthDeepLink(url).then((result) => {
+        if (result.error) {
+          console.error("OAuth callback error:", result.error.message);
+        }
+      });
+    }
+  });
+  return () => { remove.remove(); };
+}
+
+export async function getInitialDeepLink(): Promise<string | null> {
+  const { url } = await App.getLaunchUrl() ?? {};
+  return url ?? null;
+}
+
+export function getOAuthRedirectUrl(): string {
+  return getCapacitorRedirectUrl();
 }
 
 export function validateEmail(email: string): string | null {

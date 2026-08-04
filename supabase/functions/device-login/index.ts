@@ -21,13 +21,25 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await serviceClient.auth.getUser(token);
     if (authError || !user) throw new Error("invalid_token");
 
+    const rateKey = `login:${user.id}`;
+    const { data: rateOk } = await serviceClient.rpc("check_rate_limit", { _key: rateKey, _window_seconds: 60, _max_requests: 5 });
+    if (!rateOk) throw new Error("rate_limited");
+
     // Check account status
     const { data: profile } = await serviceClient
       .from("profiles")
-      .select("account_status, license_status")
+      .select("account_status, license_status, current_device")
       .eq("user_id", user.id)
       .maybeSingle();
     if (profile?.account_status === "suspended" || profile?.account_status === "blocked") throw new Error("account_suspended");
+
+    // Enforce single device: reject login from a different device if current_device is set
+    if (profile?.current_device && profile.current_device !== deviceId) {
+      return new Response(JSON.stringify({ success: false, error: "device_mismatch", current_device: profile.current_device }), {
+        status: 403,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": origin },
+      });
+    }
 
     // Revoke all other sessions for this user
     await serviceClient

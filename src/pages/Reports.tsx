@@ -408,7 +408,7 @@ const Reports = () => {
 
   return (
     <AppLayout title="التقارير" titleIcon={<BarChart3 className="w-5 h-5 text-white" />}>
-      <div className="mx-auto w-full max-w-6xl space-y-4 p-3 pb-[calc(env(safe-area-inset-bottom,0px)+16px)]" dir="rtl">
+      <div className="mx-auto w-full max-w-6xl space-y-4 p-3 pb-3" dir="rtl">
 
         {/* 1. DASHBOARD HEADER */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

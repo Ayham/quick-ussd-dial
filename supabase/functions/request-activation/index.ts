@@ -20,6 +20,9 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await serviceClient.auth.getUser(token);
     if (authError || !user) throw new Error("invalid_token");
 
+    const { data: rateOk } = await serviceClient.rpc("check_rate_limit", { _key: `activation:${user.id}`, _window_seconds: 60, _max_requests: 3 });
+    if (!rateOk) throw new Error("rate_limited");
+
     // Check for existing pending request
     const { data: existing } = await serviceClient
       .from("activations")

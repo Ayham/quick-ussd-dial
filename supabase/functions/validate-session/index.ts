@@ -13,6 +13,9 @@ serve(async (req) => {
     if (!authHeader) throw new Error("missing authorization");
 
     const token = authHeader.replace("Bearer ", "");
+    const body: { device_id?: string } = await req.json().catch(() => ({}));
+    const deviceId = body.device_id || req.headers.get("x-device-id") || "";
+
     const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
     const { data: { user }, error: authError } = await serviceClient.auth.getUser(token);
     if (authError || !user) throw new Error("invalid_token");
@@ -50,10 +53,13 @@ serve(async (req) => {
     } else if (expiryDate && expiryDate < now && profile.license_status !== "permanent") {
       isLocked = true;
       lockReason = "license_expired";
+    } else if (profile.current_device && profile.current_device !== deviceId) {
+      isLocked = true;
+      lockReason = "device_mismatch";
     }
 
     return new Response(JSON.stringify({
-      valid: true,
+      valid: !isLocked,
       user: {
         id: user.id,
         email: user.email,
@@ -75,9 +81,10 @@ serve(async (req) => {
       },
       device: {
         current_device: profile.current_device,
+        device_match: !profile.current_device || profile.current_device === deviceId,
       },
     }), {
-      status: 200,
+      status: isLocked ? 403 : 200,
       headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": origin },
     });
   } catch (err) {

@@ -3,7 +3,7 @@
 -- and checks license/account status. Returns JSONB with validation result.
 -- Safe to run multiple times.
 CREATE OR REPLACE FUNCTION public.validate_device_session(_device_id TEXT)
-RETURNS JSONB LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+ RETURNS JSONB LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   _profile RECORD;
   _now CONSTANT TIMESTAMPTZ := now();

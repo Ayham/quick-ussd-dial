@@ -13,17 +13,27 @@ serve(async (req) => {
     if (!authHeader) throw new Error("missing authorization");
     const token = authHeader.replace("Bearer ", "");
 
+    const body: { device_id?: string } = await req.json().catch(() => ({}));
+    const deviceId = body.device_id || req.headers.get("x-device-id") || "";
+
     const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
     const { data: { user }, error: authError } = await serviceClient.auth.getUser(token);
     if (authError || !user) throw new Error("invalid_token");
 
     const { data: profile } = await serviceClient
       .from("profiles")
-      .select("license_status, license_type, trial_start, trial_end, expiry_date, account_status")
+      .select("license_status, license_type, trial_start, trial_end, expiry_date, account_status, current_device")
       .eq("user_id", user.id)
       .maybeSingle();
 
     if (!profile) throw new Error("profile_not_found");
+
+    if (profile.current_device && profile.current_device !== deviceId) {
+      return new Response(JSON.stringify({ valid: false, reason: "device_mismatch", error: "This account is registered on another device" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": origin },
+      });
+    }
 
     const now = new Date();
     const trialEnd = profile.trial_end ? new Date(profile.trial_end) : null;
@@ -44,7 +54,7 @@ serve(async (req) => {
       ? Math.max(0, Math.floor((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
       : null;
 
-    return new Response(JSON.stringify({ valid, reason, license_status: profile.license_status, trial_remaining_days: trialRemainingDays }), {
+    return new Response(JSON.stringify({ valid, reason, license_status: profile.license_status, trial_remaining_days: trialRemainingDays, device_match: !profile.current_device || profile.current_device === deviceId }), {
       status: 200,
       headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": origin },
     });

@@ -84,8 +84,8 @@ const Admin = () => {
   };
 
   return (
-    <div className="min-h-dvh bg-background safe-area-insets">
-      <header className="header-gradient px-5 pb-4 pt-[calc(env(safe-area-inset-top,0px)+14px)] flex flex-col gap-4 shadow-[0_2px_20px_-4px_hsl(221_83%_53%/0.25)]">
+    <div className="min-h-dvh bg-background">
+      <header className="header-gradient px-5 pb-4 pt-[calc(var(--sat)+14px)] flex flex-col gap-4 shadow-[0_2px_20px_-4px_hsl(221_83%_53%/0.25)]">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-white/15 flex items-center justify-center shadow-inner">
@@ -140,7 +140,7 @@ const Admin = () => {
         </div>
       </header>
 
-      <main className="p-4 max-w-7xl mx-auto pb-8">
+      <main className="px-4 pt-4 max-w-7xl mx-auto pb-[calc(var(--sab)+2rem)]">
         {tabs.map((tab) => (
           <div
             key={tab.value}

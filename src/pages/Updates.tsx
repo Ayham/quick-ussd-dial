@@ -42,7 +42,7 @@ const Updates = () => {
 
   return (
     <AppLayout title="التحديثات" titleIcon={<div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><Download className="w-4.5 h-4.5 text-white" /></div>}>
-      <div className="flex-1 overflow-auto pb-safe" dir="rtl">
+      <div className="flex-1 overflow-auto" dir="rtl">
         <div className="p-4 space-y-4 max-w-lg mx-auto">
 
           <div className="bg-white rounded-2xl shadow-sm border border-border/60 p-5">

@@ -1,6 +1,3 @@
-[project]
-id = "tebyyidgcsivzslaohxd"
-
 [functions]
 [functions.admin-bootstrap]
 verify_jwt = true

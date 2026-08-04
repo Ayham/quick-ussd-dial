@@ -4,10 +4,7 @@ import { isNativeApp } from "./platform";
 let cachedDeviceId: string | null = null;
 
 function generateDeviceId(): string {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-  let id = "device_";
-  for (let i = 0; i < 16; i++) id += chars.charAt(Math.floor(Math.random() * chars.length));
-  return id;
+  return "device_" + crypto.randomUUID();
 }
 
 export function getDeviceId(): string {

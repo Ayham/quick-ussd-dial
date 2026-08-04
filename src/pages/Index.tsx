@@ -22,7 +22,7 @@ import {
   saveContactAfterTransfer,
   searchContactsSync,
   createAndroidContact,
-  getContactByPhone,
+  openAppSettings,
   pickContactFromDevice,
   normalizePhone,
   type AndroidContact,
@@ -70,6 +70,7 @@ const Index = () => {
   const [nameInput, setNameInput] = useState('');
   const [secretOperator, setSecretOperator] = useState<Operator | null>(() => getLastSecretOperator());
   const [androidContacts, setAndroidContacts] = useState<ContactMatch[]>([]);
+  const [contactsVersion, setContactsVersion] = useState(0);
 
   const contactsRef = useRef<HTMLDivElement>(null);
 
@@ -103,7 +104,7 @@ const Index = () => {
         if (!cancelled) setAndroidContacts([]);
         return;
       }
-      const results = await searchContactsSync(phone.trim(), 10);
+      const results = await searchContactsSync(phone.trim(), 30);
       if (!cancelled) {
         setAndroidContacts(results.map((c: AndroidContact) => ({
           phone: normalizePhone(c.phones[0] || ''),
@@ -115,7 +116,7 @@ const Index = () => {
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [phone]);
+  }, [phone, contactsVersion]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -166,14 +167,28 @@ const Index = () => {
     setShowConfirm(true);
   }, [phone, isSecretNumber, transferOperator, selectedAmount]);
 
-  const saveNameToAndroid = useCallback(async (phoneNumber: string, name: string) => {
-    const { Capacitor } = await import('@capacitor/core');
-    if (!Capacitor.isNativePlatform()) return;
-    const existing = await getContactByPhone(phoneNumber);
-    if (!existing || !existing.contactId) {
-      await createAndroidContact(phoneNumber, name);
-    }
-  }, []);
+  const saveNameToAndroid = useCallback(
+    async (phoneNumber: string, name: string): Promise<{ ok: boolean; code?: string; message?: string }> => {
+      const { Capacitor } = await import('@capacitor/core');
+      if (!Capacitor.isNativePlatform()) return { ok: false, code: 'NOT_NATIVE' };
+      console.log('[Transfer] saveNameToAndroid: JS step 1, phone=', phoneNumber, 'name=', name);
+      try {
+        const result = await createAndroidContact(phoneNumber, name);
+        if (!result || !result.contactId) {
+          return { ok: false, code: 'VERIFY_FAILED' };
+        }
+        console.log('[Transfer] saveNameToAndroid: success, contactId=', result.contactId);
+        return { ok: true };
+      } catch (err) {
+        const e = err as { code?: string; message?: string; data?: { exception?: string; stack?: string } };
+        console.error('[Transfer] saveNameToAndroid: native failure code=', e?.code,
+          'exception=', e?.data?.exception, 'message=', e?.message);
+        if (e?.data?.stack) console.error('[Transfer] native stack:\n' + e.data.stack);
+        return { ok: false, code: e?.code, message: e?.message };
+      }
+    },
+    [],
+  );
 
   const handleConfirmTransfer = useCallback(async () => {
     if (!transferOperator || !selectedAmount) return;
@@ -210,7 +225,8 @@ const Index = () => {
 
       toast.success("تم إرسال الطلب بنجاح ✓");
 
-      saveContactAfterTransfer(phone.trim(), nameInput.trim() || contactName);
+      await saveContactAfterTransfer(phone.trim(), nameInput.trim() || contactName);
+      setContactsVersion(v => v + 1);
 
       setPhone("");
       setSelectedAmount(null);
@@ -222,7 +238,7 @@ const Index = () => {
     } finally {
       setDialing(false);
     }
-  }, [phone, transferOperator, selectedAmount, credentials, operator]);
+  }, [phone, transferOperator, selectedAmount, credentials, operator, contactName, nameInput]);
 
   const selectContact = (contact: ContactMatch) => {
     setPhone(contact.phone);
@@ -373,9 +389,20 @@ const Index = () => {
                     className="h-8 text-xs rounded-xl px-3 shadow-sm"
                     onClick={async () => {
                       if (nameInput.trim()) {
-                        await saveNameToAndroid(phone.trim(), nameInput.trim());
-                        setContactName(nameInput.trim());
-                        toast.success("تم حفظ الاسم");
+                        const res = await saveNameToAndroid(phone.trim(), nameInput.trim());
+                        if (res.ok) {
+                          setContactName(nameInput.trim());
+                          toast.success("تم حفظ الاسم");
+                          setContactsVersion(v => v + 1);
+                        } else if (res.code === 'PERMISSION_DENIED') {
+                          toast.error("صلاحية جهات الاتصال مرفوضة. امنح التطبيق الإذن من الإعدادات ثم أعد المحاولة");
+                          await openAppSettings();
+                        } else {
+                          console.warn('[Transfer] save name failed:', res.code, res.message);
+                          toast.error(res.message
+                            ? `فشل حفظ الاسم (${res.code || 'خطأ'}): ${res.message}`
+                            : "فشل حفظ الاسم، حاول مرة أخرى");
+                        }
                       }
                       setShowSaveName(false);
                     }}

@@ -60,9 +60,9 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
   };
 
   return (
-    <div className="min-h-dvh bg-background flex flex-col safe-area-insets">
+    <div className="min-h-dvh bg-background flex flex-col">
       {/* Header */}
-      <header className="header-gradient px-5 pb-4 pt-[calc(env(safe-area-inset-top,0px)+14px)] flex items-center justify-between z-header sticky top-0 shadow-[0_2px_20px_-4px_hsl(221_83%_53%/0.25)]">
+      <header className="header-gradient px-5 pb-4 pt-[calc(var(--sat)+14px)] flex items-center justify-between z-header sticky top-0 shadow-[0_2px_20px_-4px_hsl(221_83%_53%/0.25)]">
         <div className="flex items-center gap-3 cursor-pointer active:scale-95 transition-transform" onClick={onTitleClick}>
           {titleIcon || (
             <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center backdrop-blur-sm shadow-inner">
@@ -85,12 +85,12 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
       </header>
 
       {/* Main content */}
-      <main className={cn("flex-1 overflow-y-auto", !hideNav && "pb-nav")}>
+      <main className={cn("flex-1 overflow-y-auto", hideNav ? "pb-safe" : "pb-nav")}>
         {children}
       </main>
 
       {/* Bottom Navigation - Floating Style */}
-      {!hideNav && (
+      {/* {!hideNav && (
         <nav className="fixed bottom-0 left-0 right-0 z-nav pb-safe">
           <div className="relative mx-auto max-w-lg px-4 pb-2">
             <div className="bg-white/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-[0_-4px_24px_-6px_rgba(0,0,0,0.12)] px-2 py-1.5 flex items-center justify-around">
@@ -130,13 +130,13 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
             </div>
           </div>
         </nav>
-      )}
+      )} */}
 
       {/* Side Menu / Drawer */}
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
         <SheetContent side="left" className="w-72 p-0 border-0 flex flex-col">
           {/* Menu Header - Modern Gradient */}
-          <div className="header-gradient px-5 py-7 flex-shrink-0 relative overflow-hidden">
+          <div className="header-gradient px-5 pt-[calc(var(--sat)+24px)] pb-7 flex-shrink-0 relative overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_hsla(0,0%,100%,0.1)_0%,_transparent_60%)]" />
             <div className="relative">
               <div className="flex items-center justify-between mb-4">
@@ -219,7 +219,7 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
           </nav>
 
           {/* Menu Footer - Sign In / Sign Out */}
-          <div className="border-t border-border p-3 flex-shrink-0">
+          <div className="border-t border-border px-3 pt-3 pb-safe flex-shrink-0">
             {user ? (
               <button
                 onClick={async () => { await signOut(); setUser(null); toast.success(t("common.success")); setMenuOpen(false); }}

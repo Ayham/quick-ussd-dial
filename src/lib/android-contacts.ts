@@ -16,6 +16,23 @@ export interface CreateContactResult {
   updated: boolean;
 }
 
+export class ContactsError extends Error {
+  code?: string;
+  data?: unknown;
+  constructor(message: string, code?: string, data?: unknown) {
+    super(message);
+    this.name = "ContactsError";
+    this.code = code;
+    this.data = data;
+  }
+}
+
+function toContactsError(err: unknown): ContactsError {
+  if (err instanceof ContactsError) return err;
+  const e = err as { code?: string; message?: string; data?: unknown };
+  return new ContactsError(e?.message || "Contacts operation failed", e?.code, e?.data);
+}
+
 export interface SearchResult {
   contacts: AndroidContact[];
 }
@@ -35,6 +52,7 @@ type ContactsPlugin = {
   updateContactName(options: { phone: string; name: string }): Promise<{ contactId: string; updated: boolean }>;
   deleteContact(options: { phone: string }): Promise<{ deleted: boolean }>;
   getAllContacts(options: { limit?: number; offset?: number }): Promise<SearchResult>;
+  openAppSettings(): Promise<void>;
 };
 
 let plugin: ContactsPlugin | null = null;
@@ -71,6 +89,9 @@ async function getPlugin(): Promise<ContactsPlugin> {
     async getAllContacts(_options: { limit?: number; offset?: number }) {
       return { contacts: [] };
     }
+    async openAppSettings() {
+      return;
+    }
   }
 
   if (!Capacitor.isNativePlatform()) {
@@ -79,7 +100,8 @@ async function getPlugin(): Promise<ContactsPlugin> {
   }
 
   try {
-    plugin = Capacitor.Plugins.AndroidContacts as unknown as ContactsPlugin;
+    const cap = Capacitor as unknown as { Plugins: Record<string, ContactsPlugin> };
+    plugin = cap.Plugins.AndroidContacts;
   } catch {
     plugin = new AndroidContactsWeb();
   }
@@ -190,23 +212,34 @@ export async function searchContactsSync(query: string, limit = 50): Promise<And
   }
 }
 
-export async function createAndroidContact(phone: string, name?: string): Promise<CreateContactResult | null> {
+export async function createAndroidContact(phone: string, name?: string): Promise<CreateContactResult> {
+  const normalizedPhone = normalizePhone(phone);
+  console.log('[AndroidContacts] createContact JS step 1: entering, phone=', normalizedPhone, 'name=', name);
+
+  const hasPermission = await ensureContactsPermissions();
+  console.log('[AndroidContacts] createContact JS step 2: ensureContactsPermissions=', hasPermission);
+  if (!hasPermission) {
+    throw new ContactsError("Contacts permission denied", "PERMISSION_DENIED");
+  }
   try {
-    const hasPermission = await ensureContactsPermissions();
-    if (!hasPermission) {
-      console.warn('[AndroidContacts] Cannot create contact: permissions denied');
-      return null;
-    }
     const p = await getPlugin();
-    const result = await p.createContact({
-      phone: normalizePhone(phone),
-      name: name || '',
-    });
+    console.log('[AndroidContacts] createContact JS step 3: calling native createContact');
+    const result = await p.createContact({ phone: normalizedPhone, name: name || '' });
     console.log('[AndroidContacts] createContact result:', JSON.stringify(result));
     return result;
   } catch (err) {
-    console.warn('[AndroidContacts] createContact error:', err);
-    return null;
+    const ce = toContactsError(err);
+    console.error('[AndroidContacts] createContact native failure:', ce.code, ce.message, ce.data);
+    throw ce;
+  }
+}
+
+export async function openAppSettings(): Promise<void> {
+  try {
+    const p = await getPlugin();
+    await p.openAppSettings();
+  } catch (err) {
+    console.warn('[AndroidContacts] openAppSettings error:', err);
   }
 }
 
@@ -239,7 +272,7 @@ export async function deleteAndroidContact(phone: string): Promise<boolean> {
   }
 }
 
-export async function getAllAndroidContacts(limit = 200, offset = 0): Promise<AndroidContact[]> {
+export async function getAllAndroidContacts(limit = 0, offset = 0): Promise<AndroidContact[]> {
   try {
     const hasPermission = await ensureContactsPermissions();
     if (!hasPermission) return [];
@@ -259,8 +292,9 @@ export async function saveContactAfterTransfer(phone: string, name?: string): Pr
 
     const existing = await getContactByPhone(normalizedPhone);
     if (!existing || !existing.contactId) {
-      await createAndroidContact(normalizedPhone, name || normalizedPhone);
-      console.log('[AndroidContacts] Created contact after transfer:', normalizedPhone);
+      const result = await createAndroidContact(normalizedPhone, name || normalizedPhone);
+      console.log('[AndroidContacts] Created contact after transfer:', normalizedPhone,
+        JSON.stringify(result));
     }
   } catch (err) {
     console.warn('[AndroidContacts] saveContactAfterTransfer error:', err);
@@ -268,8 +302,11 @@ export async function saveContactAfterTransfer(phone: string, name?: string): Pr
 }
 
 export function normalizePhone(phone: string): string {
+  if (!phone) return '';
   let p = phone.replace(/[^\d+]/g, '');
-  if (p.startsWith('+963')) p = '0' + p.slice(4);
-  if (p.startsWith('963')) p = '0' + p.slice(3);
+  if (p.startsWith('+')) p = p.slice(1);
+  if (p.startsWith('00963') && p.length >= 14) p = '0' + p.slice(5);
+  else if (p.startsWith('963') && p.length >= 12) p = '0' + p.slice(3);
+  else if (p.length === 9 && !p.startsWith('0')) p = '0' + p;
   return p;
 }

@@ -54,7 +54,7 @@ type SettingsSection = "sim" | "codes" | "amounts" | "thresholds" | "suggestions
 const Settings = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const [activeSection, setActiveSection] = useState<SettingsSection | null>("sim");
+  const [activeSection, setActiveSection] = useState<SettingsSection | null>(null);
   const [presets, setPresets] = useState(() => getPresets());
   const [credentials, setCredentials] = useState<OperatorCredentials>(() => getCredentials());
   const [templates, setTemplates] = useState<UssdTemplates>(() => getUssdTemplates());

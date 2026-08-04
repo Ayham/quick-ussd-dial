@@ -6,6 +6,7 @@ import { isAdminUser } from "@/lib/auth";
 import { validateAndRefreshSession } from "@/lib/session-service";
 import { getDeviceId, registerDeviceLogin } from "@/lib/device";
 import { refreshLicenseCacheIfNeeded, validateDeviceSession } from "@/lib/license-cache";
+import { listenForOAuthCallback, getInitialDeepLink, handleOAuthDeepLink } from "@/lib/auth";
 
 type AuthState = {
   user: User | null;
@@ -91,6 +92,34 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     );
     return () => clearInterval(intervalId);
   }, [user]);
+
+  useEffect(() => {
+    let alive = true;
+    let removeListener: (() => void) | null = null;
+
+    const setup = async () => {
+      // Check for cold start deep link
+      const initialUrl = await getInitialDeepLink();
+      if (initialUrl && initialUrl.startsWith("com.BlueOrbitTechnologies.Raseed://")) {
+        const result = await handleOAuthDeepLink(initialUrl);
+        if (result.error) {
+          console.error("Cold start OAuth error:", result.error.message);
+        }
+      }
+
+      // Listen for OAuth callbacks from browser redirect
+      removeListener = await listenForOAuthCallback();
+    };
+
+    setup();
+
+    return () => {
+      alive = false;
+      if (removeListener) {
+        removeListener();
+      }
+    };
+  }, []);
 
   const value = useMemo(() => ({ user, isAdmin, loading, refresh }), [user, isAdmin, loading]);
 
