@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDateTime } from "@/lib/format-date";
 import { Input } from "@/components/ui/input";
 import { Search, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -87,7 +88,7 @@ export function EventsViewer() {
                   <td className="p-2 text-xs font-semibold">{e.event}</td>
                   <td className="p-2 font-mono text-[10px] whitespace-nowrap">{e.device_id}</td>
                   <td className="p-2 text-[10px] font-mono max-w-xs truncate">{JSON.stringify(e.data)}</td>
-                  <td className="p-2 text-xs">{new Date(e.created_at).toLocaleString()}</td>
+                  <td className="p-2 text-xs">{formatDateTime(e.created_at)}</td>
                 </tr>
               ))}
             </tbody>

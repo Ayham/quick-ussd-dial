@@ -98,7 +98,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     let removeListener: (() => void) | null = null;
 
     const setup = async () => {
-      // Check for cold start deep link
+      // Cold start: the app was launched by a deep link (email confirmation / OAuth)
       const initialUrl = await getInitialDeepLink();
       if (initialUrl && initialUrl.startsWith("com.BlueOrbitTechnologies.Raseed://")) {
         const result = await handleOAuthDeepLink(initialUrl);
@@ -107,7 +107,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Listen for OAuth callbacks from browser redirect
+      // Listen for OAuth / email-confirmation callbacks via the app deep link
       removeListener = await listenForOAuthCallback();
     };
 

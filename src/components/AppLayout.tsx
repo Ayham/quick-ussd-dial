@@ -8,6 +8,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { getCurrentUser, signOut, isAdminUser } from "@/lib/auth";
+import { getBusinessName } from "@/lib/onboarding";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -46,12 +47,14 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<{ email?: string } | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [brandTitle, setBrandTitle] = useState(() => getBusinessName() || "تحويل رصيد");
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
     getCurrentUser().then((u) => setUser(u ? { email: u.email } : null));
     isAdminUser().then(setIsAdmin).catch(() => setIsAdmin(false));
+    setBrandTitle(getBusinessName() || "تحويل رصيد");
   }, [menuOpen]);
 
   const isBottomNavActive = (path: string) => {
@@ -152,7 +155,7 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
                   <Zap className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-white text-lg font-bold">تحويل رصيد</h2>
+                  <h2 className="text-white text-lg font-bold">{brandTitle}</h2>
                   {user && (
                     <p className="text-white/60 text-[11px] mt-0.5 truncate">{user.email}</p>
                   )}

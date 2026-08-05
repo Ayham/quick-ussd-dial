@@ -1,5 +1,6 @@
 import type { Operator } from "./ussd-profiles";
 import { getHistory } from "./transfer-history";
+import { getActualDeductedAmount } from "./amount-utils";
 
 const BALANCE_STORAGE_KEY = "balance_tracking_v2";
 const THRESHOLD_KEY = "low_balance_thresholds_v1";
@@ -104,7 +105,7 @@ export function getEstimatedBalance(operator: Operator): number | null {
     (r) => r.operator === operator && r.status === "success" && r.timestamp > current.timestamp
   );
 
-  const deducted = transfers.reduce((sum, r) => sum + Number(r.amount), 0);
+  const deducted = transfers.reduce((sum, r) => sum + getActualDeductedAmount(r.operator, Number(r.amount)), 0);
   return Math.max(0, current.amount - deducted);
 }
 

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { getActualDeductedAmount } from "@/lib/amount-utils";
+import { formatDateTime } from "@/lib/format-date";
 import { Input } from "@/components/ui/input";
 import { Search, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -89,7 +91,7 @@ export function TransfersViewer() {
     succeeded: transfers.filter((t) => t.status === "success" || t.status === "completed").length,
     failed: transfers.filter((t) => t.status === "failed").length,
     pending: transfers.filter((t) => t.status === "pending").length,
-    totalAmount: transfers.reduce((sum, t) => sum + (t.package_price ?? (t.amount !== undefined ? t.amount : 0)), 0),
+    totalAmount: transfers.reduce((sum, t) => sum + getActualDeductedAmount(t.operator, t.amount !== undefined ? t.amount : 0), 0),
     mtn: transfers.filter((t) => (t.operator || "").toLowerCase() === "mtn").length,
     syriatel: transfers.filter((t) => (t.operator || "").toLowerCase() === "syriatel").length,
   };
@@ -191,14 +193,14 @@ export function TransfersViewer() {
                 <td className="p-3 text-xs font-mono whitespace-nowrap">{transfer.device_id}</td>
                 <td className="p-3 font-mono text-xs" dir="ltr">{transfer.phone}</td>
                 <td className="p-3 text-xs">{(transfer.operator || "unknown").toUpperCase()}</td>
-                <td className="p-3 font-semibold">{(transfer.package_price ?? transfer.amount).toLocaleString()} ل.س</td>
+                <td className="p-3 font-semibold">{(transfer.package_price ?? getActualDeductedAmount(transfer.operator, transfer.amount)).toLocaleString()} ل.س</td>
                 <td className="p-3 text-xs">{transfer.package_name ? `${transfer.package_name} / ${transfer.package_price ?? 0}` : "—"}</td>
                 <td className="p-3">
                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${transfer.sync_status === "synced" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>
                     {transfer.sync_status || "pending"}
                   </span>
                 </td>
-                <td className="p-3 text-xs">{new Date(transfer.created_at).toLocaleString()}</td>
+                <td className="p-3 text-xs">{formatDateTime(transfer.created_at)}</td>
               </tr>
             ))}
           </tbody>

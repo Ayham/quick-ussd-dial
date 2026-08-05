@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDate, formatDateTime } from "@/lib/format-date";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -298,12 +299,12 @@ const LicenseManagement = () => {
                       {u.trial_remaining_days !== null
                         ? <span className={u.trial_remaining_days <= 1 ? "text-destructive font-bold" : ""}>{u.trial_remaining_days} {isArabic ? "ي" : "d"}</span>
                         : u.expiry_date
-                          ? <span className="text-xs">{new Date(u.expiry_date).toLocaleDateString()}</span>
+                          ? <span className="text-xs">{formatDate(u.expiry_date)}</span>
                           : "-"}
                     </td>
                     <td className="p-3 text-xs text-muted-foreground truncate max-w-[100px]" dir="ltr">{u.current_device || "-"}</td>
-                    <td className="p-3 text-xs text-muted-foreground">{u.last_login ? new Date(u.last_login).toLocaleDateString() : "-"}</td>
-                    <td className="p-3 text-xs text-muted-foreground">{u.created_at ? new Date(u.created_at).toLocaleDateString() : "-"}</td>
+                    <td className="p-3 text-xs text-muted-foreground">{u.last_login ? formatDate(u.last_login) : "-"}</td>
+                    <td className="p-3 text-xs text-muted-foreground">{u.created_at ? formatDate(u.created_at) : "-"}</td>
                     <td className="p-3">
                       <div className="flex items-center gap-1 flex-wrap">
                         <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title={isArabic ? "تعديل الترخيص" : "Edit license"}
@@ -430,7 +431,7 @@ const LicenseManagement = () => {
                 <div key={i} className="bg-muted/30 rounded-xl p-3 space-y-1 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-xs">{h.action}</span>
-                    <span className="text-xs text-muted-foreground">{new Date(h.created_at).toLocaleString()}</span>
+                    <span className="text-xs text-muted-foreground">{formatDateTime(h.created_at)}</span>
                   </div>
                   {h.details && typeof h.details === "object" && (
                     <p className="text-xs text-muted-foreground">{JSON.stringify(h.details)}</p>

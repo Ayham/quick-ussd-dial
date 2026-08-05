@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Toaster } from "sonner";
 
 import Index from "./Index";
-import { createAndroidContact, openAppSettings } from "@/lib/android-contacts";
+import { createAndroidContact, getContactByPhone, openAppSettings } from "@/lib/android-contacts";
 
 vi.mock("@/lib/cloud-sync", () => ({
   trackTransfer: vi.fn(),
@@ -35,6 +35,7 @@ vi.mock("@capacitor/core", () => ({
 describe("Transfer phone input", () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.mocked(getContactByPhone).mockResolvedValue(null);
   });
 
   it("renders a phone input with tel type and searches Android contacts on focus", async () => {
@@ -51,13 +52,86 @@ describe("Transfer phone input", () => {
     fireEvent.focus(phoneInput!);
     fireEvent.change(phoneInput!, { target: { value: "0991" } });
 
-    const contactItem = await screen.findByText("Ahmad Store");
+    const contactItem = (await screen.findAllByText("Ahmad Store"))[0];
     expect(contactItem).toBeInTheDocument();
 
     fireEvent.click(contactItem);
 
     expect(phoneInput).toHaveValue("0991234567");
-    expect(await screen.findByText("Ahmad Store")).toBeInTheDocument();
+    expect((await screen.findAllByText("Ahmad Store")).length).toBeGreaterThan(0);
+  });
+
+  it("shows recent phone numbers on focus before typing and fills the input on select", async () => {
+    localStorage.setItem("transfer-history", JSON.stringify([
+      { phone: "0991111222", amount: "100", price: "120", operator: "syriatel", timestamp: Date.now(), status: "success", transferType: "phone" },
+      { phone: "0945555666", amount: "50", price: "60", operator: "mtn", timestamp: Date.now() - 5000, status: "success", transferType: "phone" },
+    ]));
+
+    render(
+      <MemoryRouter>
+        <Index />
+      </MemoryRouter>,
+    );
+
+    const phoneInput = document.querySelector('input[type="tel"]');
+    fireEvent.focus(phoneInput!);
+
+    expect(await screen.findByText("0991111222")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("0991111222"));
+
+    expect(phoneInput).toHaveValue("0991111222");
+  });
+
+  it("auto-fills the customer name from contacts when a full matching number is entered", async () => {
+    vi.mocked(getContactByPhone).mockResolvedValue({ contactId: "9", displayName: "Auto Match", phone: "0991234567" });
+
+    render(
+      <MemoryRouter>
+        <Index />
+      </MemoryRouter>,
+    );
+
+    const phoneInput = document.querySelector('input[type="tel"]');
+    fireEvent.change(phoneInput!, { target: { value: "0991234567" } });
+
+    expect(await screen.findByText("Auto Match")).toBeInTheDocument();
+  });
+
+  it("shows the contact name on customer suggestions and fills the phone on select", async () => {
+    vi.mocked(getContactByPhone).mockResolvedValue({ contactId: "7", displayName: "Ali Shop", phone: "0997654321" });
+    localStorage.setItem("transfer-history", JSON.stringify([
+      { phone: "0997654321", amount: "100", price: "120", operator: "syriatel", timestamp: Date.now(), status: "success", transferType: "phone" },
+    ]));
+
+    render(
+      <MemoryRouter>
+        <Index />
+      </MemoryRouter>,
+    );
+
+    const phoneInput = document.querySelector('input[type="tel"]');
+    fireEvent.change(phoneInput!, { target: { value: "099765" } });
+
+    expect(await screen.findByText("Ali Shop")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Ali Shop"));
+
+    expect(phoneInput).toHaveValue("0997654321");
+  });
+
+  it("renders the horizontal amount display when configured", async () => {
+    localStorage.setItem("amount-display-style", "horizontal");
+
+    const { container } = render(
+      <MemoryRouter>
+        <Index />
+      </MemoryRouter>,
+    );
+
+    const phoneInput = document.querySelector('input[type="tel"]');
+    fireEvent.change(phoneInput!, { target: { value: "0991234567" } });
+
+    expect(await screen.findByText("2,019")).toBeInTheDocument();
+    expect(container.querySelector(".overflow-x-auto")).not.toBeNull();
   });
 
   it("shows permission guidance and opens app settings when contacts permission is denied", async () => {

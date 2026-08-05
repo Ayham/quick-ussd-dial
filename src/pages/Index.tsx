@@ -15,21 +15,25 @@ import {
 import {
   addToHistory,
   getHistory,
-  recordPrice,
   type TransferRecord,
 } from "@/lib/transfer-history";
+import { getActualDeductedAmount } from "@/lib/amount-utils";
 import {
   saveContactAfterTransfer,
   searchContactsSync,
   createAndroidContact,
   openAppSettings,
   pickContactFromDevice,
+  getContactByPhone,
   normalizePhone,
   type AndroidContact,
 } from "@/lib/android-contacts";
+import { getAmountDisplayStyle, type AmountDisplayStyle } from "@/lib/amount-display";
 import { dialUssdDirect } from "@/lib/ussd-dialer";
 import { trackTransfer } from "@/lib/cloud-sync";
 import { getTransferGuard, validateDeviceSession } from "@/lib/license-cache";
+import { isSimConfigured, getBusinessName } from "@/lib/onboarding";
+import { formatDate, formatDateTime } from "@/lib/format-date";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -71,8 +75,11 @@ const Index = () => {
   const [secretOperator, setSecretOperator] = useState<Operator | null>(() => getLastSecretOperator());
   const [androidContacts, setAndroidContacts] = useState<ContactMatch[]>([]);
   const [contactsVersion, setContactsVersion] = useState(0);
+  const [amountDisplayStyle, setAmountDisplayStyle] = useState<AmountDisplayStyle>(() => getAmountDisplayStyle());
+  const [businessName, setBusinessName] = useState(() => getBusinessName());
 
   const contactsRef = useRef<HTMLDivElement>(null);
+  const RECENT_LIMIT = 4;
 
   const tapCountRef = useRef(0);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -119,6 +126,39 @@ const Index = () => {
   }, [phone, contactsVersion]);
 
   useEffect(() => {
+    const value = phone.trim();
+    if (value.length < 10) return;
+    let cancelled = false;
+    const timeout = setTimeout(async () => {
+      const { Capacitor } = await import('@capacitor/core');
+      if (!Capacitor.isNativePlatform()) return;
+      const contact = await getContactByPhone(value);
+      if (!cancelled && contact?.contactId && contact.displayName) {
+        setContactName(contact.displayName);
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [phone, contactsVersion]);
+
+  const recentNumbers = useMemo(() => {
+    const seen = new Set<string>();
+    const out: { phone: string; lastTimestamp: number }[] = [];
+    for (const r of history) {
+      if (r.status !== "success") continue;
+      if (r.transferType === "secret") continue;
+      const p = normalizePhone(r.phone);
+      if (!p || p.length < 10 || seen.has(p)) continue;
+      seen.add(p);
+      out.push({ phone: p, lastTimestamp: r.timestamp });
+      if (out.length >= RECENT_LIMIT) break;
+    }
+    return out;
+  }, [history]);
+
+  useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (contactsRef.current && !contactsRef.current.contains(e.target as Node)) {
         setShowContacts(false);
@@ -133,6 +173,8 @@ const Index = () => {
       setPresets(getPresets());
       setCredentials(getCredentials());
       setHistory(getHistory());
+      setAmountDisplayStyle(getAmountDisplayStyle());
+      setBusinessName(getBusinessName());
     };
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
@@ -159,6 +201,10 @@ const Index = () => {
       toast.error("الرجاء اختيار المبلغ");
       return;
     }
+    if (!isSimConfigured(credentials)) {
+      toast.error("الرجاء إكمال إعداد الشريحة أولاً");
+      return;
+    }
     await validateDeviceSession();
     const guard = getTransferGuard();
     if (!guard.allowed) {
@@ -166,7 +212,7 @@ const Index = () => {
       return;
     }
     setShowConfirm(true);
-  }, [phone, isSecretNumber, transferOperator, selectedAmount]);
+  }, [phone, isSecretNumber, transferOperator, selectedAmount, credentials]);
 
   const saveNameToAndroid = useCallback(
     async (phoneNumber: string, name: string): Promise<{ ok: boolean; code?: string; message?: string }> => {
@@ -278,7 +324,7 @@ const Index = () => {
     let totalSum = 0;
 
     phoneHistory.forEach((r) => {
-      const amt = recordPrice(r);
+      const amt = getActualDeductedAmount(r.operator, Number(r.amount));
       totalSum += amt;
       if (r.timestamp >= todayStart) { todaySum += amt; todayCount++; }
       if (r.timestamp >= weekAgo) { weekSum += amt; weekCount++; }
@@ -289,7 +335,7 @@ const Index = () => {
   }, [phoneHistory]);
 
   return (
-    <AppLayout title="تحويل رصيد" onTitleClick={handleTitleTap}>
+    <AppLayout title={businessName || "تحويل رصيد"} onTitleClick={handleTitleTap}>
       <main className="flex-1 w-full max-w-lg mx-auto space-y-3.5 px-3 py-3 overflow-y-auto">
 
         {/* Phone Input Card */}
@@ -318,35 +364,63 @@ const Index = () => {
               aria-label="رقم الهاتف"
             />
 
-            {showContacts && androidContacts.length > 0 && (
-              <div className="absolute z-10 top-full mt-2 w-full bg-white border border-border rounded-xl shadow-elevated max-h-52 overflow-y-auto scrollbar-thin">
-                {androidContacts.map((contact) => {
-                  const op = detectOperator(contact.phone);
-                  return (
+            {showContacts && (
+              androidContacts.length > 0 ? (
+                <div className="absolute z-10 top-full mt-2 w-full bg-white border border-border rounded-xl shadow-elevated max-h-52 overflow-y-auto scrollbar-thin">
+                  {androidContacts.map((contact) => {
+                    const op = detectOperator(contact.phone);
+                    return (
+                      <button
+                        key={contact.phone}
+                        onClick={() => selectContact(contact)}
+                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted transition-smooth text-start first:rounded-t-xl last:rounded-b-xl active:bg-muted/80"
+                        dir="ltr"
+                      >
+                        <div className="flex flex-col">
+                          {contact.name && (
+                            <span className="text-sm font-medium text-foreground" dir="rtl">{contact.name}</span>
+                          )}
+                          <span className="font-mono text-muted-foreground text-sm tracking-wider">{contact.phone}</span>
+                        </div>
+                        {op && (
+                          <span className={cn(
+                            "text-[10px] font-bold px-2.5 py-1 rounded-full",
+                            op === "mtn" ? "bg-operator-mtn text-operator-mtn-foreground" : "bg-operator-syriatel text-white"
+                          )}>
+                            {op === "mtn" ? "MTN" : "SYR"}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : phone.trim().length < 3 && recentNumbers.length > 0 ? (
+                <div className="absolute z-10 top-full mt-2 w-full bg-white border border-border rounded-xl shadow-elevated max-h-52 overflow-y-auto scrollbar-thin">
+                  <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1.5 px-3.5 pt-2.5 pb-1">
+                    <Clock className="w-3 h-3" />
+                    الأرقام الأخيرة
+                  </p>
+                  {recentNumbers.map((item) => (
                     <button
-                      key={contact.phone}
-                      onClick={() => selectContact(contact)}
+                      key={item.phone}
+                      onClick={() => {
+                        setPhone(item.phone);
+                        setContactName('');
+                        setShowSaveName(false);
+                        setNameInput('');
+                        setShowContacts(false);
+                      }}
                       className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted transition-smooth text-start first:rounded-t-xl last:rounded-b-xl active:bg-muted/80"
                       dir="ltr"
                     >
-                      <div className="flex flex-col">
-                        {contact.name && (
-                          <span className="text-sm font-medium text-foreground" dir="rtl">{contact.name}</span>
-                        )}
-                        <span className="font-mono text-muted-foreground text-sm tracking-wider">{contact.phone}</span>
-                      </div>
-                      {op && (
-                        <span className={cn(
-                          "text-[10px] font-bold px-2.5 py-1 rounded-full",
-                          op === "mtn" ? "bg-operator-mtn text-operator-mtn-foreground" : "bg-operator-syriatel text-white"
-                        )}>
-                          {op === "mtn" ? "MTN" : "SYR"}
-                        </span>
-                      )}
+                      <span className="font-mono text-muted-foreground text-sm tracking-wider">{item.phone}</span>
+                      <span className="text-[10px] text-muted-foreground/60 font-medium">
+                        {formatDate(item.lastTimestamp)}
+                      </span>
                     </button>
-                  );
-                })}
-              </div>
+                  ))}
+                </div>
+              ) : null
             )}
           </div>
 
@@ -419,8 +493,11 @@ const Index = () => {
         {/* Smart Transfer Suggestions */}
         <SmartPhoneSuggestions
           query={phone}
-         onSelect={(suggestedPhone, lastPrice) => {
+         onSelect={(suggestedPhone, lastPrice, suggestedName) => {
              setPhone(suggestedPhone);
+             setContactName(suggestedName || '');
+             setShowSaveName(false);
+             setNameInput('');
              setShowContacts(false);
              if (lastPrice && currentPresets.some(p => p.price === lastPrice)) {
                setSelectedAmount(currentPresets.find(p => p.price === lastPrice)!);
@@ -474,58 +551,47 @@ const Index = () => {
               <TrendingUp className="w-3.5 h-3.5" />
               اختر المبلغ
             </p>
-            <div className="grid grid-cols-3 gap-2.5 max-h-[280px] overflow-y-auto scrollbar-thin pr-0.5">
-              {currentPresets.map((preset, i) => {
-                const isSelected = selectedAmount?.amount === preset.amount;
-                const totalPresets = currentPresets.length;
-                const intensity = i / Math.max(totalPresets - 1, 1);
-                const bgSaturation = 15 + intensity * 40;
-                const bgLightness = 98 - intensity * 8;
-                const bdSaturation = 25 + intensity * 35;
-                const bdLightness = 85 - intensity * 28;
-                const txtColor = `hsl(152, ${Math.round(bgSaturation + 20)}%, ${Math.round(35 - intensity * 18)}%)`;
-                return (
-                  <button
-                    key={i}
-                    onClick={() => setSelectedAmount(preset)}
-                    className={cn(
-                      "flex flex-col items-center p-3.5 rounded-xl border-2 transition-all duration-200 active:scale-95 relative",
-                      isSelected
-                        ? "border-primary bg-primary text-white shadow-lg shadow-primary/25"
-                        : "hover:shadow-sm hover:scale-[1.02]"
-                    )}
-                    style={(!isSelected ? {
-                      backgroundColor: `hsl(152, ${Math.round(bgSaturation)}%, ${Math.round(bgLightness)}%)`,
-                      borderColor: `hsl(152, ${Math.round(bdSaturation)}%, ${Math.round(bdLightness)}%)`,
-                    } : undefined) as any}
-                  >
-                    {!isSelected && intensity > 0.3 && (
-                      <span className="absolute top-0.5 end-1.5 text-[7px] font-bold uppercase tracking-widest"
-                        style={{ color: `hsl(152, 60%, ${Math.round(70 - intensity * 25)}%)`, opacity: 0.5 }}>
-                        {i < totalPresets * 0.33 ? '' : i < totalPresets * 0.66 ? '●' : '●●'}
-                      </span>
-                    )}
-                    <span className={cn(
-                      "text-lg font-bold",
-                      isSelected ? "text-white" : ""
-                    )} style={!isSelected ? { color: txtColor } : undefined}>
-                      {preset.price.toLocaleString()}
-                    </span>
-                    <span className={cn(
-                      "text-xs mt-1 font-medium",
-                      isSelected ? "text-white/80" : ""
-                    )} style={!isSelected ? { color: txtColor, opacity: 0.7 } : undefined}>
-                      {preset.amount.toLocaleString()}
-                    </span>
-                    {isSelected && (
-                      <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm">
-                        <CheckCircle className="w-3 h-3 text-primary" />
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            {amountDisplayStyle === "horizontal" ? (
+              <div className="flex gap-2.5 overflow-x-auto scrollbar-thin pb-1 pr-0.5 snap-x snap-mandatory scroll-smooth">
+                {currentPresets.map((preset, i) => {
+                  const isSelected = selectedAmount?.amount === preset.amount;
+                  const totalPresets = currentPresets.length;
+                  const intensity = i / Math.max(totalPresets - 1, 1);
+                  return (
+                    <AmountCard
+                      key={i}
+                      preset={preset}
+                      index={i}
+                      totalPresets={totalPresets}
+                      intensity={intensity}
+                      isSelected={isSelected}
+                      onClick={() => setSelectedAmount(preset)}
+                      className="min-w-[5.5rem] shrink-0 snap-start"
+                      compact
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2.5 max-h-[280px] overflow-y-auto scrollbar-thin pr-0.5">
+                {currentPresets.map((preset, i) => {
+                  const isSelected = selectedAmount?.amount === preset.amount;
+                  const totalPresets = currentPresets.length;
+                  const intensity = i / Math.max(totalPresets - 1, 1);
+                  return (
+                    <AmountCard
+                      key={i}
+                      preset={preset}
+                      index={i}
+                      totalPresets={totalPresets}
+                      intensity={intensity}
+                      isSelected={isSelected}
+                      onClick={() => setSelectedAmount(preset)}
+                    />
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -626,16 +692,11 @@ const Index = () => {
                   className="flex items-center justify-between bg-white border border-border/60 rounded-xl px-4 py-3 shadow-sm"
                 >
                   <span className="text-xs text-muted-foreground">
-                    {new Date(record.timestamp).toLocaleDateString("ar-SY", {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {formatDateTime(record.timestamp)}
                   </span>
                    <div className="flex items-center gap-2.5">
                      <span className="font-bold text-foreground text-sm">
-                       {recordPrice(record).toLocaleString()}
+                       {getActualDeductedAmount(record.operator, Number(record.amount)).toLocaleString()}
                      </span>
                     {record.transferType === "secret" && (
                       <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full font-medium leading-none">
@@ -655,5 +716,73 @@ const Index = () => {
     </AppLayout>
   );
 };
+
+function AmountCard({
+  preset,
+  index,
+  totalPresets,
+  intensity,
+  isSelected,
+  onClick,
+  className,
+  compact,
+}: {
+  preset: AmountPreset;
+  index: number;
+  totalPresets: number;
+  intensity: number;
+  isSelected: boolean;
+  onClick: () => void;
+  className?: string;
+  compact?: boolean;
+}) {
+  const bgSaturation = 15 + intensity * 40;
+  const bgLightness = 98 - intensity * 8;
+  const bdSaturation = 25 + intensity * 35;
+  const bdLightness = 85 - intensity * 28;
+  const txtColor = `hsl(152, ${Math.round(bgSaturation + 20)}%, ${Math.round(35 - intensity * 18)}%)`;
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex flex-col items-center p-3.5 rounded-xl border-2 transition-all duration-200 active:scale-95 relative",
+        isSelected
+          ? "border-primary bg-primary text-white shadow-lg shadow-primary/25"
+          : "hover:shadow-sm hover:scale-[1.02]",
+        className,
+      )}
+      style={(!isSelected ? {
+        backgroundColor: `hsl(152, ${Math.round(bgSaturation)}%, ${Math.round(bgLightness)}%)`,
+        borderColor: `hsl(152, ${Math.round(bdSaturation)}%, ${Math.round(bdLightness)}%)`,
+      } : undefined) as any}
+    >
+      {!isSelected && intensity > 0.3 && (
+        <span className="absolute top-0.5 end-1.5 text-[7px] font-bold uppercase tracking-widest"
+          style={{ color: `hsl(152, 60%, ${Math.round(70 - intensity * 25)}%)`, opacity: 0.5 }}>
+          {index < totalPresets * 0.33 ? '' : index < totalPresets * 0.66 ? '●' : '●●'}
+        </span>
+      )}
+      <span className={cn(
+        "font-bold",
+        compact ? "text-base" : "text-lg",
+        isSelected ? "text-white" : "",
+      )} style={!isSelected ? { color: txtColor } : undefined}>
+        {preset.price.toLocaleString()}
+      </span>
+      <span className={cn(
+        "mt-1 font-medium",
+        compact ? "text-[11px]" : "text-xs",
+        isSelected ? "text-white/80" : "",
+      )} style={!isSelected ? { color: txtColor, opacity: 0.7 } : undefined}>
+        {preset.amount.toLocaleString()}
+      </span>
+      {isSelected && (
+        <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm">
+          <CheckCircle className="w-3 h-3 text-primary" />
+        </span>
+      )}
+    </button>
+  );
+}
 
 export default Index;

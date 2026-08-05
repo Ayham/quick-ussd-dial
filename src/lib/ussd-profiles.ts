@@ -93,8 +93,8 @@ export const DEFAULT_SIM_ASSIGNMENT: SimAssignment = {
 };
 
 export const DEFAULT_BALANCE_TEMPLATES: BalanceCheckTemplates = {
-  mtn: "*100*1#",
-  syriatel: "*150*2*{serial}*1*{secret}*1#",
+  mtn: "*155*1#",
+  syriatel: "*150*2*{syriatelDistributor}*{serial}*1#",
 };
 
 export const DEFAULT_CREDENTIALS: OperatorCredentials = {
@@ -196,7 +196,8 @@ export function buildBalanceCode(
   const templates = getBalanceTemplates();
   return templates[operator]
     .replace(/\{secret\}/g, credentials.mtnSecret)
-    .replace(/\{serial\}/g, credentials.syriatelSerial);
+    .replace(/\{serial\}/g, credentials.syriatelSerial)
+    .replace(/\{syriatelDistributor\}/g, credentials.syriatelDistributor);
 }
 
 export function dialUssd(ussdCode: string) {

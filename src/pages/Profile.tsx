@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { User, LogOut, Globe, Mail, Phone as PhoneIcon, Save, Loader2 } from "lucide-react";
+import { User, LogOut, Globe, Mail, Phone as PhoneIcon, Save, Loader2, Store } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getCurrentUser, getProfile, updateProfile, signOut, type UserProfile } from "@/lib/auth";
 import { setLanguage, getLanguage } from "@/lib/i18n";
+import { getBusinessName, saveBusinessName } from "@/lib/onboarding";
 import { cn } from "@/lib/utils";
 
 const Profile = () => {
@@ -18,6 +19,7 @@ const Profile = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [shopName, setShopName] = useState("");
   const [lang, setLang] = useState<"ar" | "en">(getLanguage());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -34,6 +36,7 @@ const Profile = () => {
         setProfile(p);
         setName(p.display_name || "");
         setPhone(p.phone || "");
+        setShopName(p.shop_name || getBusinessName());
         if (p.language === "ar" || p.language === "en") setLang(p.language);
       }
       setLoading(false);
@@ -42,11 +45,12 @@ const Profile = () => {
 
   const save = async () => {
     setSaving(true);
-    const { error } = await updateProfile({ display_name: name, phone, language: lang });
+    const { error } = await updateProfile({ display_name: name, phone, language: lang, shop_name: shopName });
     setSaving(false);
     if (error) {
       toast.error(error.message);
     } else {
+      saveBusinessName(shopName);
       setLanguage(lang);
       toast.success(isArabic ? "تم الحفظ" : "Saved");
     }
@@ -96,6 +100,13 @@ const Profile = () => {
               <PhoneIcon className="w-4 h-4" /> {isArabic ? "الهاتف" : "Phone"}
             </label>
             <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="h-11 rounded-xl bg-background/50" dir="ltr" />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold flex items-center gap-2 text-muted-foreground">
+              <Store className="w-4 h-4" /> {isArabic ? "الاسم التجاري" : "Business name"}
+            </label>
+            <Input value={shopName} onChange={(e) => setShopName(e.target.value)} className="h-11 rounded-xl bg-background/50" placeholder={isArabic ? "مثال: مكتب الرصيد" : "e.g. Balance shop"} />
           </div>
 
           <div className="space-y-1.5">

@@ -1,4 +1,5 @@
 import { getPresets, type Operator } from './ussd-profiles';
+import { getActualDeductedAmount } from './amount-utils';
 
 export interface TransferRecord {
   phone: string;
@@ -30,8 +31,9 @@ export function addToHistory(record: TransferRecord) {
  * Returns the selling price (in SYP) of a transfer record.
  * The selling price is what the customer pays; `amount` is the transfer
  * quantity (the SIM balance being moved). Reports and customer-facing displays
- * must always prefer `price` over `amount`. Falls back to `amount` for records
- * that predate the `price` field being persisted.
+ * must always prefer `price` over `amount`. Falls back to the actual deducted
+ * balance for records that predate the `price` field being persisted, so the
+ * raw Syriatel quantity is never used.
  */
 export function recordPrice(record: TransferRecord): number {
   if (record.price != null && record.price !== "") {
@@ -47,7 +49,7 @@ export function recordPrice(record: TransferRecord): number {
       if (match) return match.price;
     } catch {}
   }
-  return Number(record.amount) || 0;
+  return getActualDeductedAmount(record.operator, Number(record.amount)) || 0;
 }
 
 

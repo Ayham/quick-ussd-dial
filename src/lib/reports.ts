@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
-import { getHistory, recordPrice } from "./transfer-history";
+import { getHistory } from "./transfer-history";
+import { getActualDeductedAmount } from "./amount-utils";
 
 export type ReportPeriod = "day" | "week" | "month";
 
@@ -113,7 +114,7 @@ function buildOfflineReport(filters: ReportFilters): TransferReport {
       email: null,
       display_name: null,
       phone: record.phone,
-      amount: recordPrice(record),
+      amount: getActualDeductedAmount(record.operator, Number(record.amount)),
       operator: (record.operator || "unknown").toLowerCase(),
       status: record.status,
       created_at: new Date(record.timestamp).toISOString(),

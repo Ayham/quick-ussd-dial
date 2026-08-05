@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Browser } from "@capacitor/browser";
 import { App } from "@capacitor/app";
+import { toast } from "sonner";
 
 function normalizePhoneValue(phone?: string | null): string | null {
   if (!phone) return null;
@@ -19,6 +20,8 @@ function getCapacitorRedirectUrl(): string {
 
 function isCapacitorNativePlatform(): boolean {
   if (typeof window === "undefined") return false;
+  const win = window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } };
+  if (win.Capacitor?.isNativePlatform?.()) return true;
   return (
     (window.location.protocol === "https:" && window.location.host === "localhost") ||
     window.location.protocol === "capacitor:"
@@ -32,12 +35,20 @@ function getRedirectUrl(): string {
   return window.location.origin;
 }
 
+function getAuthCallbackUrl(mode: "verify" | "reset"): string {
+  if (isCapacitorNativePlatform()) {
+    return `${CAPACITOR_SCHEME}://auth?mode=${mode}`;
+  }
+  return `${window.location.origin}/auth?mode=${mode}`;
+}
+
 export interface UserProfile {
   user_id: string;
   display_name: string | null;
   email: string | null;
   phone: string | null;
   language: string;
+  shop_name: string | null;
 }
 
 export async function signInWithEmail(email: string, password: string) {
@@ -55,7 +66,7 @@ export async function signUpWithEmail(
     email,
     password,
     options: {
-      emailRedirectTo: `${window.location.origin}/auth?mode=verify`,
+      emailRedirectTo: getAuthCallbackUrl("verify"),
       data: {
         full_name: displayName,
         phone: normalizedPhone,
@@ -105,7 +116,11 @@ export async function handleOAuthDeepLink(url: string) {
   if (!code) return { error: new Error("No auth code in URL") };
 
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-  if (error) return { error };
+  if (error) {
+    toast.error(error.message);
+    return { error };
+  }
+  toast.success("Signed in successfully");
   return { data, error: null };
 }
 
@@ -163,7 +178,7 @@ export async function signOut() {
 
 export async function sendPasswordReset(email: string) {
   return supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/auth?mode=reset`,
+    redirectTo: getAuthCallbackUrl("reset"),
   });
 }
 
@@ -237,7 +252,7 @@ export async function getProfile(): Promise<UserProfile | null> {
   if (!user) return null;
   const { data } = await supabase
     .from("profiles")
-    .select("user_id, display_name, email, phone, language")
+    .select("user_id, display_name, email, phone, language, shop_name")
     .eq("user_id", user.id)
     .maybeSingle();
   if (data) return data as UserProfile;
@@ -248,10 +263,11 @@ export async function getProfile(): Promise<UserProfile | null> {
     email: user.email ?? null,
     phone: (user.user_metadata as { phone?: string })?.phone ?? null,
     language: "ar",
+    shop_name: null,
   };
 }
 
-export async function updateProfile(patch: Partial<Pick<UserProfile, "display_name" | "phone" | "language">>) {
+export async function updateProfile(patch: Partial<Pick<UserProfile, "display_name" | "phone" | "language" | "shop_name">>) {
   const user = await getCurrentUser();
   if (!user) return { error: new Error("not authenticated") };
 

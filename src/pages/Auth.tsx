@@ -26,6 +26,7 @@ const Auth = () => {
 
   const modeParam = params.get("mode");
   const [mode, setMode] = useState<AuthMode>(modeParam === "reset" ? "reset" : modeParam === "verify" ? "verify" : "signin");
+  const [verifyingCode, setVerifyingCode] = useState(Boolean(params.get("code")));
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -56,6 +57,20 @@ const Auth = () => {
     });
     return () => sub.subscription.unsubscribe();
   }, [nav, next]);
+
+  useEffect(() => {
+    if (!verifyingCode) return;
+    const timer = window.setTimeout(() => {
+      getCurrentUser().then((u) => {
+        if (u) {
+          nav(next, { replace: true });
+        } else {
+          setVerifyingCode(false);
+        }
+      });
+    }, 4000);
+    return () => window.clearTimeout(timer);
+  }, [verifyingCode, nav, next]);
 
   const clearErrors = () => setErrors({});
 
@@ -181,6 +196,10 @@ const Auth = () => {
     return (
       <SignedInView isArabic={isArabic} next={next} user={user} nav={nav} handleLogout={handleLogout} />
     );
+  }
+
+  if (verifyingCode) {
+    return <VerifyingView isArabic={isArabic} nav={nav} />;
   }
 
   if (mode === "verify") {
@@ -488,6 +507,26 @@ function VerifyView({ isArabic, nav }: any) {
         </p>
       </div>
       <Button onClick={() => { nav("/auth", { replace: true }); }} variant="outline" className="w-full h-12 rounded-xl">
+        {isArabic ? "العودة إلى تسجيل الدخول" : "Back to Sign In"}
+      </Button>
+    </ViewWrapper>
+  );
+}
+
+// === Verifying (handling a PKCE code returned from Supabase) ===
+function VerifyingView({ isArabic, nav }: any) {
+  return (
+    <ViewWrapper isArabic={isArabic}>
+      <div className="flex flex-col items-center space-y-2 mb-6">
+        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        </div>
+        <h1 className="text-2xl font-bold">{isArabic ? "جارٍ تأكيد بريدك الإلكتروني" : "Verifying your email"}</h1>
+        <p className="text-sm text-muted-foreground text-center">
+          {isArabic ? "يرجى الانتظار، يتم التحقق من رابط التأكيد..." : "Please wait while we confirm your email link..."}
+        </p>
+      </div>
+      <Button onClick={() => { nav("/auth", { replace: true }); }} variant="ghost" className="w-full h-12 rounded-xl">
         {isArabic ? "العودة إلى تسجيل الدخول" : "Back to Sign In"}
       </Button>
     </ViewWrapper>

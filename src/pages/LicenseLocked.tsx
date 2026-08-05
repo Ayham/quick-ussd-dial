@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { getLicenseStatus, type LicenseInfo } from "@/lib/license";
+import { formatDate } from "@/lib/format-date";
 import { Lock, AlertTriangle, LogOut, Shield, RefreshCw, Clock } from "lucide-react";
 
 interface LicenseLockedProps {
@@ -116,7 +117,7 @@ const LicenseLocked = ({ reason: initialReason, onUnlock }: LicenseLockedProps) 
               {license.trial_end && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">{isArabic ? "انتهاء التجربة" : "Trial ended"}</span>
-                  <span className="font-medium">{new Date(license.trial_end).toLocaleDateString()}</span>
+                  <span className="font-medium">{formatDate(license.trial_end)}</span>
                 </div>
               )}
             </div>

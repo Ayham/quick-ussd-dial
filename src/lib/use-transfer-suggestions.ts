@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getHistory, recordPrice, type TransferRecord } from './transfer-history';
+import { getContactByPhone, normalizePhone, searchContactsSync } from './android-contacts';
+import { detectOperator } from './ussd-profiles';
 
 export interface TransferSuggestion {
   phone: string;
@@ -7,13 +9,17 @@ export interface TransferSuggestion {
   lastPrice: number;
   lastTimestamp: number;
   operator: string | null;
+  contactName?: string;
 }
+
+export type SuggestionSource = 'history' | 'contacts' | 'both';
 
 const SETTINGS_KEY = 'suggestion-settings';
 
 export interface SuggestionSettings {
   enabled: boolean;
   maxSuggestions: number;
+  source: SuggestionSource;
   showLastPrice: boolean;
   showCount: boolean;
   showLastTime: boolean;
@@ -22,15 +28,25 @@ export interface SuggestionSettings {
 export const DEFAULT_SUGGESTION_SETTINGS: SuggestionSettings = {
   enabled: true,
   maxSuggestions: 5,
+  source: 'both',
   showLastPrice: true,
   showCount: true,
   showLastTime: true,
 };
 
+const VALID_SOURCES: SuggestionSource[] = ['history', 'contacts', 'both'];
+
 export function getSuggestionSettings(): SuggestionSettings {
   try {
     const stored = localStorage.getItem(SETTINGS_KEY);
-    if (stored) return { ...DEFAULT_SUGGESTION_SETTINGS, ...JSON.parse(stored) };
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      const merged = { ...DEFAULT_SUGGESTION_SETTINGS, ...parsed };
+      if (!VALID_SOURCES.includes(merged.source)) {
+        merged.source = DEFAULT_SUGGESTION_SETTINGS.source;
+      }
+      return merged;
+    }
   } catch {}
   return DEFAULT_SUGGESTION_SETTINGS;
 }
@@ -65,27 +81,103 @@ function buildSuggestions(records: TransferRecord[]): TransferSuggestion[] {
     .sort((a, b) => b.count - a.count || b.lastTimestamp - a.lastTimestamp);
 }
 
+function buildContactSuggestions(
+  contacts: { displayName: string; phones: string[] }[],
+): TransferSuggestion[] {
+  return contacts.map((c) => {
+    const rawPhone = c.phones[0] || '';
+    return {
+      phone: normalizePhone(rawPhone),
+      count: 0,
+      lastPrice: 0,
+      lastTimestamp: 0,
+      operator: detectOperator(rawPhone),
+      contactName: c.displayName || '',
+    };
+  });
+}
+
 export function useTransferSuggestions(query: string) {
   const [settings, setSettings] = useState<SuggestionSettings>(() => getSuggestionSettings());
   const [suggestions, setSuggestions] = useState<TransferSuggestion[]>([]);
 
   useEffect(() => {
-    if (!settings.enabled) {
+    const q = query.trim();
+    if (!settings.enabled || q.length < 2) {
       setSuggestions([]);
       return;
     }
-    const timeout = setTimeout(() => {
-      const all = buildSuggestions(getHistory());
-      if (query.trim().length >= 2) {
-        setSuggestions(
-          all.filter(s => s.phone.includes(query.trim())).slice(0, settings.maxSuggestions)
-        );
-      } else {
-        setSuggestions([]);
+    let cancelled = false;
+    const timeout = setTimeout(async () => {
+      const historyBased =
+        settings.source !== 'contacts'
+          ? buildSuggestions(getHistory()).filter(s => s.phone.includes(q))
+          : [];
+
+      let contactBased: TransferSuggestion[] = [];
+      if (settings.source !== 'history') {
+        const { Capacitor } = await import('@capacitor/core');
+        if (!cancelled && Capacitor.isNativePlatform()) {
+          const contacts = await searchContactsSync(q, settings.maxSuggestions * 2);
+          if (!cancelled) {
+            contactBased = buildContactSuggestions(contacts);
+          }
+        }
       }
+      if (cancelled) return;
+
+      let merged: TransferSuggestion[];
+      if (settings.source === 'both') {
+        const seen = new Set(historyBased.map(s => s.phone));
+        merged = [...historyBased, ...contactBased.filter(c => !seen.has(c.phone))];
+      } else if (settings.source === 'contacts') {
+        merged = contactBased;
+      } else {
+        merged = historyBased;
+      }
+
+      setSuggestions(merged.slice(0, settings.maxSuggestions));
     }, 250);
-    return () => clearTimeout(timeout);
-  }, [query, settings.enabled, settings.maxSuggestions]);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [query, settings.enabled, settings.maxSuggestions, settings.source]);
+
+  useEffect(() => {
+    if (!settings.enabled || suggestions.length === 0) return;
+    const phones = suggestions.filter(s => !s.contactName).map(s => s.phone);
+    if (phones.length === 0) return;
+    let cancelled = false;
+    const timeout = setTimeout(async () => {
+      const { Capacitor } = await import('@capacitor/core');
+      if (!Capacitor.isNativePlatform()) return;
+      const map: Record<string, string> = {};
+      for (const phone of phones) {
+        const contact = await getContactByPhone(phone);
+        if (contact?.contactId && contact.displayName) {
+          map[phone] = contact.displayName;
+        }
+      }
+      if (cancelled) return;
+      setSuggestions(prev => {
+        if (prev.length === 0) return prev;
+        let changed = false;
+        const next = prev.map(s => {
+          if (map[s.phone] && !s.contactName) {
+            changed = true;
+            return { ...s, contactName: map[s.phone] };
+          }
+          return s;
+        });
+        return changed ? next : prev;
+      });
+    }, 150);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [suggestions, settings.enabled]);
 
   return { suggestions, settings, setSettings };
 }

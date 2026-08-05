@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { getLicenseStatus, requestActivation, checkPendingActivation, getTrialRemainingDays, type LicenseInfo } from "@/lib/license";
 import { getDeviceId } from "@/lib/device";
+import { formatDate, formatDateTime } from "@/lib/format-date";
 import { supabase } from "@/integrations/supabase/client";
 import { Shield, Clock, AlertTriangle, CheckCircle2, XCircle, Loader2, Phone, User, Info, ArrowLeftFromLine, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -168,14 +169,14 @@ function renderStatusBanner(license: any, remainingDays: number, isArabic: boole
         </p>
         <p className="text-sm text-muted-foreground">
           {isArabic
-            ? `من ${new Date(license!.trial_start!).toLocaleDateString()} إلى ${new Date(license!.trial_end!).toLocaleDateString()}`
-            : `From ${new Date(license!.trial_start!).toLocaleDateString()} to ${new Date(license!.trial_end!).toLocaleDateString()}`}
+            ? `من ${formatDate(license!.trial_start!)} إلى ${formatDate(license!.trial_end!)}`
+            : `From ${formatDate(license!.trial_start!)} to ${formatDate(license!.trial_end!)}`}
         </p>
       </div>
     );
   }
   if (isTrialExpired) return <StatusBanner type="error" icon={AlertTriangle} title={isArabic ? "انتهت الفترة التجريبية" : "Trial Period Expired"} subtitle={isArabic ? "انتهت الفترة التجريبية. يرجى طلب التفعيل للمتابعة." : "Your trial has ended. Please request activation to continue."} />;
-  if (isActive) return <StatusBanner type="success" icon={CheckCircle2} title={isArabic ? "مفعل" : "Activated"} subtitle={license?.expiry_date ? `${isArabic ? "صالح حتى" : "Valid until"} ${new Date(license.expiry_date).toLocaleDateString()}` : isArabic ? "الترخيص نشط" : "License is active"} />;
+  if (isActive) return <StatusBanner type="success" icon={CheckCircle2} title={isArabic ? "مفعل" : "Activated"} subtitle={license?.expiry_date ? `${isArabic ? "صالح حتى" : "Valid until"} ${formatDate(license.expiry_date)}` : isArabic ? "الترخيص نشط" : "License is active"} />;
   if (isPermanent) return <StatusBanner type="success" icon={CheckCircle2} title={isArabic ? "مفعل بشكل دائم" : "Permanently Activated"} subtitle={isArabic ? "الترخيص لا ينتهي" : "License does not expire"} />;
   if (license?.license_status === "pending") return <StatusBanner type="warning" icon={Clock} title={isArabic ? "قيد المراجعة" : "Pending Review"} subtitle={isArabic ? "طلب التفعيل قيد المراجعة من قبل الإدارة" : "Your activation request is under review"} />;
   if (license?.license_status === "rejected") return <StatusBanner type="error" icon={XCircle} title={isArabic ? "تم رفض الطلب" : "Request Rejected"} subtitle={isArabic ? "لم تتم الموافقة على طلب التفعيل. يمكنك تقديم طلب جديد." : "Your activation request was not approved. You can submit a new request."} />;
@@ -224,10 +225,10 @@ function renderUserInfoCard(license: LicenseInfo, isArabic: boolean) {
       <div className="border-t border-border/60 pt-4 space-y-3">
         <InfoRow label={isArabic ? "نوع الترخيص" : "License type"} value={formatLicenseType(license.license_type, isArabic)} />
         <InfoRow label={isArabic ? "حالة الحساب" : "Account status"} value={<AccountBadge status={license.account_status} isArabic={isArabic} />} />
-        {license.trial_start && <InfoRow label={isArabic ? "بداية التجربة" : "Trial start"} value={new Date(license.trial_start).toLocaleDateString()} />}
-        {license.trial_end && <InfoRow label={isArabic ? "نهاية التجربة" : "Trial end"} value={new Date(license.trial_end).toLocaleDateString()} />}
-        {license.expiry_date && <InfoRow label={isArabic ? "تاريخ الانتهاء" : "Expiry date"} value={new Date(license.expiry_date).toLocaleDateString()} />}
-        {license.last_login && <InfoRow label={isArabic ? "آخر تسجيل دخول" : "Last login"} value={new Date(license.last_login).toLocaleString()} />}
+        {license.trial_start && <InfoRow label={isArabic ? "بداية التجربة" : "Trial start"} value={formatDate(license.trial_start)} />}
+        {license.trial_end && <InfoRow label={isArabic ? "نهاية التجربة" : "Trial end"} value={formatDate(license.trial_end)} />}
+        {license.expiry_date && <InfoRow label={isArabic ? "تاريخ الانتهاء" : "Expiry date"} value={formatDate(license.expiry_date)} />}
+        {license.last_login && <InfoRow label={isArabic ? "آخر تسجيل دخول" : "Last login"} value={formatDateTime(license.last_login)} />}
       </div>
     </Card>
   );

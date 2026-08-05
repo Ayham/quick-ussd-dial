@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDate } from "@/lib/format-date";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -211,7 +212,7 @@ const ActivationRequests = () => {
                     <td className="p-3 text-xs text-muted-foreground" dir="ltr">{r.email}</td>
                     <td className="p-3 text-xs text-muted-foreground" dir="ltr">{r.contact_phone || r.profile_phone || "-"}</td>
                     <td className="p-3">{statusBadge(r.status)}</td>
-                    <td className="p-3 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</td>
+                    <td className="p-3 text-xs text-muted-foreground">{formatDate(r.created_at)}</td>
                     <td className="p-3">
                       {r.status === "pending" ? (
                         <div className="flex items-center gap-1">

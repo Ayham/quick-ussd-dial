@@ -15,7 +15,7 @@ describe("offline reports", () => {
     ]));
   });
 
-  it("builds filtered, paged summaries from the offline cache", async () => {
+  it("builds filtered, paged summaries from the offline cache using the deducted balance", async () => {
     const report = await fetchTransferReport({
       operator: "mtn",
       period: "day",
@@ -25,8 +25,23 @@ describe("offline reports", () => {
 
     expect(report.source).toBe("offline");
     expect(report.total).toBe(1);
-    expect(report.amount_total).toBe(25);
+    expect(report.amount_total).toBe(20);
     expect(report.success_count).toBe(1);
-    expect(report.by_operator).toEqual([{ key: "mtn", count: 1, amount: 25 }]);
+    expect(report.by_operator).toEqual([{ key: "mtn", count: 1, amount: 20 }]);
+  });
+
+  it("reports the actual deducted balance for Syriatel (amount / 100)", async () => {
+    const report = await fetchTransferReport({
+      operator: "syriatel",
+      period: "day",
+      page: 1,
+      page_size: 20,
+    });
+
+    expect(report.source).toBe("offline");
+    expect(report.total).toBe(1);
+    expect(report.amount_total).toBe(20.19);
+    expect(report.rows[0].amount).toBe(20.19);
+    expect(report.by_operator).toEqual([{ key: "syriatel", count: 1, amount: 20.19 }]);
   });
 });

@@ -41,6 +41,7 @@ import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { formatDate, formatDateTime } from "@/lib/format-date";
 import { useToast } from "@/hooks/use-toast";
 import {
   fetchTransferReport,
@@ -351,7 +352,7 @@ const Reports = () => {
     const headers = ["التاريخ", "رقم الهاتف", "الاسم", "المشغل", "المبلغ"];
     const csv = [headers.join(",")]
       .concat(rows.map((r) => [
-        new Date(r.created_at).toLocaleString("ar-SY"),
+        formatDateTime(r.created_at),
         r.phone,
         contactNames[r.phone] || "",
         r.operator,
@@ -387,7 +388,7 @@ const Reports = () => {
       const headers = ["التاريخ", "رقم الهاتف", "المشغل", "المبلغ"];
       const csv = [headers.join(",")]
         .concat(rows.map((r) => [
-          new Date(r.created_at).toLocaleString("ar-SY"),
+          formatDateTime(r.created_at),
           r.phone,
           r.operator,
           r.amount,
@@ -604,7 +605,7 @@ const Reports = () => {
                       </div>
                     </div>
                     <div className="text-[10px] text-muted-foreground shrink-0 text-left" dir="ltr">
-                      <p>{new Date(c.lastDate).toLocaleDateString("ar-SY")}</p>
+                      <p>{formatDate(c.lastDate)}</p>
                     </div>
                   </div>
                 ))}
@@ -780,7 +781,7 @@ const Reports = () => {
               <tbody>
                 {pagedRows.map((row, idx) => (
                   <tr key={row.id} className={cn("border-t border-border/60 align-top transition-colors hover:bg-muted/30", idx % 2 === 0 ? "bg-white" : "bg-muted/20")}>
-                    <td className="whitespace-nowrap p-3">{new Date(row.created_at).toLocaleString("ar-SY")}</td>
+                    <td className="whitespace-nowrap p-3">{formatDateTime(row.created_at)}</td>
                     <td className="p-3 font-semibold">{contactNames[row.phone] || "—"}</td>
                     <td className="p-3 font-mono font-semibold" dir="ltr">{row.phone}</td>
                     <td className="p-3">
@@ -919,7 +920,7 @@ function MobileTransferCard({ row, name }: { row: ReportRow; name: string }) {
         <span className="text-xs font-mono" dir="ltr">{row.phone}</span>
       </div>
       <div className="text-[10px] text-muted-foreground">
-        {new Date(row.created_at).toLocaleString("ar-SY")}
+        {formatDateTime(row.created_at)}
       </div>
     </div>
   );
@@ -1021,9 +1022,9 @@ function csvCell(value: unknown): string {
 
 function formatPeriodLabel(iso: string, period: ReportPeriod): string {
   const d = new Date(iso);
-  if (period === "day") return d.toLocaleDateString("ar-SY", { day: "numeric", month: "short" });
-  if (period === "week") return `أسبوع ${d.toLocaleDateString("ar-SY", { day: "numeric", month: "short" })}`;
-  return d.toLocaleDateString("ar-SY", { month: "long", year: "numeric" });
+  if (period === "day") return formatDate(d);
+  if (period === "week") return `أسبوع ${formatDate(d)}`;
+  return `${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
 export default Reports;

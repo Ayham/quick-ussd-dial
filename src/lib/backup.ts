@@ -1,15 +1,15 @@
 import { APP_VERSION } from "@/config/version";
 import {
   getPresets, savePresets,
-  getCredentials, saveCredentials,
   getUssdTemplates, saveUssdTemplates,
   getPrefixes, savePrefixes,
   getSimAssignment, saveSimAssignment,
   getBalanceTemplates, saveBalanceTemplates,
   resetAllSettings,
-  type OperatorCredentials, type UssdTemplates, type OperatorPrefixes,
+  type UssdTemplates, type OperatorPrefixes,
   type SimAssignment, type BalanceCheckTemplates, type AmountPreset,
 } from "@/lib/ussd-profiles";
+import { getBusinessName, saveBusinessName } from "@/lib/onboarding";
 import { getHistory } from "@/lib/transfer-history";
 import { getLowBalanceThresholds, saveLowBalanceThresholds, clearAllBalanceData } from "@/lib/balance-tracking";
 
@@ -40,11 +40,11 @@ export interface BackupData {
   created_at: string;
   app_version: string;
   presets: Record<string, AmountPreset[]>;
-  credentials: OperatorCredentials;
   ussdTemplates: UssdTemplates;
   balanceTemplates: BalanceCheckTemplates;
   prefixes: OperatorPrefixes;
   simAssignment: SimAssignment;
+  businessName: string;
   transferHistory: Array<{
     phone: string;
     amount: string;
@@ -80,11 +80,11 @@ function buildBackupData(): BackupData {
     created_at: new Date().toISOString(),
     app_version: APP_VERSION,
     presets: getPresets(),
-    credentials: getCredentials(),
     ussdTemplates: getUssdTemplates(),
     balanceTemplates: getBalanceTemplates(),
     prefixes: getPrefixes(),
     simAssignment: getSimAssignment(),
+    businessName: getBusinessName(),
     transferHistory: getHistory(),
     balanceStore: getSavedBalances(),
     balanceTracking: localStorage.getItem(BALANCE_TRACKING_KEY),
@@ -281,10 +281,10 @@ export function restoreBackup(data: unknown, password?: string): { success: bool
     } catch { /* skip */ }
   }
 
-  if (obj.credentials) {
+  if (obj.businessName !== undefined && obj.businessName !== null) {
     try {
-      saveCredentials(obj.credentials as OperatorCredentials);
-      restored.push("credentials");
+      saveBusinessName(String(obj.businessName));
+      restored.push("businessName");
     } catch { /* skip */ }
   }
 
@@ -372,6 +372,8 @@ export function deleteAllData(): void {
   localStorage.removeItem("saved_balances_v1");
   clearAllBalanceData();
   resetAllSettings();
+  localStorage.removeItem("business-name");
+  localStorage.removeItem("business-name-skipped");
 }
 
 export function getStorageStats(): { totalBytes: number; breakdown: Record<string, number> } {
@@ -385,6 +387,7 @@ export function getStorageStats(): { totalBytes: number; breakdown: Record<strin
     "balance_tracking_v2", "low_balance_thresholds_v1",
     "low_balance_warning_shown_v1",
     "app_lang_v1", "last-secret-operator",
+    "business-name", "business-name-skipped",
   ];
 
   for (const key of keys) {

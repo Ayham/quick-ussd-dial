@@ -15,6 +15,7 @@ import Profile from "./pages/Profile";
 import Activation from "./pages/Activation";
 import LicenseLocked from "./pages/LicenseLocked";
 import { AuthSessionProvider, RequireAdmin, RequireAuth } from "@/lib/auth-session";
+import OnboardingGate from "@/components/OnboardingGate";
 
 import "./lib/i18n";
 import { isWebBrowser } from "@/lib/platform";
@@ -81,6 +82,7 @@ const AppContent = () => {
           <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
           <Route path="*" element={<RequireAuth><NotFound /></RequireAuth>} />
         </Routes>
+        <OnboardingGate />
       </AuthSessionProvider>
     </BrowserRouter>
   );

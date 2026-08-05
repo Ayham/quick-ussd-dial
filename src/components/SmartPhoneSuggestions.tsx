@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 interface SmartPhoneSuggestionsProps {
   query: string;
-  onSelect: (phone: string, lastPrice?: number) => void;
+  onSelect: (phone: string, lastPrice?: number, contactName?: string) => void;
   className?: string;
 }
 
@@ -40,14 +40,16 @@ function SuggestionCard({
   settings,
 }: {
   suggestion: TransferSuggestion;
-  onSelect: (phone: string, lastPrice?: number) => void;
+  onSelect: (phone: string, lastPrice?: number, contactName?: string) => void;
   settings: { showLastPrice: boolean; showCount: boolean; showLastTime: boolean };
 }) {
   const op = detectOperator(suggestion.phone);
+  const hasName = !!suggestion.contactName;
+  const hasStats = suggestion.count > 0 || suggestion.lastPrice > 0 || suggestion.lastTimestamp > 0;
 
   return (
     <button
-      onClick={() => onSelect(suggestion.phone, suggestion.lastPrice)}
+      onClick={() => onSelect(suggestion.phone, suggestion.lastPrice, suggestion.contactName)}
       className="w-full flex items-center bg-white border border-border/60 rounded-xl px-4 py-3 shadow-sm hover:shadow-md hover:border-primary/20 active:scale-[0.98] transition-all duration-150 text-right"
       dir="ltr"
     >
@@ -56,7 +58,11 @@ function SuggestionCard({
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-sm font-bold text-foreground tracking-wider">{suggestion.phone}</span>
+          {hasName ? (
+            <span className="text-sm font-bold text-foreground truncate" dir="rtl">{suggestion.contactName}</span>
+          ) : (
+            <span className="font-mono text-sm font-bold text-foreground tracking-wider">{suggestion.phone}</span>
+          )}
           {op && (
             <span className={cn(
               "text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none",
@@ -66,21 +72,24 @@ function SuggestionCard({
             </span>
           )}
         </div>
+        {hasName && (
+          <span className="font-mono text-xs text-muted-foreground tracking-wider mt-0.5 block">{suggestion.phone}</span>
+        )}
         <div className="flex items-center gap-3 mt-0.5">
-          {settings.showLastPrice && (
+          {hasStats && settings.showLastPrice && (
             <span className="text-[11px] text-muted-foreground flex items-center gap-1">
               <TrendingUp className="w-3 h-3" />
               السعر: {suggestion.lastPrice.toLocaleString()} ل.س
             </span>
           )}
-          {settings.showCount && (
+          {hasStats && settings.showCount && (
             <span className="text-[11px] text-muted-foreground flex items-center gap-1">
               <Clock className="w-3 h-3" />
               {suggestion.count} عملية
             </span>
           )}
         </div>
-        {settings.showLastTime && (
+        {hasStats && settings.showLastTime && (
           <span className="text-[10px] text-muted-foreground/70 mt-0.5 block">
             {timeAgo(suggestion.lastTimestamp)}
           </span>

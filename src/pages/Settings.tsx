@@ -5,7 +5,7 @@ import {
   AlertTriangle, Shield, Database, Settings as SettingsIcon,
   Download, Upload, Globe, ChevronDown, Lock, FolderOpen,
   Trash, RotateCw, HardDrive, Info, AlertCircle, CheckCircle,
-  Bell,
+  Bell, Store,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
@@ -23,7 +23,9 @@ import {
   type UssdTemplates, type OperatorPrefixes, type SimSlot, type SimAssignment,
   type BalanceCheckTemplates,
 } from "@/lib/ussd-profiles";
-import { getHistory, recordPrice } from "@/lib/transfer-history";
+import { getHistory } from "@/lib/transfer-history";
+import { getActualDeductedAmount } from "@/lib/amount-utils";
+import { getBusinessName, saveBusinessName } from "@/lib/onboarding";
 import {
   getLowBalanceThresholds,
   saveLowBalanceThresholds,
@@ -33,7 +35,13 @@ import {
   getSuggestionSettings,
   saveSuggestionSettings,
   type SuggestionSettings,
+  type SuggestionSource,
 } from "@/lib/use-transfer-suggestions";
+import {
+  getAmountDisplayStyle,
+  saveAmountDisplayStyle,
+  type AmountDisplayStyle,
+} from "@/lib/amount-display";
 import {
   createBackup, validateBackup, restoreBackup,
   getBackupPreview, cleanOldHistory, deleteAllHistory,
@@ -49,7 +57,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-type SettingsSection = "sim" | "codes" | "amounts" | "thresholds" | "suggestions" | "data" | "language";
+type SettingsSection = "sim" | "codes" | "amounts" | "thresholds" | "suggestions" | "data" | "language" | "business";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -66,6 +74,8 @@ const Settings = () => {
   const [language, setLanguageState] = useState(() => getLanguage());
   const [suggestionSettings, setSuggestionSettings] = useState<SuggestionSettings>(() => getSuggestionSettings());
   const [thresholds, setThresholds] = useState<LowBalanceThresholds>(() => getLowBalanceThresholds());
+  const [amountDisplayStyle, setAmountDisplayStyle] = useState<AmountDisplayStyle>(() => getAmountDisplayStyle());
+  const [businessName, setBusinessName] = useState(() => getBusinessName());
 
   const [backupPassword, setBackupPassword] = useState("");
   const [backupWithPassword, setBackupWithPassword] = useState(false);
@@ -129,7 +139,11 @@ const Settings = () => {
       return;
     }
     if (!credentials.syriatelSerial.trim()) {
-      toast.error("الرجاء إدخال الرقم السيري لشريحة سيريتيل");
+      toast.error("الرجاء إدخال الرقم السري لشريحة سيريتيل");
+      return;
+    }
+    if (!credentials.syriatelDistributor.trim()) {
+      toast.error("الرجاء إدخال كود الموزع سيريتيل");
       return;
     }
     savePresets(presets);
@@ -149,10 +163,15 @@ const Settings = () => {
     toast.success(t('common.success'));
   };
 
+  const handleSaveBusinessName = () => {
+    saveBusinessName(businessName);
+    toast.success("تم حفظ الاسم التجاري");
+  };
+
   const allHistory = getHistory();
   const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const olderThanMonth = allHistory.filter(r => r.timestamp <= monthAgo).length;
-  const totalAmount = allHistory.filter(r => r.status === "success").reduce((s, r) => s + recordPrice(r), 0);
+  const totalAmount = allHistory.filter(r => r.status === "success").reduce((s, r) => s + getActualDeductedAmount(r.operator, Number(r.amount)), 0);
 
 
   const handleExportBackup = () => {
@@ -281,10 +300,11 @@ const Settings = () => {
 
   const sections: { id: SettingsSection; label: string; icon: React.ReactNode; description: string }[] = [
     { id: "sim", label: "الشريحة والاتصال", icon: <Smartphone className="w-5 h-5" />, description: "بيانات الشريحة وبادئات الأرقام" },
+    { id: "business", label: "الملف التجاري", icon: <Store className="w-5 h-5" />, description: "الاسم التجاري المعروض في التطبيق" },
 { id: "codes", label: "أكواد USSD", icon: <Code className="w-5 h-5" />, description: "أكواد التحويل واستعلام الرصيد" },
     { id: "amounts", label: "المبالغ", icon: <SettingsIcon className="w-5 h-5" />, description: "قائمة مبالغ التحويل" },
     { id: "thresholds", label: "تنبيه الرصيد", icon: <Bell className="w-5 h-5" />, description: "الحد الأدنى للرصيد والتنبيهات" },
-    { id: "suggestions", label: "اقتراحات الأرقام", icon: <HardDrive className="w-5 h-5" />, description: "إعدادات اقتراح أرقام الزبائن المتكررين" },
+    { id: "suggestions", label: "اقتراحات العملاء", icon: <HardDrive className="w-5 h-5" />, description: "إعدادات اقتراحات العملاء" },
     { id: "data", label: "البيانات", icon: <Database className="w-5 h-5" />, description: "النسخ الاحتياطي والإدارة والاستعادة" },
     { id: "language", label: "اللغة", icon: <Globe className="w-5 h-5" />, description: "اختيار واجهة التطبيق" },
   ];
@@ -331,7 +351,7 @@ const Settings = () => {
                         <div className="space-y-3">
                           <FieldInput label="الرمز السري لشريحة MTN" value={credentials.mtnSecret}
                             onChange={(v) => setCredentials({ ...credentials, mtnSecret: v })} placeholder="مثال: 20326" />
-                          <FieldInput label="الرقم السيري لشريحة سيريتيل" value={credentials.syriatelSerial}
+                          <FieldInput label="الرقم السري لشريحة سيريتيل" value={credentials.syriatelSerial}
                             onChange={(v) => setCredentials({ ...credentials, syriatelSerial: v })} placeholder="مثال: 32362" />
                           <FieldInput label="كود الموزع سيريتيل" value={credentials.syriatelDistributor}
                             onChange={(v) => setCredentials({ ...credentials, syriatelDistributor: v })} placeholder="مثال: 640322" />
@@ -400,6 +420,26 @@ const Settings = () => {
                       </SettingsCard>
 
                       <Button onClick={handleSave} className="w-full h-12 font-bold rounded-xl shadow-sm mt-2">حفظ إعدادات الشريحة</Button>
+                    </>
+                  )}
+
+                  {/* BUSINESS SECTION */}
+                  {section.id === "business" && (
+                    <>
+                      <SettingsCard title="الاسم التجاري" icon={<Store className="w-4 h-4" />}>
+                        <div className="space-y-3">
+                          <p className="text-xs text-muted-foreground">
+                            يظهر الاسم التجاري كعنوان رئيسي في الصفحة الرئيسية بدلاً من "تحويل رصيد"
+                          </p>
+                          <Input
+                            value={businessName}
+                            onChange={(e) => setBusinessName(e.target.value)}
+                            placeholder="مثال: مكتب الرصيد"
+                            className="h-11 rounded-xl bg-background/50 text-base"
+                          />
+                        </div>
+                      </SettingsCard>
+                      <Button onClick={handleSaveBusinessName} className="w-full h-12 font-bold rounded-xl shadow-sm mt-2">حفظ الاسم التجاري</Button>
                     </>
                   )}
 
@@ -499,6 +539,33 @@ const Settings = () => {
                         </button>
                       </div>
 
+                      <SettingsCard title="طريقة عرض المبالغ" icon={<SettingsIcon className="w-4 h-4" />}>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => { setAmountDisplayStyle("grid"); saveAmountDisplayStyle("grid"); }}
+                            className={cn(
+                              "py-3.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95",
+                              amountDisplayStyle === "grid"
+                                ? "border-primary bg-primary/10 text-primary shadow-sm"
+                                : "border-border/60 text-muted-foreground bg-white hover:border-primary/30"
+                            )}
+                          >
+                            شبكة (Grid)
+                          </button>
+                          <button
+                            onClick={() => { setAmountDisplayStyle("horizontal"); saveAmountDisplayStyle("horizontal"); }}
+                            className={cn(
+                              "py-3.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95",
+                              amountDisplayStyle === "horizontal"
+                                ? "border-primary bg-primary/10 text-primary shadow-sm"
+                                : "border-border/60 text-muted-foreground bg-white hover:border-primary/30"
+                            )}
+                          >
+                            تمرير أفقي (Horizontal)
+                          </button>
+                        </div>
+                      </SettingsCard>
+
                       <Button onClick={handleSave} className="w-full h-12 font-bold rounded-xl shadow-sm mt-2">حفظ المبالغ</Button>
                     </>
                   )}
@@ -506,19 +573,19 @@ const Settings = () => {
                   {/* SUGGESTIONS SECTION */}
                   {section.id === "suggestions" && (
                     <>
-                      <SettingsCard title="اقتراحات الأرقام" icon={<HardDrive className="w-4 h-4" />}>
+                      <SettingsCard title="اقتراحات العملاء" icon={<HardDrive className="w-4 h-4" />}>
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-foreground">تفعيل اقتراح الأرقام</span>
+                            <span className="text-sm text-foreground">تفعيل اقتراحات العملاء</span>
                             <Switch
                               checked={suggestionSettings.enabled}
                               onCheckedChange={(v) => setSuggestionSettings({ ...suggestionSettings, enabled: v })}
                             />
                           </div>
                           <div className="space-y-2">
-                            <label className="text-xs font-medium text-muted-foreground">عدد الاقتراحات</label>
+                            <label className="text-xs font-medium text-muted-foreground">الحد الأقصى للاقتراحات</label>
                             <div className="flex gap-2">
-                              {[5, 10, 15, 20].map((n) => (
+                              {[2, 5, 10, 15].map((n) => (
                                 <button
                                   key={n}
                                   onClick={() => setSuggestionSettings({ ...suggestionSettings, maxSuggestions: n })}
@@ -530,6 +597,47 @@ const Settings = () => {
                                   )}
                                 >
                                   {n}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-muted-foreground">مصدر الاقتراحات</label>
+                            <div className="space-y-1.5">
+                              {([
+                                { value: "both" as SuggestionSource, label: "التحويلات الأخيرة + جهات الاتصال", desc: "مزيج من السجل وجهات الاتصال المحفوظة" },
+                                { value: "history" as SuggestionSource, label: "التحويلات الأخيرة فقط", desc: "من سجل التحويلات الناجحة فقط" },
+                                { value: "contacts" as SuggestionSource, label: "جهات الاتصال المحفوظة فقط", desc: "من جهات الاتصال على الجهاز فقط" },
+                              ]).map((opt) => (
+                                <button
+                                  key={opt.value}
+                                  onClick={() => setSuggestionSettings({ ...suggestionSettings, source: opt.value })}
+                                  className={cn(
+                                    "w-full flex items-center gap-2.5 p-3 rounded-xl border-2 transition-all text-start",
+                                    suggestionSettings.source === opt.value
+                                      ? "border-primary bg-primary/10"
+                                      : "border-border/60 bg-white hover:border-primary/30"
+                                  )}
+                                >
+                                  <span className={cn(
+                                    "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+                                    suggestionSettings.source === opt.value
+                                      ? "border-primary bg-primary"
+                                      : "border-border bg-white"
+                                  )}>
+                                    {suggestionSettings.source === opt.value && (
+                                      <CheckCircle className="w-3.5 h-3.5 text-white" />
+                                    )}
+                                  </span>
+                                  <span className="flex flex-col">
+                                    <span className={cn(
+                                      "text-sm font-bold",
+                                      suggestionSettings.source === opt.value ? "text-primary" : "text-foreground"
+                                    )}>
+                                      {opt.label}
+                                    </span>
+                                    <span className="text-[11px] text-muted-foreground">{opt.desc}</span>
+                                  </span>
                                 </button>
                               ))}
                             </div>
@@ -614,6 +722,7 @@ const Settings = () => {
                               <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> قوالب الرصيد</span>
                               <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> سجل التحويلات</span>
                               <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> بيانات الرصيد</span>
+                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> الاسم التجاري</span>
                             </div>
                             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-2 pt-2 border-t border-border/40">المستبعدة</p>
                             <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
@@ -623,6 +732,7 @@ const Settings = () => {
                               <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> بيانات تسجيل الدخول</span>
                               <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> بيانات Supabase</span>
                               <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> سجلات الأخطاء</span>
+                              <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> بيانات الشرائح السرية</span>
                             </div>
                           </div>
 

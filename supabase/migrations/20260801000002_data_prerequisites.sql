@@ -286,8 +286,8 @@ CREATE OR REPLACE FUNCTION _ensure_policy(
 ) RETURNS VOID LANGUAGE plpgsql AS $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = _table_name) THEN
-    EXECUTE format('DROP POLICY IF EXISTS "%I" ON public.%I', _policy_name, _table_name);
-    EXECUTE format('CREATE POLICY "%I" ON public.%I %s', _policy_name, _table_name, _definition);
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', _policy_name, _table_name);
+    EXECUTE format('CREATE POLICY %I ON public.%I %s', _policy_name, _table_name, _definition);
     RAISE NOTICE 'Policy "% on % created: %', _policy_name, _table_name, _exists_check;
   END IF;
 END;
@@ -309,7 +309,7 @@ SELECT _ensure_policy('user_roles', 'Admins delete non-admin roles',
 
 -- profiles policies
 SELECT _ensure_policy('profiles', 'Users view own profile',
-  'FOR SELECT USING (auth.uid() = user_id OR public.has_role(auth.uid(), ''admin'))',
+  'FOR SELECT USING (auth.uid() = user_id OR public.has_role(auth.uid(), ''admin''))',
   'SELECT own or admin');
 SELECT _ensure_policy('profiles', 'Users update own profile',
   'FOR UPDATE USING (auth.uid() = user_id)',
@@ -318,23 +318,23 @@ SELECT _ensure_policy('profiles', 'Users insert own profile',
   'FOR INSERT WITH CHECK (auth.uid() = user_id)',
   'INSERT own');
 SELECT _ensure_policy('profiles', 'Admins manage profiles',
-  'FOR ALL USING (public.has_role(auth.uid(), ''admin'))',
+  'FOR ALL USING (public.has_role(auth.uid(), ''admin''))',
   'ALL admin');
 
 -- devices policies
 SELECT _ensure_policy('devices', 'Users view own device',
-  'FOR SELECT USING (auth.uid() = user_id OR public.has_role(auth.uid(), ''admin'))',
+  'FOR SELECT USING (auth.uid() = user_id OR public.has_role(auth.uid(), ''admin''))',
   'SELECT own or admin');
 SELECT _ensure_policy('devices', 'Admins manage devices',
-  'FOR ALL USING (public.has_role(auth.uid(), ''admin'))',
+  'FOR ALL USING (public.has_role(auth.uid(), ''admin''))',
   'ALL admin');
 
 -- licenses policies
 SELECT _ensure_policy('licenses', 'Users view own license',
-  'FOR SELECT USING (auth.uid() = user_id OR public.has_role(auth.uid(), ''admin'))',
+  'FOR SELECT USING (auth.uid() = user_id OR public.has_role(auth.uid(), ''admin''))',
   'SELECT own or admin');
 SELECT _ensure_policy('licenses', 'Admins manage licenses',
-  'FOR ALL USING (public.has_role(auth.uid(), ''admin'))',
+  'FOR ALL USING (public.has_role(auth.uid(), ''admin''))',
   'ALL admin');
 
 -- activations policies
@@ -342,20 +342,20 @@ SELECT _ensure_policy('activations', 'Users view own activation',
   'FOR SELECT USING (auth.uid() = user_id OR public.has_role(auth.uid(), ''admin''))',
   'SELECT own or admin');
 SELECT _ensure_policy('activations', 'Admins manage activations',
-  'FOR ALL USING (public.has_role(auth.uid(), ''admin'))',
+  'FOR ALL USING (public.has_role(auth.uid(), ''admin''))',
   'ALL admin');
 
 -- transfers policies
 SELECT _ensure_policy('transfers', 'Users view own transfers',
-  'FOR SELECT USING (auth.uid() = user_id OR public.has_role(auth.uid(), ''admin'))',
+  'FOR SELECT USING (auth.uid() = user_id OR public.has_role(auth.uid(), ''admin''))',
   'SELECT own or admin');
 SELECT _ensure_policy('transfers', 'Admins manage transfers',
-  'FOR ALL USING (public.has_role(auth.uid(), ''admin'))',
+  'FOR ALL USING (public.has_role(auth.uid(), ''admin''))',
   'ALL admin');
 
 -- app_events policies
 SELECT _ensure_policy('app_events', 'Admins view events',
-  'FOR SELECT USING (public.has_role(auth.uid(), ''admin'))',
+  'FOR SELECT USING (public.has_role(auth.uid(), ''admin''))',
   'SELECT admin');
 SELECT _ensure_policy('app_events', 'Users insert own events',
   'FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id)',
@@ -363,15 +363,15 @@ SELECT _ensure_policy('app_events', 'Users insert own events',
 
 -- sync_logs policies
 SELECT _ensure_policy('sync_logs', 'Admins view sync logs',
-  'FOR SELECT USING (public.has_role(auth.uid(), ''admin'))',
+  'FOR SELECT USING (public.has_role(auth.uid(), ''admin''))',
   'SELECT admin');
 
 -- admin_actions policies
 SELECT _ensure_policy('admin_actions', 'Admins view audit',
-  'FOR SELECT USING (public.has_role(auth.uid(), ''admin'))',
+  'FOR SELECT USING (public.has_role(auth.uid(), ''admin''))',
   'SELECT admin');
 SELECT _ensure_policy('admin_actions', 'Admins write audit',
-  'FOR INSERT WITH CHECK (public.has_role(auth.uid(), ''admin'))',
+  'FOR INSERT WITH CHECK (public.has_role(auth.uid(), ''admin''))',
   'INSERT admin');
 
 -- Clean up helper function

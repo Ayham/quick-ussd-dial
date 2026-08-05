@@ -9,7 +9,8 @@ import {
   type Operator,
 } from "@/lib/ussd-profiles";
 import { dialUssdDirect } from "@/lib/ussd-dialer";
-import { getHistory, recordPrice } from "@/lib/transfer-history";
+import { getHistory } from "@/lib/transfer-history";
+import { getActualDeductedAmount } from "@/lib/amount-utils";
 import {
   getBalance,
   getEstimatedBalance,
@@ -139,7 +140,7 @@ const Balance = () => {
     });
 
     return {
-      totalAmount: transfers.reduce((s, r) => s + Number(r.amount), 0),
+      totalAmount: transfers.reduce((s, r) => s + getActualDeductedAmount(r.operator, Number(r.amount)), 0),
       totalPrice,
       count: transfers.length,
     };
