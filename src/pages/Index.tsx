@@ -29,7 +29,7 @@ import {
 } from "@/lib/android-contacts";
 import { dialUssdDirect } from "@/lib/ussd-dialer";
 import { trackTransfer } from "@/lib/cloud-sync";
-import { getTransferGuard } from "@/lib/license-cache";
+import { getTransferGuard, validateDeviceSession } from "@/lib/license-cache";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -142,7 +142,7 @@ const Index = () => {
     setSelectedAmount(null);
   }, [transferOperator]);
 
-  const handleTransferClick = useCallback(() => {
+  const handleTransferClick = useCallback(async () => {
     if (!phone.trim()) {
       toast.error("الرجاء إدخال رقم هاتف صحيح");
       return;
@@ -159,6 +159,7 @@ const Index = () => {
       toast.error("الرجاء اختيار المبلغ");
       return;
     }
+    await validateDeviceSession();
     const guard = getTransferGuard();
     if (!guard.allowed) {
       toast.error(guard.reason || "لا يمكن إجراء التحويل حالياً / Transfer not allowed");
