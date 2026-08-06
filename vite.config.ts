@@ -7,6 +7,7 @@ const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), 
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  base: "/quick-ussd-dial/",
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },

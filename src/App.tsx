@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import LandingPage from "./pages/LandingPage";
 import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import Balance from "./pages/Balance";
@@ -69,6 +70,7 @@ const AppContent = () => {
       <AuthSessionProvider>
         <NotificationsProvider>
           <Routes>
+            <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/activation" element={<RequireAuth><Activation /></RequireAuth>} />
             <Route path="/license-locked" element={<RequireAuth><LicenseLocked /></RequireAuth>} />

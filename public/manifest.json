@@ -1,0 +1,21 @@
+{
+  "name": "Quick USSD Dial",
+  "short_name": "Quick USSD",
+  "description": "Transfer balance between MTN and Syriatel networks instantly",
+  "start_url": "/quick-ussd-dial/",
+  "display": "standalone",
+  "background_color": "#0a0f0d",
+  "theme_color": "#152020",
+  "icons": [
+    {
+      "src": "/quick-ussd-dial/app-icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/quick-ussd-dial/app-icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
