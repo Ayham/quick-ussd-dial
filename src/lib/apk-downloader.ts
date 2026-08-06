@@ -6,6 +6,7 @@
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { FileOpener } from '@capawesome-team/capacitor-file-opener';
 import { isWebBrowser } from './platform';
+import i18n from "@/lib/i18n";
 
 export interface DownloadProgress {
   progress: number; // 0-100
@@ -52,7 +53,7 @@ export async function downloadAndInstallApk(
     });
 
     if (!result.path) {
-      throw new Error('فشل التنزيل - لم يتم الحصول على مسار الملف');
+      throw new Error(i18n.t("errors.apkDownloadFailed"));
     }
 
     report({ status: 'downloading', progress: 90 });
@@ -72,7 +73,7 @@ export async function downloadAndInstallApk(
 
     report({ status: 'done', progress: 100 });
   } catch (error: any) {
-    const errorMsg = error?.message || 'حدث خطأ أثناء تنزيل التحديث';
+    const errorMsg = error?.message || i18n.t("errors.apkDownloadGeneric");
     report({ status: 'error', progress: 0, error: errorMsg });
     throw new Error(errorMsg);
   }

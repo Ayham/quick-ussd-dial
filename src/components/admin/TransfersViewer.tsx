@@ -109,37 +109,39 @@ export function TransfersViewer() {
         <div className="border border-destructive/30 bg-destructive/5 rounded-2xl p-3 flex items-center gap-2 text-sm text-destructive">
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span className="flex-1">{loadError}</span>
-          <Button variant="outline" size="sm" onClick={loadTransfers}>
-            Retry
-          </Button>
+<Button variant="outline" size="sm" onClick={loadTransfers}>
+	             {t("common.retry")}
+	           </Button>
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-        <Input placeholder="Search by phone, device, user..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
-        <Button
-          size="sm"
-          variant="ghost"
-          className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0 rounded-lg"
-          onClick={loadTransfers}
-          title="Refresh transfers"
-        >
+        <Input placeholder={t("adminTransfers.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+<Button
+	           size="sm"
+	           variant="ghost"
+	           className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0 rounded-lg"
+	           onClick={loadTransfers}
+	           title={t("adminTransfers.refresh")}
+	         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
         </Button>
       </div>
         <div className="flex gap-2">
-          <Input type="date" value={dateRange.start} onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })} className="h-10" placeholder="From date" />
-          <Input type="date" value={dateRange.end} onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })} className="h-10" placeholder="To date" />
+<Input type="date" value={dateRange.start} onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })} className="h-10" placeholder={t("adminTransfers.fromDate")} />
+	           <Input type="date" value={dateRange.end} onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })} className="h-10" placeholder={t("adminTransfers.toDate")} />
         </div>
         <div className="flex gap-2">
           <select value={userFilter} onChange={(e) => setUserFilter(e.target.value)} className="h-10 flex-1 rounded-md border border-input bg-background px-3 text-sm">
-            <option value="all">All users</option>
+            <option value="all">{t("adminTransfers.allUsers")}</option>
             {userOptions.map((userId) => <option key={userId} value={userId}>{userId}</option>)}
           </select>
+        </div>
+        <div className="flex gap-2">
           <select value={deviceFilter} onChange={(e) => setDeviceFilter(e.target.value)} className="h-10 flex-1 rounded-md border border-input bg-background px-3 text-sm">
-            <option value="all">All devices</option>
+            <option value="all">{t("adminTransfers.allDevices")}</option>
             {deviceOptions.map((deviceId) => <option key={deviceId} value={deviceId}>{deviceId}</option>)}
           </select>
         </div>
@@ -147,28 +149,28 @@ export function TransfersViewer() {
 
       <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mb-4">
         <div className="bg-card rounded-2xl p-2 text-center shadow-card">
-          <div className="text-sm font-semibold">{stats.total}</div>
-          <div className="text-xs text-muted-foreground">Total</div>
+<div className="text-sm font-semibold">{stats.total}</div>
+	           <div className="text-xs text-muted-foreground">{t("adminTransfers.total")}</div>
         </div>
         <div className="bg-success/10 rounded-2xl p-2 text-center shadow-card">
-          <div className="text-sm font-semibold text-success">{stats.succeeded}</div>
-          <div className="text-xs text-muted-foreground">Success</div>
+<div className="text-sm font-semibold text-success">{stats.succeeded}</div>
+	           <div className="text-xs text-muted-foreground">{t("adminTransfers.success")}</div>
         </div>
         <div className="bg-destructive/10 rounded-2xl p-2 text-center shadow-card">
-          <div className="text-sm font-semibold text-destructive">{stats.failed}</div>
-          <div className="text-xs text-muted-foreground">Failed</div>
+<div className="text-sm font-semibold text-destructive">{stats.failed}</div>
+	           <div className="text-xs text-muted-foreground">{t("adminTransfers.failed")}</div>
         </div>
         <div className="bg-info/10 rounded-2xl p-2 text-center shadow-card">
-          <div className="text-sm font-semibold text-info">{stats.pending}</div>
-          <div className="text-xs text-muted-foreground">Pending</div>
+<div className="text-sm font-semibold text-info">{stats.pending}</div>
+	           <div className="text-xs text-muted-foreground">{t("admin.pending")}</div>
         </div>
         <div className="bg-operator-mtn/10 rounded-2xl p-2 text-center shadow-card">
-          <div className="text-sm font-semibold text-operator-mtn">{stats.mtn}</div>
-          <div className="text-xs text-muted-foreground">MTN</div>
+<div className="text-sm font-semibold text-operator-mtn">{stats.mtn}</div>
+	           <div className="text-xs text-muted-foreground">{t("operator.mtn")}</div>
         </div>
         <div className="bg-primary/10 rounded-2xl p-2 text-center shadow-card">
-          <div className="text-sm font-semibold text-primary">{stats.totalAmount.toLocaleString()}</div>
-          <div className="text-xs text-muted-foreground">Total Amount</div>
+<div className="text-sm font-semibold text-primary">{stats.totalAmount.toLocaleString()}</div>
+	           <div className="text-xs text-muted-foreground">{t("adminTransfers.totalAmount")}</div>
         </div>
       </div>
 
@@ -176,14 +178,14 @@ export function TransfersViewer() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b">
-              <th className="text-left p-3 font-semibold">User</th>
-              <th className="text-left p-3 font-semibold">Device</th>
-              <th className="text-left p-3 font-semibold">Phone</th>
-              <th className="text-left p-3 font-semibold">Operator</th>
-               <th className="text-left p-3 font-semibold">السعر</th>
-              <th className="text-left p-3 font-semibold">Package</th>
-              <th className="text-left p-3 font-semibold">Sync</th>
-              <th className="text-left p-3 font-semibold">Date</th>
+<th className="text-left p-3 font-semibold">{t("adminActivationRequests.user")}</th>
+	               <th className="text-left p-3 font-semibold">{t("adminTransfers.device")}</th>
+	               <th className="text-left p-3 font-semibold">{t("adminActivationRequests.phone")}</th>
+	               <th className="text-left p-3 font-semibold">{t("adminTransfers.operator")}</th>
+	                <th className="text-left p-3 font-semibold">{t("adminTransfers.price")}</th>
+	               <th className="text-left p-3 font-semibold">{t("adminTransfers.package")}</th>
+	               <th className="text-left p-3 font-semibold">{t("adminTransfers.sync")}</th>
+	               <th className="text-left p-3 font-semibold">{t("adminActivationRequests.date")}</th>
             </tr>
           </thead>
           <tbody>
@@ -192,12 +194,12 @@ export function TransfersViewer() {
                 <td className="p-3 text-xs">{transfer.profile_name || transfer.profile_email || transfer.user_id || "—"}</td>
                 <td className="p-3 text-xs font-mono whitespace-nowrap">{transfer.device_id}</td>
                 <td className="p-3 font-mono text-xs" dir="ltr">{transfer.phone}</td>
-                <td className="p-3 text-xs">{(transfer.operator || "unknown").toUpperCase()}</td>
-                <td className="p-3 font-semibold">{(transfer.package_price ?? getActualDeductedAmount(transfer.operator, transfer.amount)).toLocaleString()} ل.س</td>
+                <td className="p-3 text-xs">{transfer.operator === "mtn" ? t("adminTransfers.mtn") : transfer.operator === "syriatel" ? t("adminTransfers.syriatel") : t("adminTransfers.unknown")}</td>
+                <td className="p-3 font-semibold">{(transfer.package_price ?? getActualDeductedAmount(transfer.operator, transfer.amount)).toLocaleString()} {t("adminTransfers.currency")}</td>
                 <td className="p-3 text-xs">{transfer.package_name ? `${transfer.package_name} / ${transfer.package_price ?? 0}` : "—"}</td>
                 <td className="p-3">
                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${transfer.sync_status === "synced" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>
-                    {transfer.sync_status || "pending"}
+                    {transfer.sync_status === "synced" ? t("adminTransfers.synced") : t("admin.pending")}
                   </span>
                 </td>
                 <td className="p-3 text-xs">{formatDateTime(transfer.created_at)}</td>
@@ -207,13 +209,13 @@ export function TransfersViewer() {
         </table>
       </div>
 
-      {filteredTransfers.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground">No transfers found</div>
-      )}
+{filteredTransfers.length === 0 && (
+	         <div className="text-center py-8 text-muted-foreground">{t("adminTransfers.noTransfers")}</div>
+	       )}
 
-      <div className="text-xs text-muted-foreground pt-4">
-        Showing {filteredTransfers.length} of {stats.total} transfers
-      </div>
+<div className="text-xs text-muted-foreground pt-4">
+	         {t("adminTransfers.showing", { count: filteredTransfers.length, total: stats.total })}
+	       </div>
     </div>
   );
 }

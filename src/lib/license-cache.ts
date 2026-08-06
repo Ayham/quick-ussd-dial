@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getDeviceId } from "./device";
+import i18n from "@/lib/i18n";
 import type { LicenseInfo } from "./license";
 
 const CACHE_KEY = "app_license_cache";
@@ -61,7 +62,7 @@ export async function validateDeviceSession(): Promise<ValidationResult> {
   } catch {
     const cached = getCachedRaw();
     if (cached.data && cached.age <= MAX_OFFLINE_GRACE_MS) return cached.data;
-    return { valid: false, reason: "no_connection", error: "تعذر التحقق / Unable to verify" };
+    return { valid: false, reason: "no_connection", error: i18n.t("errors.noConnection") };
   }
 }
 
@@ -80,32 +81,32 @@ export function getTransferGuard(): TransferGuardResult {
   if (getCacheAgeMs() > MAX_OFFLINE_GRACE_MS) return { allowed: false, reason: "offline_grace_expired" };
 
   if (cached.account_status === "suspended") {
-    return { allowed: false, reason: "حسابك موقوف / Account suspended" };
+    return { allowed: false, reason: i18n.t("errors.accountSuspended") };
   }
   if (cached.account_status === "blocked") {
-    return { allowed: false, reason: "حسابك محظور / Account blocked" };
+    return { allowed: false, reason: i18n.t("errors.accountBlocked") };
   }
   if (cached.license_status === "expired") {
-    return { allowed: false, reason: "انتهت صلاحية الترخيص / License expired" };
+    return { allowed: false, reason: i18n.t("errors.licenseExpired") };
   }
   if (cached.license_status === "rejected") {
-    return { allowed: false, reason: "تم رفض طلب التفعيل / Activation rejected" };
+    return { allowed: false, reason: i18n.t("errors.activationRejected") };
   }
   if (cached.license_status === "blocked") {
-    return { allowed: false, reason: "الترخيص محظور / License blocked" };
+    return { allowed: false, reason: i18n.t("errors.licenseBlocked") };
   }
   if (cached.license_status === "trial" && cached.trial_end) {
     const trialEnd = new Date(cached.trial_end);
     if (trialEnd < new Date()) {
-      return { allowed: false, reason: "انتهت الفترة التجريبية / Trial ended" };
+      return { allowed: false, reason: i18n.t("errors.trialEnded") };
     }
   }
   if (cached.license_status === "inactive" || cached.license_status === "pending") {
-    return { allowed: false, reason: "الترخيص غير نشط / License inactive" };
+    return { allowed: false, reason: i18n.t("errors.licenseInactive") };
   }
 
   if (cached.reason === "device_mismatch") {
-    return { allowed: false, reason: "هذا الحساب مسجل على جهاز آخر / Another device registered" };
+    return { allowed: false, reason: i18n.t("errors.deviceMismatch") };
   }
 
   return { allowed: true };

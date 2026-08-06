@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Download, RefreshCw, Sparkles, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { UpdateInfo } from "@/lib/update-checker";
@@ -13,6 +14,7 @@ interface UpdateBannerProps {
 
 /** Non-blocking banner shown at top of app */
 export const UpdateBanner = ({ updateInfo, onDismiss }: UpdateBannerProps) => {
+  const { t } = useTranslation();
   const [downloading, setDownloading] = useState(false);
 
   const handleDownload = async () => {
@@ -21,17 +23,17 @@ export const UpdateBanner = ({ updateInfo, onDismiss }: UpdateBannerProps) => {
     try {
       await downloadAndInstallApk(updateInfo.downloadUrl);
     } catch (e: any) {
-      toast({ title: "خطأ في التنزيل", description: e.message, variant: "destructive" });
+      toast({ title: t("forceUpdate.downloadErrorTitle"), description: e.message, variant: "destructive" });
     }
     setDownloading(false);
   };
 
   return (
-    <div className="bg-primary/10 border-b border-primary/20 px-4 py-2.5 flex items-center justify-between gap-2" dir="rtl">
+    <div className="bg-primary/10 border-b border-primary/20 px-4 py-2.5 flex items-center justify-between gap-2" dir={document.documentElement.dir}>
       <div className="flex items-center gap-2 flex-1 min-w-0">
         <Download className="w-4 h-4 text-primary shrink-0" />
         <span className="text-xs font-medium text-foreground truncate">
-          تحديث جديد متوفر ({updateInfo.latestVersion})
+          {t("forceUpdate.updateAvailable", { version: updateInfo.latestVersion })}
         </span>
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
@@ -42,7 +44,7 @@ export const UpdateBanner = ({ updateInfo, onDismiss }: UpdateBannerProps) => {
             onClick={handleDownload}
             disabled={downloading}
           >
-            {downloading ? <Loader2 className="w-3 h-3 animate-spin" /> : "تحديث"}
+            {downloading ? <Loader2 className="w-3 h-3 animate-spin" /> : t("forceUpdate.updateButton")}
           </Button>
         )}
         <button onClick={onDismiss} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
@@ -62,6 +64,7 @@ interface UpdateDialogProps {
 
 /** Full-screen update prompt (shown periodically) */
 export const UpdateDialog = ({ updateInfo, onRetry, onSkip, checking }: UpdateDialogProps) => {
+  const { t } = useTranslation();
   const [dlProgress, setDlProgress] = useState<DownloadProgress>({ progress: 0, status: 'idle' });
 
   const handleDownload = async () => {
@@ -69,14 +72,14 @@ export const UpdateDialog = ({ updateInfo, onRetry, onSkip, checking }: UpdateDi
     try {
       await downloadAndInstallApk(updateInfo.downloadUrl, setDlProgress);
     } catch (e: any) {
-      toast({ title: "خطأ في التنزيل", description: e.message, variant: "destructive" });
+      toast({ title: t("forceUpdate.downloadErrorTitle"), description: e.message, variant: "destructive" });
     }
   };
 
   const isDownloading = dlProgress.status === 'downloading' || dlProgress.status === 'opening';
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col items-center justify-center p-6" dir="rtl">
+    <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col items-center justify-center p-6" dir={document.documentElement.dir}>
       <div className="w-full max-w-sm space-y-6 text-center">
         <div className="w-20 h-20 mx-auto rounded-[22px] bg-primary/10 flex items-center justify-center">
           {isDownloading
@@ -87,12 +90,12 @@ export const UpdateDialog = ({ updateInfo, onRetry, onSkip, checking }: UpdateDi
 
         <div>
           <h1 className="text-xl font-bold text-foreground mb-2">
-            {isDownloading ? "جاري تنزيل التحديث..." : "يتوفر تحديث جديد!"}
+            {isDownloading ? t("forceUpdate.downloadingTitle") : t("forceUpdate.updateAvailable", { version: updateInfo.latestVersion })}
           </h1>
           <p className="text-sm text-muted-foreground">
             {isDownloading
-              ? `${dlProgress.progress}% — يرجى الانتظار`
-              : "ننصح بالتحديث للحصول على أحدث الميزات والإصلاحات"
+              ? t("forceUpdate.downloadProgress", { progress: dlProgress.progress })
+              : t("forceUpdate.updateRecommendation")
             }
           </p>
         </div>
@@ -108,16 +111,16 @@ export const UpdateDialog = ({ updateInfo, onRetry, onSkip, checking }: UpdateDi
 
         <div className="bg-card border border-border rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">النسخة الحالية</span>
+            <span className="text-muted-foreground">{t("forceUpdate.currentVersion")}</span>
             <span className="font-mono font-bold text-muted-foreground">{updateInfo.currentVersion}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">النسخة الجديدة</span>
+            <span className="text-muted-foreground">{t("forceUpdate.newVersion")}</span>
             <span className="font-mono font-bold text-primary">{updateInfo.latestVersion}</span>
           </div>
           {updateInfo.changelog && (
             <div className="pt-2 border-t border-border">
-              <p className="text-[11px] text-muted-foreground mb-1 font-medium">ما الجديد:</p>
+              <p className="text-[11px] text-muted-foreground mb-1 font-medium">{t("forceUpdate.changelogTitle")}</p>
               <p className="text-xs text-foreground whitespace-pre-wrap bg-muted rounded-xl p-3 text-right leading-relaxed">
                 {updateInfo.changelog}
               </p>
@@ -134,17 +137,17 @@ export const UpdateDialog = ({ updateInfo, onRetry, onSkip, checking }: UpdateDi
               disabled={isDownloading}
             >
               {isDownloading
-                ? <><Loader2 className="w-5 h-5 ml-2 animate-spin" />جاري التنزيل...</>
-                : <><Sparkles className="w-5 h-5 ml-2" />تحميل وتثبيت التحديث</>
+                ? <><Loader2 className="w-5 h-5 ml-2 animate-spin" />{t("forceUpdate.downloadingButton")}</>
+                : <><Sparkles className="w-5 h-5 ml-2" />{t("forceUpdate.downloadInstallButton")}</>
               }
             </Button>
           )}
           <Button onClick={onRetry} variant="outline" className="w-full h-10 text-xs" disabled={checking || isDownloading}>
             <RefreshCw className={`w-4 h-4 ml-1.5 ${checking ? 'animate-spin' : ''}`} />
-            {checking ? 'جاري الفحص...' : 'أعد الفحص بعد التحديث'}
+            {t("forceUpdate.checkButton")}
           </Button>
           <Button onClick={onSkip} variant="ghost" className="w-full h-10 text-muted-foreground text-xs" disabled={isDownloading}>
-            لاحقاً — تابع بدون تحديث
+            {t("forceUpdate.skipButton")}
           </Button>
         </div>
       </div>
@@ -164,6 +167,7 @@ interface ForceUpdateProps {
  * Blocking update gate shown when the server requires a higher app version.
  */
 const ForceUpdate = ({ minimumVersion, latestVersion }: ForceUpdateProps) => {
+  const { t } = useTranslation();
   return (
     <div className="min-h-dvh bg-background p-6 flex items-center justify-center safe-area-insets">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 text-center space-y-4">
@@ -171,19 +175,19 @@ const ForceUpdate = ({ minimumVersion, latestVersion }: ForceUpdateProps) => {
           <RefreshCw className="h-7 w-7" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-xl font-semibold">Update required</h1>
+          <h1 className="text-xl font-semibold">{t("forceUpdate.updateRequiredTitle")}</h1>
           <p className="text-sm text-muted-foreground">
-            Install version {minimumVersion || "required by the administrator"} or newer to continue.
+            {t("forceUpdate.updateRequiredDesc", { version: minimumVersion || "required by the administrator" })}
           </p>
         </div>
         <div className="rounded-xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
           <div className="flex items-center justify-between">
-            <span>Current version</span>
+            <span>{t("forceUpdate.currentVersionLabel")}</span>
             <span className="font-medium text-foreground">{APP_VERSION}</span>
           </div>
           {latestVersion ? (
             <div className="mt-2 flex items-center justify-between">
-              <span>Required version</span>
+              <span>{t("forceUpdate.requiredVersionLabel")}</span>
               <span className="font-medium text-foreground">{latestVersion}</span>
             </div>
           ) : null}

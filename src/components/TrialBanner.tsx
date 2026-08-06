@@ -7,7 +7,7 @@ import { getLicenseStatus, getTrialRemainingDays, type LicenseInfo, shouldShowTr
 import { cn } from "@/lib/utils";
 
 const TrialBanner = () => {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const nav = useNavigate();
   const isArabic = i18n.language === "ar";
   const [warning, setWarning] = useState<{ show: boolean; days: number } | null>(null);
@@ -27,9 +27,9 @@ const TrialBanner = () => {
   if (!warning || !warning.show || dismissed) return null;
 
   const getMessage = () => {
-    if (warning.days === 1) return isArabic ? "يوم واحد متبقي من الفترة التجريبية" : "1 day remaining in trial";
-    if (warning.days === 2) return isArabic ? "يومان متبقيان من الفترة التجريبية" : "2 days remaining in trial";
-    return isArabic ? `${warning.days} أيام متبقية من الفترة التجريبية` : `${warning.days} days remaining in trial`;
+    if (warning.days === 1) return t("trial.daysRemaining1");
+    if (warning.days === 2) return t("trial.daysRemaining2");
+    return t("trial.daysRemaining", { days: warning.days });
   };
 
   return (
@@ -46,8 +46,8 @@ const TrialBanner = () => {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold">{getMessage()}</p>
         <p className="text-xs opacity-80">
-          {isArabic ? "فعّل حسابك لمواصلة استخدام التطبيق" : "Activate your account to continue using the app"}
-        </p>
+           {t("trial.activatePrompt")}
+         </p>
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         <Button
@@ -56,7 +56,7 @@ const TrialBanner = () => {
           className="text-xs h-8 px-3 whitespace-nowrap rounded-lg"
           onClick={() => nav("/activation")}
         >
-          {isArabic ? "تفعيل" : "Activate"}
+          {t("trial.activateButton")}
         </Button>
         <button
           onClick={() => setDismissed(true)}

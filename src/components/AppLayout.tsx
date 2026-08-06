@@ -47,14 +47,14 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<{ email?: string } | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [brandTitle, setBrandTitle] = useState(() => getBusinessName() || "تحويل رصيد");
+  const [brandTitle, setBrandTitle] = useState(() => getBusinessName() || t("appName"));
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
     getCurrentUser().then((u) => setUser(u ? { email: u.email } : null));
     isAdminUser().then(setIsAdmin).catch(() => setIsAdmin(false));
-    setBrandTitle(getBusinessName() || "تحويل رصيد");
+    setBrandTitle(getBusinessName() || t("appName"));
   }, [menuOpen]);
 
   const isBottomNavActive = (path: string) => {
@@ -80,7 +80,7 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
           <button 
             onClick={() => setMenuOpen(true)} 
             className="text-white w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center hover:bg-white/20 active:bg-white/25 transition-all active:scale-90 backdrop-blur-sm"
-            aria-label="القائمة"
+            aria-label={t("appLayout.menuAria")}
           >
             <Menu className="w-5.5 h-5.5" />
           </button>
@@ -167,7 +167,7 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
           {/* Menu Items */}
           <nav className="flex-1 py-3 px-2.5 overflow-y-auto scrollbar-thin">
             <div className="px-3 py-1.5 mb-1">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">القائمة الرئيسية</span>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t("appLayout.mainMenuHeader")}</span>
             </div>
             {menuItems.map((item) => {
               const isActive = location.pathname === item.path;
@@ -199,7 +199,7 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
             {isAdmin && (
               <>
                 <div className="px-3 py-1.5 mt-4 mb-1">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">الإدارة</span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t("appLayout.adminSectionHeader")}</span>
                 </div>
                 <button
                   onClick={() => { setMenuOpen(false); navigate("/sys-panel"); }}
@@ -212,8 +212,8 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
                     <Shield className="w-4.5 h-4.5" />
                   </div>
                   <div className="text-right flex-1">
-                    <span className="text-sm font-semibold block">Administration</span>
-                    <span className="text-[11px] text-muted-foreground line-clamp-1">Licenses, devices, monitoring</span>
+                    <span className="text-sm font-semibold block">{t("admin.administration")}</span>
+                    <span className="text-[11px] text-muted-foreground line-clamp-1">{t("appLayout.adminDesc")}</span>
                   </div>
                 </button>
               </>

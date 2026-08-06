@@ -57,7 +57,7 @@ const ActivationRequests = () => {
     } catch (err) {
       const msg = err instanceof Error ? err.message : (err as any)?.message || JSON.stringify(err);
       setLoadRequestsError(msg);
-      toast.error(isArabic ? "فشل تحميل الطلبات" : "Failed to load requests");
+      toast.error(t("adminActivationRequests.failedToLoad"));
     } finally {
       setLoading(false);
     }
@@ -86,14 +86,14 @@ const ActivationRequests = () => {
           _notes: null,
         });
         if (error) throw error;
-        toast.success(isArabic ? "تمت الموافقة على الطلب" : "Request approved");
+        toast.success(t("adminActivationRequests.approvedToast"));
       } else if (dialogAction === "reject") {
         const { error } = await supabase.rpc("admin_reject_activation", {
           _request_id: selectedRequest.id,
           _reason: rejectReason || null,
         });
         if (error) throw error;
-        toast.success(isArabic ? "تم رفض الطلب" : "Request rejected");
+        toast.success(t("adminActivationRequests.rejectedToast"));
       } else if (dialogAction === "modify") {
         const { error } = await supabase.rpc("admin_modify_activation", {
           _request_id: selectedRequest.id,
@@ -102,28 +102,28 @@ const ActivationRequests = () => {
           _notes: null,
         });
         if (error) throw error;
-        toast.success(isArabic ? "تم تعديل التفعيل" : "Activation modified");
+        toast.success(t("adminActivationRequests.modifiedToast"));
       } else if (dialogAction === "revoke") {
         const { error } = await supabase.rpc("admin_revoke_activation", {
           _request_id: selectedRequest.id,
           _reason: rejectReason || null,
         });
         if (error) throw error;
-        toast.success(isArabic ? "تم إلغاء التفعيل" : "Activation revoked");
+        toast.success(t("adminActivationRequests.revokedToast"));
       }
       setShowDialog(false);
       load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : (isArabic ? "فشل" : "Failed"));
+      toast.error(err instanceof Error ? err.message : t("adminActivationRequests.failed"));
     } finally {
       setActionLoading(null);
     }
   };
 
-  const statusBadge = (status: string) => {
-    if (status === "pending") return <Badge variant="secondary"><Clock className="w-3 h-3 me-1" />{isArabic ? "معلق" : "Pending"}</Badge>;
-    if (status === "approved") return <Badge className="bg-green-600 hover:bg-green-700"><CheckCircle2 className="w-3 h-3 me-1" />{isArabic ? "مفعل" : "Active"}</Badge>;
-    if (status === "rejected") return <Badge variant="destructive"><XCircle className="w-3 h-3 me-1" />{isArabic ? "مرفوض" : "Rejected"}</Badge>;
+  const statusBadge = (status: string, t: any) => {
+    if (status === "pending") return <Badge variant="secondary"><Clock className="w-3 h-3 me-1" />{t("admin.pending")}</Badge>;
+    if (status === "approved") return <Badge className="bg-green-600 hover:bg-green-700"><CheckCircle2 className="w-3 h-3 me-1" />{t("admin.active")}</Badge>;
+    if (status === "rejected") return <Badge variant="destructive"><XCircle className="w-3 h-3 me-1" />{t("admin.rejected")}</Badge>;
     return <Badge>{status}</Badge>;
   };
 
@@ -132,38 +132,38 @@ const ActivationRequests = () => {
       <div className="flex items-center gap-3 flex-wrap">
         <Select value={filter} onValueChange={setFilter}>
           <SelectTrigger className="w-[160px] h-10 rounded-xl">
-            <SelectValue placeholder={isArabic ? "الحالة" : "Status"} />
+            <SelectValue placeholder={t("adminActivationRequests.statusPlaceholder")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">{isArabic ? "الكل" : "All"}</SelectItem>
-            <SelectItem value="pending">{isArabic ? "معلق" : "Pending"}</SelectItem>
-            <SelectItem value="approved">{isArabic ? "موافق عليه" : "Approved"}</SelectItem>
-            <SelectItem value="rejected">{isArabic ? "مرفوض" : "Rejected"}</SelectItem>
+<SelectItem value="all">{t("common.all")}</SelectItem>
+	            <SelectItem value="pending">{t("admin.pending")}</SelectItem>
+	            <SelectItem value="approved">{t("adminActivationRequests.approved")}</SelectItem>
+	            <SelectItem value="rejected">{t("admin.rejected")}</SelectItem>
           </SelectContent>
         </Select>
-        <span className="text-xs text-muted-foreground">
-          {loading ? "" : `${requests.length} ${isArabic ? "طلب" : "request(s)"}`}
-        </span>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 w-7 p-0 rounded-lg"
-          onClick={load}
-          title={isArabic ? "تحديث" : "Refresh"}
-        >
+<span className="text-xs text-muted-foreground">
+	           {loading ? "" : `${requests.length} ${t("adminActivationRequests.requestsUnit")}`}
+	         </span>
+	         <Button
+	           size="sm"
+	           variant="ghost"
+	           className="h-7 w-7 p-0 rounded-lg"
+	           onClick={load}
+	           title={t("common.refresh")}
+	         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
         </Button>
       </div>
 
       {loadRequestsError && (
         <div className="bg-destructive/10 border border-destructive/20 rounded-2xl p-4 text-center">
-          <p className="text-sm text-destructive font-medium">
-            {isArabic ? "خطأ في تحميل الطلبات" : "Error loading requests"}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1 font-mono" dir="ltr">{loadRequestsError}</p>
-          <Button variant="outline" size="sm" className="mt-2" onClick={load}>
-            {isArabic ? "إعادة المحاولة" : "Retry"}
-          </Button>
+<p className="text-sm text-destructive font-medium">
+	             {t("adminActivationRequests.errorLoading")}
+	           </p>
+	           <p className="text-xs text-muted-foreground mt-1 font-mono" dir="ltr">{loadRequestsError}</p>
+	           <Button variant="outline" size="sm" className="mt-2" onClick={load}>
+	             {t("common.retry")}
+	           </Button>
         </div>
       )}
 
@@ -172,12 +172,12 @@ const ActivationRequests = () => {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{isArabic ? "المستخدم" : "User"}</th>
-                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{isArabic ? "البريد" : "Email"}</th>
-                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{isArabic ? "الهاتف" : "Phone"}</th>
-                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{isArabic ? "الحالة" : "Status"}</th>
-                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{isArabic ? "التاريخ" : "Date"}</th>
-                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{isArabic ? "الإجراءات" : "Actions"}</th>
+<th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminActivationRequests.user")}</th>
+	                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminActivationRequests.email")}</th>
+	                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminActivationRequests.phone")}</th>
+	                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminActivationRequests.status")}</th>
+	                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminActivationRequests.date")}</th>
+	                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminActivationRequests.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -194,9 +194,9 @@ const ActivationRequests = () => {
                 ))
               ) : requests.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-sm text-muted-foreground">
-                    {isArabic ? "لا توجد طلبات" : "No requests found"}
-                  </td>
+<td colSpan={6} className="p-8 text-center text-sm text-muted-foreground">
+	                     {t("adminActivationRequests.noRequests")}
+	                   </td>
                 </tr>
               ) : (
                 requests.map((r) => (
@@ -211,7 +211,7 @@ const ActivationRequests = () => {
                     </td>
                     <td className="p-3 text-xs text-muted-foreground" dir="ltr">{r.email}</td>
                     <td className="p-3 text-xs text-muted-foreground" dir="ltr">{r.contact_phone || r.profile_phone || "-"}</td>
-                    <td className="p-3">{statusBadge(r.status)}</td>
+                    <td className="p-3">{statusBadge(r.status, t)}</td>
                     <td className="p-3 text-xs text-muted-foreground">{formatDate(r.created_at)}</td>
                     <td className="p-3">
                       {r.status === "pending" ? (
@@ -219,12 +219,12 @@ const ActivationRequests = () => {
                           <Button size="sm" variant="default" className="h-8 text-xs"
                             onClick={() => handleOpenDialog(r, "approve")}
                             disabled={!!actionLoading}>
-                            <CheckCircle2 className="w-3 h-3 me-1" />{isArabic ? "موافقة" : "Approve"}
+                            <CheckCircle2 className="w-3 h-3 me-1" />{t("adminActivationRequests.approve")}
                           </Button>
                           <Button size="sm" variant="destructive" className="h-8 text-xs"
                             onClick={() => handleOpenDialog(r, "reject")}
                             disabled={!!actionLoading}>
-                            <XCircle className="w-3 h-3 me-1" />{isArabic ? "رفض" : "Reject"}
+                            <XCircle className="w-3 h-3 me-1" />{t("adminActivationRequests.reject")}
                           </Button>
                         </div>
                       ) : (
@@ -232,12 +232,12 @@ const ActivationRequests = () => {
                           <Button size="sm" variant="outline" className="h-8 text-xs"
                             onClick={() => handleOpenDialog(r, "modify")}
                             disabled={!!actionLoading}>
-                            {isArabic ? "تعديل" : "Modify"}
+                            {t("adminActivationRequests.modify")}
                           </Button>
                           <Button size="sm" variant="destructive" className="h-8 text-xs"
                             onClick={() => handleOpenDialog(r, "revoke")}
                             disabled={!!actionLoading}>
-                            {isArabic ? "إلغاء" : "Revoke"}
+                            {t("adminActivationRequests.revoke")}
                           </Button>
                         </div>
                       )}
@@ -253,36 +253,36 @@ const ActivationRequests = () => {
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="rounded-2xl max-w-sm">
           <DialogHeader>
-            <DialogTitle>
-              {dialogAction === "approve" ? (isArabic ? "الموافقة على الطلب" : "Approve Request")
-              : dialogAction === "reject" ? (isArabic ? "رفض الطلب" : "Reject Request")
-              : dialogAction === "modify" ? (isArabic ? "تعديل التفعيل" : "Modify Activation")
-              : (isArabic ? "إلغاء التفعيل" : "Revoke Activation")}
-            </DialogTitle>
-            <DialogDescription>
-              {selectedRequest?.display_name || selectedRequest?.email}
-              {selectedRequest?.contact_name && <span className="block text-xs mt-1">{isArabic ? "جهة الاتصال: " : "Contact: "}{selectedRequest.contact_name}</span>}
-            </DialogDescription>
+<DialogTitle>
+	               {dialogAction === "approve" ? t("adminActivationRequests.approveRequest")
+	               : dialogAction === "reject" ? t("adminActivationRequests.rejectRequest")
+	               : dialogAction === "modify" ? t("adminActivationRequests.modifyActivation")
+	               : t("adminActivationRequests.revokeActivation")}
+	             </DialogTitle>
+<DialogDescription>
+	               {selectedRequest?.display_name || selectedRequest?.email}
+	               {selectedRequest?.contact_name && <span className="block text-xs mt-1">{t("adminActivationRequests.contact")}{selectedRequest.contact_name}</span>}
+	             </DialogDescription>
           </DialogHeader>
 
           {(dialogAction === "approve" || dialogAction === "modify") ? (
             <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <Label>{isArabic ? "نوع الترخيص" : "License type"}</Label>
+                <Label>{t("adminActivationRequests.licenseType")}</Label>
                 <Select value={licenseType} onValueChange={setLicenseType}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="days_30">30 {isArabic ? "يوم" : "Days"}</SelectItem>
-                    <SelectItem value="days_90">90 {isArabic ? "يوم" : "Days"}</SelectItem>
-                    <SelectItem value="days_180">180 {isArabic ? "يوم" : "Days"}</SelectItem>
-                    <SelectItem value="days_365">365 {isArabic ? "يوم" : "Days"}</SelectItem>
-                    <SelectItem value="permanent">{isArabic ? "دائم" : "Permanent"}</SelectItem>
+<SelectItem value="days_30">30 {t("adminActivationRequests.daysUnit")}</SelectItem>
+	                     <SelectItem value="days_90">90 {t("adminActivationRequests.daysUnit")}</SelectItem>
+	                     <SelectItem value="days_180">180 {t("adminActivationRequests.daysUnit")}</SelectItem>
+	                     <SelectItem value="days_365">365 {t("adminActivationRequests.daysUnit")}</SelectItem>
+	                     <SelectItem value="permanent">{t("adminActivationRequests.permanent")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               {licenseType !== "permanent" && (
                 <div className="space-y-2">
-                  <Label>{isArabic ? "المدة (أيام)" : "Duration (days)"}</Label>
+                  <Label>{t("adminActivationRequests.durationDays")}</Label>
                   <input
                     type="number"
                     value={expiryDays}
@@ -295,12 +295,12 @@ const ActivationRequests = () => {
           ) : (
             <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <Label>{dialogAction === "revoke" ? (isArabic ? "سبب الإلغاء" : "Revocation reason") : (isArabic ? "سبب الرفض" : "Rejection reason")}</Label>
+                <Label>{dialogAction === "revoke" ? t("adminActivationRequests.revocationReason") : t("adminActivationRequests.rejectionReason")}</Label>
                 <textarea
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
                   className="flex h-20 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
-                  placeholder={isArabic ? "اختياري" : "Optional"}
+                  placeholder={t("adminActivationRequests.optional")}
                 />
               </div>
             </div>
@@ -313,10 +313,10 @@ const ActivationRequests = () => {
               onClick={handleSubmit}
               disabled={actionLoading?.startsWith(dialogAction)}
             >
-              {dialogAction === "approve" ? (isArabic ? "موافقة" : "Approve")
-              : dialogAction === "reject" ? (isArabic ? "رفض" : "Reject")
-              : dialogAction === "modify" ? (isArabic ? "تعديل" : "Modify")
-              : (isArabic ? "إلغاء" : "Revoke")}
+{dialogAction === "approve" ? t("adminActivationRequests.approve")
+	               : dialogAction === "reject" ? t("adminActivationRequests.reject")
+	               : dialogAction === "modify" ? t("adminActivationRequests.modify")
+	               : t("adminActivationRequests.revoke")}
             </Button>
           </DialogFooter>
         </DialogContent>

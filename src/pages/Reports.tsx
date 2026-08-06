@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "@/lib/i18n";
 import {
   Activity,
   BarChart3,
@@ -136,7 +138,8 @@ async function resolveBatchNames(phones: string[]): Promise<Record<string, strin
 }
 
 const Reports = () => {
-  const { toast } = useToast();
+const { t, i18n } = useTranslation();
+const { toast } = useToast();
   const [period, setPeriod] = useState<ReportPeriod>(defaultState.period);
   const [range, setRange] = useState<Range>(defaultState.range);
   const [operator, setOperator] = useState(defaultState.operator);
@@ -197,11 +200,11 @@ const Reports = () => {
     fetchTransferReport(mainFilters)
       .then((next) => { if (active) setReport(next); })
       .catch((err) => {
-        if (active) toast({ title: "تعذّر تحميل التقرير", description: String(err?.message ?? err), variant: "destructive" });
+        if (active) toast({ title: t("reports.loadFailed"), description: String(err?.message ?? err), variant: "destructive" });
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [mainFilters, reloadKey, toast]);
+  }, [mainFilters, reloadKey, toast, t]);
 
   const allRows = useMemo(() => report?.rows ?? [], [report]);
 
@@ -255,13 +258,13 @@ const Reports = () => {
     const ops = report?.by_operator ?? [];
     const total = ops.reduce((s, o) => s + o.amount, 0);
     return ops.map((o) => ({
-      name: o.key === "mtn" ? "MTN" : o.key === "syriatel" ? "Syriatel" : o.key.toUpperCase(),
+      name: o.key === "mtn" ? t("operator.mtn") : o.key === "syriatel" ? t("operator.syriatel") : o.key.toUpperCase(),
       key: o.key,
       count: o.count,
       amount: o.amount,
       pct: total > 0 ? Math.round((o.amount / total) * 100) : 0,
     }));
-  }, [report]);
+  }, [report, t]);
 
   const topCustomers = useMemo(() => {
     const map = new Map<string, TopCustomer>();
@@ -346,11 +349,11 @@ const Reports = () => {
   const exportCsv = useCallback(() => {
     const rows = sortedRows;
     if (!rows.length) {
-      toast({ title: "لا توجد بيانات للتصدير" });
+      toast({ title: t("reports.noDataExport") });
       return;
     }
-    const headers = ["التاريخ", "رقم الهاتف", "الاسم", "المشغل", "المبلغ"];
-    const csv = [headers.join(",")]
+    const headers = t("reports.csvHeaders");
+    const csv = [headers]
       .concat(rows.map((r) => [
         formatDateTime(r.created_at),
         r.phone,
@@ -366,8 +369,8 @@ const Reports = () => {
     a.download = `transfers-report-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast({ title: "تم تصدير الملف" });
-  }, [sortedRows, contactNames, toast]);
+    toast({ title: t("reports.exportSuccess") });
+  }, [sortedRows, contactNames, toast, t]);
 
   const exportMonthly = useCallback(() => {
     const now = new Date();
@@ -382,11 +385,11 @@ const Reports = () => {
     }).then((monthlyReport) => {
       const rows = monthlyReport?.rows ?? [];
       if (!rows.length) {
-        toast({ title: "لا توجد بيانات للشهر الحالي" });
+        toast({ title: t("reports.noMonthlyData") });
         return;
       }
-      const headers = ["التاريخ", "رقم الهاتف", "المشغل", "المبلغ"];
-      const csv = [headers.join(",")]
+      const headers = t("reports.monthlyCsvHeaders");
+      const csv = [headers]
         .concat(rows.map((r) => [
           formatDateTime(r.created_at),
           r.phone,
@@ -401,44 +404,44 @@ const Reports = () => {
       a.download = `monthly-report-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-      toast({ title: "تم تصدير التقرير الشهري" });
+      toast({ title: t("reports.monthlyExportSuccess") });
     }).catch(() => {
-      toast({ title: "فشل تصدير التقرير الشهري", variant: "destructive" });
+      toast({ title: t("reports.monthlyExportFailed"), variant: "destructive" });
     });
-  }, [toast]);
+  }, [toast, t]);
 
   return (
-    <AppLayout title="التقارير" titleIcon={<BarChart3 className="w-5 h-5 text-white" />}>
-      <div className="mx-auto w-full max-w-6xl space-y-4 p-3 pb-3" dir="rtl">
+    <AppLayout title={t("reports.pageTitle")} titleIcon={<BarChart3 className="w-5 h-5 text-white" />}>
+      <div className="mx-auto w-full max-w-6xl space-y-4 p-3 pb-3" dir={i18n.dir()}>
 
         {/* 1. DASHBOARD HEADER */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <SummaryCard
             icon={<Activity className="h-5 w-5" />}
-            label="تحويلات اليوم"
+            label={t("reports.todayTransfers")}
             value={fmt(today.count)}
-            subtext={`من ${fmt(report?.total ?? 0)} إجمالي`}
+            subtext={`${t("reports.of")} ${fmt(report?.total ?? 0)} ${t("reports.totalWord")}`}
             color="primary"
           />
           <SummaryCard
             icon={<TrendingUp className="h-5 w-5" />}
-            label="قيمة اليوم"
+            label={t("reports.todayValue")}
             value={fmtCurrency(today.amount)}
-            subtext={today.count > 0 ? `معدل ${fmt(Math.round(today.amount / today.count))}` : "—"}
+            subtext={today.count > 0 ? `${t("reports.avgWord")} ${fmt(Math.round(today.amount / today.count))}` : "—"}
             color="success"
           />
           <SummaryCard
             icon={<Rotate3D className="h-5 w-5" />}
-            label="إجمالي التحويلات"
+            label={t("reports.totalTransfersLabel")}
             value={fmt(report?.total ?? 0)}
             subtext={fmtCurrency(report?.amount_total ?? 0)}
             color="info"
           />
           <SummaryCard
             icon={<Network className="h-5 w-5" />}
-            label="مشغلين"
+            label={t("reports.operators")}
             value={fmt(operatorData.length)}
-            subtext={operatorData.map((o) => o.name).join(" و ")}
+            subtext={operatorData.map((o) => o.name).join(t("reports.andJoin"))}
             color="accent"
           />
         </div>
@@ -447,23 +450,23 @@ const Reports = () => {
         <div className="bg-white rounded-2xl shadow-sm border border-border/60 p-4.5">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h3 className="flex items-center gap-2 text-sm font-bold">
-              <BarChart3 className="h-4 w-4 text-primary" /> تحليل الفترات الزمنية
+              <BarChart3 className="h-4 w-4 text-primary" /> {t("reports.periodAnalysis")}
             </h3>
             <div className="flex items-center gap-1 bg-muted/50 rounded-xl p-0.5">
-              {(["daily", "weekly", "monthly"] as TabView[]).map((t) => (
+              {(["daily", "weekly", "monthly"] as TabView[]).map((tab) => (
                 <button
-                  key={t}
+                  key={tab}
                   onClick={() => {
-                    setTabView(t);
-                    setPeriod(t === "daily" ? "day" : t === "weekly" ? "week" : "month");
+                    setTabView(tab);
+                    setPeriod(tab === "daily" ? "day" : tab === "weekly" ? "week" : "month");
                     setPage(1);
                   }}
                   className={cn(
                     "px-3 py-1.5 text-[11px] font-semibold rounded-lg transition-all",
-                    tabView === t ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    tabView === tab ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  {t === "daily" ? "يومي" : t === "weekly" ? "أسبوعي" : "شهري"}
+                  {tab === "daily" ? t("reports.daily") : tab === "weekly" ? t("reports.weekly") : t("reports.monthly")}
                 </button>
               ))}
             </div>
@@ -492,20 +495,20 @@ const Reports = () => {
                     fontSize: 12,
                   }}
                 />
-                <Area type="monotone" dataKey="amount" name="القيمة" stroke="hsl(var(--primary))" fill="url(#amountGrad)" strokeWidth={2} />
-                <Area type="monotone" dataKey="count" name="العدد" stroke="hsl(var(--info))" fill="url(#countGrad)" strokeWidth={2} />
+                <Area type="monotone" dataKey="amount" name={t("reports.amount")} stroke="hsl(var(--primary))" fill="url(#amountGrad)" strokeWidth={2} />
+                <Area type="monotone" dataKey="count" name={t("reports.count")} stroke="hsl(var(--info))" fill="url(#countGrad)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
             <div className="flex items-center justify-center h-[260px] text-xs text-muted-foreground">
-              {loading ? "جاري التحميل..." : "لا توجد بيانات للفترة المحددة"}
+              {loading ? t("common.loading") : t("reports.noPeriodData")}
             </div>
           )}
           {periodChartData.length > 0 && (
             <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-border/60">
-              <MiniStat label="إجمالي التحويلات" value={fmt(periodChartData.reduce((s, p) => s + p.count, 0))} />
-              <MiniStat label="إجمالي المبلغ" value={fmtCurrency(periodChartData.reduce((s, p) => s + p.amount, 0))} />
-              <MiniStat label="متوسط العملية" value={fmtCurrency(avgAmount)} />
+              <MiniStat label={t("reports.totalTransfersLabel")} value={fmt(periodChartData.reduce((s, p) => s + p.count, 0))} />
+              <MiniStat label={t("reports.totalAmountLabel")} value={fmtCurrency(periodChartData.reduce((s, p) => s + p.amount, 0))} />
+              <MiniStat label={t("reports.avgOperation")} value={fmtCurrency(avgAmount)} />
             </div>
           )}
         </div>
@@ -518,14 +521,14 @@ const Reports = () => {
           >
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-primary" />
-              <span className="text-sm font-bold">التصفية</span>
+              <span className="text-sm font-bold">{t("reports.filters")}</span>
               {activeFilterCount > 0 && (
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary font-bold">{activeFilterCount}</span>
               )}
             </div>
             <div className="flex items-center gap-2">
               <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); clearFilters(); }} className="h-8 text-xs rounded-xl">
-                <RotateCcw className="ml-1 h-3 w-3" /> مسح
+                <RotateCcw className="ml-1 h-3 w-3" /> {t("reports.clearFilters")}
               </Button>
               {showFilters ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
             </div>
@@ -535,36 +538,36 @@ const Reports = () => {
             <div className="mt-4 space-y-3 animate-slide-down">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <FilterInput
-                  label="رقم الهاتف"
+                  label={t("reports.phoneFilter")}
                   value={phoneSearch}
                   onChange={(v) => resetPage(() => setPhoneSearch(v))}
-                  placeholder="ابحث برقم الهاتف..."
+                  placeholder={t("reports.phoneSearchPlaceholder")}
                   icon={<Search className="h-3.5 w-3.5 text-muted-foreground" />}
                 />
-                <FilterSelect label="الفترة" value={range} onChange={(v) => resetPage(() => setRange(v as Range))}>
-                  <option value="today">اليوم</option>
-                  <option value="yesterday">أمس</option>
-                  <option value="7">آخر 7 أيام</option>
-                  <option value="30">آخر 30 يوماً</option>
-                  <option value="90">آخر 90 يوماً</option>
-                  <option value="all">كل البيانات</option>
-                  <option value="custom">نطاق مخصص</option>
+                <FilterSelect label={t("reports.periodFilter")} value={range} onChange={(v) => resetPage(() => setRange(v as Range))}>
+                  <option value="today">{t("reports.rangeToday")}</option>
+                  <option value="yesterday">{t("reports.rangeYesterday")}</option>
+                  <option value="7">{t("reports.range7")}</option>
+                  <option value="30">{t("reports.range30")}</option>
+                  <option value="90">{t("reports.range90")}</option>
+                  <option value="all">{t("reports.rangeAll")}</option>
+                  <option value="custom">{t("reports.rangeCustom")}</option>
                 </FilterSelect>
-                <FilterSelect label="المشغل" value={operator} onChange={(v) => resetPage(() => setOperator(v))}>
-                  <option value="">الكل</option>
-                  <option value="mtn">MTN</option>
-                  <option value="syriatel">Syriatel</option>
+                <FilterSelect label={t("reports.operatorFilter")} value={operator} onChange={(v) => resetPage(() => setOperator(v))}>
+                  <option value="">{t("common.all")}</option>
+                  <option value="mtn">{t("operator.mtn")}</option>
+                  <option value="syriatel">{t("operator.syriatel")}</option>
                 </FilterSelect>
               </div>
 
               {range === "custom" && (
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="space-y-1 text-xs">
-                    <span className="text-muted-foreground">من تاريخ</span>
+                    <span className="text-muted-foreground">{t("reports.fromDate")}</span>
                     <Input type="date" value={customFrom} onChange={(e) => resetPage(() => setCustomFrom(e.target.value))} className="rounded-xl h-10" />
                   </label>
                   <label className="space-y-1 text-xs">
-                    <span className="text-muted-foreground">إلى تاريخ</span>
+                    <span className="text-muted-foreground">{t("reports.toDate")}</span>
                     <Input type="date" value={customTo} onChange={(e) => resetPage(() => setCustomTo(e.target.value))} className="rounded-xl h-10" />
                   </label>
                 </div>
@@ -579,9 +582,9 @@ const Reports = () => {
           <div className="bg-white rounded-2xl shadow-sm border border-border/60 p-4.5">
             <div className="flex items-center justify-between gap-2 mb-3">
               <h3 className="flex items-center gap-2 text-sm font-bold">
-                <User className="h-4 w-4 text-primary" /> أفضل العملاء
+                <User className="h-4 w-4 text-primary" /> {t("reports.topCustomers")}
               </h3>
-              <span className="text-[10px] text-muted-foreground">{topCustomers.length} عميل</span>
+              <span className="text-[10px] text-muted-foreground">{t("reports.clientsCount", { count: topCustomers.length })}</span>
             </div>
             {topCustomers.length > 0 ? (
               <div className="space-y-2">
@@ -600,7 +603,7 @@ const Reports = () => {
                       <div className="min-w-0">
                         <p className="text-xs font-semibold">{c.name || c.phone}</p>
                         <p className="text-[10px] text-muted-foreground">
-                          {c.count} تحويلة • {fmtCurrency(c.totalAmount)}
+                          {c.count} {t("reports.transferUnit")} • {fmtCurrency(c.totalAmount)}
                         </p>
                       </div>
                     </div>
@@ -612,7 +615,7 @@ const Reports = () => {
               </div>
             ) : (
               <div className="py-12 text-center text-xs text-muted-foreground">
-                لا توجد بيانات عملاء
+                {t("reports.noCustomerData")}
               </div>
             )}
           </div>
@@ -621,7 +624,7 @@ const Reports = () => {
           <div className="bg-white rounded-2xl shadow-sm border border-border/60 p-4.5">
             <div className="flex items-center justify-between gap-2 mb-3">
               <h3 className="flex items-center gap-2 text-sm font-bold">
-                <Network className="h-4 w-4 text-primary" /> تحليل المشغلين
+                <Network className="h-4 w-4 text-primary" /> {t("reports.operatorAnalysis")}
               </h3>
             </div>
             {operatorData.length > 0 ? (
@@ -660,12 +663,12 @@ const Reports = () => {
                       <div className="flex items-center gap-2">
                         <div className={cn(
                           "w-2.5 h-2.5 rounded-full",
-                          o.key === "mtn" ? "bg-operator-mtn" : "bg-operator-syriatel"
+                          o.key === "mtn" ? "bg-operator-mtn" : o.key === "syriatel" ? "bg-operator-syriatel" : "bg-muted-foreground"
                         )} />
                         <span className="text-xs font-bold">{o.name}</span>
                       </div>
                       <div className="flex items-center gap-4">
-                        <span className="text-xs text-muted-foreground">{o.count} تحويلة</span>
+                        <span className="text-xs text-muted-foreground">{o.count} {t("reports.transferUnit")}</span>
                         <span className="text-xs font-bold">{fmtCurrency(o.amount)}</span>
                         <span className={cn(
                           "text-[11px] font-semibold px-2 py-0.5 rounded-full",
@@ -680,7 +683,7 @@ const Reports = () => {
               </div>
             ) : (
               <div className="py-12 text-center text-xs text-muted-foreground">
-                لا توجد بيانات مشغلين
+                {t("reports.noOperatorData")}
               </div>
             )}
           </div>
@@ -691,7 +694,7 @@ const Reports = () => {
           <div className="bg-white rounded-2xl shadow-sm border border-border/60 p-4.5 min-h-[300px]">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h3 className="flex items-center gap-2 text-sm font-bold">
-                <BarChart3 className="h-4 w-4 text-primary" /> توزيع حسب
+                <BarChart3 className="h-4 w-4 text-primary" /> {t("reports.distributionBy")}
               </h3>
               <div className="flex items-center gap-1">
                 {(["operator", "user", "device"] as Dimension[]).map((d) => (
@@ -710,18 +713,18 @@ const Reports = () => {
                   <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
                   <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
                   <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "var(--radius)", fontSize: 12 }} />
-                  <Legend formatter={(v: string) => <span style={{ fontSize: 12 }}>{v === "value" ? "المبلغ" : v === "count" ? "العدد" : v}</span>} />
+                  <Legend formatter={(v: string) => <span style={{ fontSize: 12 }}>{v === "value" ? t("reports.amount") : v === "count" ? t("reports.count") : v}</span>} />
                   <Bar dataKey="value" name="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
               <div className="flex items-center justify-center h-[260px] text-xs text-muted-foreground">
-                اختر بُعداً لعرض الرسم البياني
+                {t("reports.selectDimension")}
               </div>
             )}
           </div>
           <div className="bg-white rounded-2xl shadow-sm border border-border/60 p-4.5 min-h-[300px]">
-            <h3 className="flex items-center gap-2 text-sm font-bold mb-3"><Activity className="h-4 w-4 text-primary" /> ملخص</h3>
+            <h3 className="flex items-center gap-2 text-sm font-bold mb-3"><Activity className="h-4 w-4 text-primary" /> {t("reports.totalOperations")}</h3>
             <div className="space-y-1">
               {(dimensions.length > 0 ? dimensions : []).map((d) => (
                 <div key={d.key} className="flex items-center justify-between gap-2 py-2 px-2.5 rounded-xl hover:bg-muted/50 transition-colors">
@@ -734,31 +737,31 @@ const Reports = () => {
                     )}
                     {dimItemLabel(dimension, d)}
                   </span>
-                  <span className="text-xs font-bold">{fmt(d.count)} <span className="font-normal text-muted-foreground">تحويلة</span></span>
+                  <span className="text-xs font-bold">{fmt(d.count)} <span className="font-normal text-muted-foreground">{t("reports.transferUnit")}</span></span>
                 </div>
               ))}
-              {!dimensions.length && <p className="text-xs text-muted-foreground text-center pt-12">لا توجد أبعاد للتقرير</p>}
+              {!dimensions.length && <p className="text-xs text-muted-foreground text-center pt-12">{t("reports.noDimensionData")}</p>}
             </div>
           </div>
         </div>
 
         {/* Metrics Row */}
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-          <Metric label="إجمالي العمليات" value={fmt(report?.total ?? 0)} />
-          <Metric label="إجمالي المبالغ" value={fmtCurrency(report?.amount_total ?? 0)} />
-          <Metric label="متوسط العملية" value={fmtCurrency(avgAmount)} />
-          <Metric label="عدد المشغلين" value={fmt(operatorData.length)} />
+          <Metric label={t("reports.totalOperations")} value={fmt(report?.total ?? 0)} />
+          <Metric label={t("reports.totalAmountLabel")} value={fmtCurrency(report?.amount_total ?? 0)} />
+          <Metric label={t("reports.avgOperation")} value={fmtCurrency(avgAmount)} />
+          <Metric label={t("reports.operatorCount")} value={fmt(operatorData.length)} />
         </div>
 
         {/* 6. DETAILED TRANSFERS TABLE */}
         <div className="bg-white rounded-2xl shadow-sm border border-border/60 p-4.5">
           <div className="flex items-center justify-between gap-2 mb-3">
             <h3 className="flex items-center gap-2 text-sm font-bold">
-              <Database className="h-4 w-4 text-primary" /> سجل التحويلات
+              <Database className="h-4 w-4 text-primary" /> {t("reports.transferLog")}
             </h3>
             <div className="flex items-center gap-2">
               <span className="text-[10px] text-muted-foreground">
-                {totalFiltered > 0 ? `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, totalFiltered)} من ${fmt(totalFiltered)}` : "لا توجد بيانات"}
+                {totalFiltered > 0 ? `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, totalFiltered)} ${t("reports.of")} ${fmt(totalFiltered)}` : t("common.noData")}
               </span>
               <Button size="sm" variant="outline" onClick={exportCsv} disabled={!sortedRows.length} className="rounded-xl h-8 text-xs">
                 <Download className="ml-1 h-3 w-3" /> CSV
@@ -771,11 +774,11 @@ const Reports = () => {
             <table className="w-full min-w-[700px] text-right text-xs">
               <thead>
                 <tr className="bg-muted/60 text-muted-foreground">
-                  <SortHeader field="date" label="التاريخ" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
-                  <th className="p-3 font-semibold">الاسم</th>
-                  <SortHeader field="phone" label="رقم الهاتف" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
-                  <SortHeader field="operator" label="المشغل" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
-                  <SortHeader field="amount" label="المبلغ" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
+                  <SortHeader field="date" label={t("reports.dateHeader")} sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
+                  <th className="p-3 font-semibold">{t("reports.nameHeader")}</th>
+                  <SortHeader field="phone" label={t("reports.phoneHeader")} sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
+                  <SortHeader field="operator" label={t("reports.operatorHeader")} sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
+                  <SortHeader field="amount" label={t("reports.amountHeader")} sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
                 </tr>
               </thead>
               <tbody>
@@ -806,11 +809,11 @@ const Reports = () => {
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="mt-3 flex items-center justify-center gap-3">
-              <Button size="icon" variant="outline" disabled={page <= 1 || loading} onClick={() => setPage((v) => Math.max(1, v - 1))} title="السابق" className="rounded-xl h-9 w-9">
+              <Button size="icon" variant="outline" disabled={page <= 1 || loading} onClick={() => setPage((v) => Math.max(1, v - 1))} title={t("common.previous")} className="rounded-xl h-9 w-9">
                 <ChevronRight className="h-4 w-4" />
               </Button>
-              <span className="text-xs text-muted-foreground">صفحة {page} من {totalPages}</span>
-              <Button size="icon" variant="outline" disabled={page >= totalPages || loading} onClick={() => setPage((v) => Math.min(totalPages, v + 1))} title="التالي" className="rounded-xl h-9 w-9">
+              <span className="text-xs text-muted-foreground">{t("reports.pageInfo", { page, totalPages })}</span>
+              <Button size="icon" variant="outline" disabled={page >= totalPages || loading} onClick={() => setPage((v) => Math.min(totalPages, v + 1))} title={t("common.next")} className="rounded-xl h-9 w-9">
                 <ChevronLeft className="h-4 w-4" />
               </Button>
             </div>
@@ -820,14 +823,14 @@ const Reports = () => {
         {/* Export */}
         <div className="bg-white rounded-2xl shadow-sm border border-border/60 p-4.5">
           <h3 className="flex items-center gap-2 text-sm font-bold mb-3">
-            <Download className="h-4 w-4 text-primary" /> تصدير التقارير
+            <Download className="h-4 w-4 text-primary" /> {t("reports.exportReports")}
           </h3>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={exportCsv} disabled={!sortedRows.length} className="rounded-xl h-9">
-              <Download className="ml-1.5 h-4 w-4" /> تصدير النتائج الحالية (CSV)
+              <Download className="ml-1.5 h-4 w-4" /> {t("reports.exportCurrentCsv")}
             </Button>
             <Button size="sm" variant="outline" onClick={exportMonthly} className="rounded-xl h-9">
-              <FileText className="ml-1.5 h-4 w-4" /> التقرير الشهري
+              <FileText className="ml-1.5 h-4 w-4" /> {t("reports.monthlyReport")}
             </Button>
           </div>
         </div>
@@ -904,6 +907,7 @@ function Metric({ label, value, tone }: { label: string; value: string; tone?: "
 }
 
 function MobileTransferCard({ row, name }: { row: ReportRow; name: string }) {
+  const { t } = useTranslation();
   return (
     <div className="bg-white border border-border/60 rounded-xl p-3.5 space-y-2 press-effect">
       <div className="flex items-center justify-between gap-2">
@@ -915,7 +919,7 @@ function MobileTransferCard({ row, name }: { row: ReportRow; name: string }) {
       <div className="flex items-center justify-between gap-2">
         <div>
           <span className="text-sm font-bold">{fmtCurrency(row.amount)}</span>
-          <span className="text-[10px] text-muted-foreground mr-1.5">قيمة التحويل</span>
+          <span className="text-[10px] text-muted-foreground mr-1.5">{t("reports.transferValue")}</span>
         </div>
         <span className="text-xs font-mono" dir="ltr">{row.phone}</span>
       </div>
@@ -968,21 +972,22 @@ function FilterInput({ label, value, onChange, placeholder, icon }: {
 function OperatorBadge({ operator }: { operator: string }) {
   const op = (operator || "").toLowerCase();
   if (op === "mtn") {
-    return <span className="inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold bg-operator-mtn/15 text-operator-mtn-foreground">MTN</span>;
+    return <span className="inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold bg-operator-mtn/15 text-operator-mtn-foreground">{i18n.t("operator.mtn")}</span>;
   }
   if (op === "syriatel") {
-    return <span className="inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold bg-operator-syriatel/15 text-operator-syriatel-foreground">Syriatel</span>;
+    return <span className="inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold bg-operator-syriatel/15 text-operator-syriatel-foreground">{i18n.t("operator.syriatel")}</span>;
   }
   return <span className="inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold bg-muted text-muted-foreground">{operator}</span>;
 }
 
 function TableEmpty() {
+  const { t } = useTranslation();
   return (
     <div className="py-16 text-center">
       <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
         <BarChart3 className="w-7 h-7 text-muted-foreground" />
       </div>
-      <p className="text-sm text-muted-foreground">لا توجد بيانات مطابقة</p>
+      <p className="text-sm text-muted-foreground">{t("reports.noMatchingData")}</p>
     </div>
   );
 }
@@ -992,16 +997,16 @@ function TableEmpty() {
 /* ============================================ */
 
 function dimLabel(d: Dimension): string {
-  if (d === "operator") return "المشغل";
-  if (d === "user") return "المستخدم";
-  if (d === "device") return "الجهاز";
+  if (d === "operator") return i18n.t("reports.operatorDim");
+  if (d === "user") return i18n.t("reports.userDim");
+  if (d === "device") return i18n.t("reports.deviceDim");
   return d;
 }
 
 function dimItemLabel(dim: Dimension, item: ReportDimension): string {
   if (dim === "operator") {
     const k = (item.label || item.key || "").toLowerCase();
-    return k === "mtn" ? "MTN" : k === "syriatel" ? "Syriatel" : (item.label || item.key || "").toUpperCase();
+    return k === "mtn" ? i18n.t("operator.mtn") : k === "syriatel" ? i18n.t("operator.syriatel") : (item.label || item.key || "").toUpperCase();
   }
   return item.label || item.key || "—";
 }
@@ -1023,7 +1028,7 @@ function csvCell(value: unknown): string {
 function formatPeriodLabel(iso: string, period: ReportPeriod): string {
   const d = new Date(iso);
   if (period === "day") return formatDate(d);
-  if (period === "week") return `أسبوع ${formatDate(d)}`;
+  if (period === "week") return `${i18n.t("reports.week")} ${formatDate(d)}`;
   return `${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 }
 

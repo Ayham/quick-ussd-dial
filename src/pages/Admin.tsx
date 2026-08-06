@@ -57,10 +57,10 @@ const Admin = () => {
   const handleLogout = async () => {
     try {
       await signOut();
-      toast.success("Signed out");
+      toast.success(t("admin.signedOut"));
       navigate("/auth");
     } catch {
-      toast.error("Sign out failed");
+      toast.error(t("admin.signOutFailed"));
     }
   };
 
@@ -92,13 +92,13 @@ const Admin = () => {
               <Shield className="w-5.5 h-5.5 text-white" />
             </div>
             <div>
-              <h1 className="text-white text-lg font-bold tracking-tight">Administration</h1>
-              <p className="text-xs text-white/70">Operational console for users, transfers, and system events.</p>
+<h1 className="text-white text-lg font-bold tracking-tight">{t("admin.administration")}</h1>
+               <p className="text-xs text-white/70">{t("admin.subtitle")}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="text-white hover:bg-white/10 h-9 rounded-xl text-xs font-semibold">
-              Back to app
+              {t("admin.backToApp")}
             </Button>
             <Button variant="ghost" size="icon" onClick={handleLogout} className="text-white hover:bg-white/10 rounded-xl h-9 w-9">
               <LogOut className="w-4 h-4" />

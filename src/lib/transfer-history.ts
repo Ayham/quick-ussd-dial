@@ -1,5 +1,6 @@
 import { getPresets, type Operator } from './ussd-profiles';
 import { getActualDeductedAmount } from './amount-utils';
+import i18n from "@/lib/i18n";
 
 export interface TransferRecord {
   phone: string;
@@ -49,7 +50,8 @@ export function recordPrice(record: TransferRecord): number {
       if (match) return match.price;
     } catch {}
   }
-  return getActualDeductedAmount(record.operator, Number(record.amount)) || 0;
+  const actualDeducted = getActualDeductedAmount(record.operator, Number(record.amount));
+  return actualDeducted || 0;
 }
 
 

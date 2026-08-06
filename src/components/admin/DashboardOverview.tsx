@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, type ComponentType } from "react";
+import { useTranslation } from "react-i18next";
 import { Activity, RefreshCw, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ interface Metrics {
 const EMPTY: Metrics = { totalUsers: 0, failedSyncs: 0, suspiciousEvents: 0 };
 
 export function DashboardOverview() {
+  const { t } = useTranslation();
   const [metrics, setMetrics] = useState(EMPTY);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,25 +59,25 @@ export function DashboardOverview() {
   }, [loadMetrics]);
 
   const cards: Metric[] = [
-    { label: "Users", value: metrics.totalUsers, icon: Users, tone: "neutral" },
-    { label: "Failed syncs (24h)", value: metrics.failedSyncs, icon: RefreshCw, tone: metrics.failedSyncs ? "bad" : "good" },
+    { label: t("admin.users"), value: metrics.totalUsers, icon: Users, tone: "neutral" as const },
+    { label: t("adminDashboard.failedSyncs"), value: metrics.failedSyncs, icon: RefreshCw, tone: metrics.failedSyncs ? "bad" : "good" },
   ];
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">Dashboard</h2>
-          <p className="text-sm text-muted-foreground">Refreshed every 30 seconds.</p>
+<h2 className="text-xl font-bold">{t("admin.dashboard")}</h2>
+	           <p className="text-sm text-muted-foreground">{t("adminDashboard.refreshNote")}</p>
         </div>
-        <button onClick={loadMetrics} className="h-10 w-10 border border-border/60 bg-card rounded-xl grid place-items-center shadow-sm hover:bg-muted/50 transition-colors" title="Refresh">
+        <button onClick={loadMetrics} className="h-10 w-10 border border-border/60 bg-card rounded-xl grid place-items-center shadow-sm hover:bg-muted/50 transition-colors" title={t("common.refresh")}>
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
         </button>
       </div>
       {error && (
-        <div className="border border-destructive/30 bg-destructive/5 p-3.5 text-sm text-destructive rounded-xl">
-          Query failed: {error}
-        </div>
+<div className="border border-destructive/30 bg-destructive/5 p-3.5 text-sm text-destructive rounded-xl">
+	          {t("adminDashboard.queryFailed", { error })}
+	        </div>
       )}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {cards.map(({ label, value, icon: Icon, tone }) => (

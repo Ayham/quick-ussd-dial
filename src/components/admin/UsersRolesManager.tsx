@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ interface Row {
 }
 
 export function UsersRolesManager() {
+  const { t } = useTranslation();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -38,7 +40,7 @@ export function UsersRolesManager() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : (err as any)?.message || JSON.stringify(err);
       setLoadError(msg);
-      toast.error("Failed to load users: " + msg);
+      toast.error(t("adminUsers.failedToLoad", { error: msg }));
     } finally {
       setLoading(false);
     }
@@ -55,10 +57,10 @@ export function UsersRolesManager() {
     if (error) { toast.error(error.message); return; }
     const res = data as { ok: boolean; reason?: string } | null;
     if (!res?.ok) {
-      toast.error(res?.reason === "last_admin" ? "Cannot remove the last admin" : (res?.reason || "Failed"));
+      toast.error(res?.reason === "last_admin" ? t("adminUsers.cannotRemoveLastAdmin") : (res?.reason || t("admin.failed")));
       return;
     }
-    toast.success(grant ? "Admin granted" : "Admin revoked");
+    toast.success(grant ? t("adminUsers.adminGranted") : t("adminUsers.adminRevoked"));
     load();
   };
 
@@ -78,19 +80,19 @@ export function UsersRolesManager() {
       )}
       <div className="relative">
         <Search className="w-4 h-4 absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <Input className="ps-9 h-10 rounded-xl" placeholder="Search email or name" value={q} onChange={(e) => setQ(e.target.value)} />
-        <Button
-          size="sm"
-          variant="ghost"
-          className="absolute end-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0 rounded-lg"
-          onClick={load}
-          title="Refresh users"
-        >
+        <Input className="ps-9 h-10 rounded-xl" placeholder={t("adminUsers.searchPlaceholder")} value={q} onChange={(e) => setQ(e.target.value)} />
+<Button
+	           size="sm"
+	           variant="ghost"
+	           className="absolute end-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0 rounded-lg"
+	           onClick={load}
+	           title={t("adminUsers.refresh")}
+	         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
         </Button>
       </div>
-      {loading ? (
-        <p className="text-sm text-muted-foreground text-center py-8">Loading…</p>
+{loading ? (
+	        <p className="text-sm text-muted-foreground text-center py-8">{t("common.loading")}</p>
       ) : (
         <div className="bg-white border border-border/60 rounded-2xl divide-y divide-border/60 shadow-sm">
           {filtered.map((r) => (
@@ -106,9 +108,9 @@ export function UsersRolesManager() {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {r.is_admin && (
-                  <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
-                    Admin
-                  </span>
+<span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
+	                     {t("adminUsers.admin")}
+	                   </span>
                 )}
                 <Button
                   size="sm"
@@ -117,13 +119,13 @@ export function UsersRolesManager() {
                   disabled={busy === r.user_id}
                   onClick={() => toggleAdmin(r.user_id, !r.is_admin)}
                 >
-                  {r.is_admin ? (<><ShieldOff className="w-3.5 h-3.5 me-1" />Revoke</>) : (<><Shield className="w-3.5 h-3.5 me-1" />Make admin</>)}
+                  {r.is_admin ? (<><ShieldOff className="w-3.5 h-3.5 me-1" />{t("adminUsers.revoke")}</>) : (<><Shield className="w-3.5 h-3.5 me-1" />{t("adminUsers.makeAdmin")}</>)}
                 </Button>
               </div>
             </div>
           ))}
           {filtered.length === 0 && (
-            <p className="text-sm text-muted-foreground p-8 text-center">No users found.</p>
+            <p className="text-sm text-muted-foreground p-8 text-center">{t("adminUsers.noUsers")}</p>
           )}
         </div>
       )}

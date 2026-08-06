@@ -5,6 +5,7 @@
 
 import { getLatestGitHubRelease } from './github-releases';
 import { APP_VERSION as CONFIG_VERSION } from '../config/version';
+import i18n from "@/lib/i18n";
 
 const UPDATE_CHECK_KEY = 'app_update_check_v1';
 
@@ -17,6 +18,40 @@ export interface UpdateInfo {
   releaseDate: string;
   forceUpdate: boolean;
 }
+
+export const updateMessages = {
+  error: i18n.t("errors"),
+  downloadFailed: i18n.t("errors.apkDownloadGeneric"),
+  filePathNotFound: i18n.t("errors.apkDownloadFailed"),
+  backupInvalid: i18n.t("errors.invalidBackupFile"),
+  backupMissingVersion: i18n.t("errors.backupMissingVersion"),
+  backupUnsupportedVersion: i18n.t("errors.backupUnsupportedVersion"),
+  backupNoRestorableData: i18n.t("errors.backupNoRestorableData"),
+  wrongPassword: i18n.t("errors.wrongPassword"),
+  encryptedDataPasswordRequired: i18n.t("errors.encryptedDataPasswordRequired"),
+  invalidData: i18n.t("errors.invalidData"),
+  invalidFile: i18n.t("errors.invalidFile"),
+  failedReadFile: i18n.t("errors.failedReadFile"),
+  invalidDataStructure: i18n.t("errors.invalidDataStructure"),
+  noConnection: i18n.t("errors.noConnection"),
+  accountSuspended: i18n.t("errors.accountSuspended"),
+  accountBlocked: i18n.t("errors.accountBlocked"),
+  licenseExpired: i18n.t("errors.licenseExpired"),
+  activationRejected: i18n.t("errors.activationRejected"),
+  licenseBlocked: i18n.t("errors.licenseBlocked"),
+  trialEnded: i18n.t("errors.trialEnded"),
+  licenseInactive: i18n.t("errors.licenseInactive"),
+  deviceMismatch: i18n.t("errors.deviceMismatch"),
+  noOAuthUrl: i18n.t("errors.noOAuthUrl"),
+  noAuthCode: i18n.t("errors.noAuthCode"),
+  notAuthenticated: i18n.t("errors.notAuthenticated"),
+  emailRequired: i18n.t("errors.emailRequired"),
+  invalidEmail: i18n.t("errors.invalidEmail"),
+  phoneTooShort: i18n.t("errors.phoneTooShort"),
+  passwordRequired: i18n.t("errors.passwordRequired"),
+  passwordTooShort: i18n.t("errors.passwordTooShort"),
+  passwordsMismatch: i18n.t("errors.passwordsMismatch"),
+};
 
 // Get current app version
 export function getCurrentVersion(): string {

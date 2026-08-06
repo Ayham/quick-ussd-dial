@@ -32,12 +32,12 @@ const Activation = () => {
         checkPendingActivation(),
       ]);
       if (lic === null) {
-        setError(isArabic ? "تعذر تحميل بيانات الترخيص" : "Could not load license data");
+        setError(t("activation.loadError"));
       }
       setLicense(lic);
       setHasPending(pending.has_pending);
     } catch (err) {
-      setError(isArabic ? "حدث خطأ في تحميل البيانات" : "Error loading data");
+      setError(t("activation.loadDataError"));
     } finally {
       setLoading(false);
     }
@@ -51,13 +51,13 @@ const Activation = () => {
       const deviceId = getDeviceId();
       const result = await requestActivation(deviceId, license?.display_name || undefined, license?.phone || undefined);
       if (result.success) {
-        toast.success(isArabic ? "تم إرسال طلب التفعيل" : "Activation request sent");
+        toast.success(t("activation.requestSent"));
         setHasPending(true);
       } else if (result.error === "pending_request_exists") {
-        toast.info(isArabic ? "لديك طلب تفعيل معلق بالفعل" : "You already have a pending request");
+        toast.info(t("activation.pendingRequest"));
         setHasPending(true);
       } else {
-        toast.error(result.error || (isArabic ? "فشل إرسال الطلب" : "Request failed"));
+        toast.error(result.error || t("activation.requestFailed"));
       }
     } finally {
       setRequesting(false);
@@ -97,53 +97,53 @@ const Activation = () => {
           <div className="w-16 h-16 rounded-2xl bg-primary/10 mx-auto flex items-center justify-center">
             <Shield className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold">{isArabic ? "حالة التفعيل" : "Activation Status"}</h1>
-          <p className="text-sm text-muted-foreground">
-            {isArabic ? "حالة ترخيص التطبيق والمعلومات الخاصة بك" : "Your application license status and information"}
-          </p>
+          <h1 className="text-2xl font-bold">{t("activation.title")}</h1>
+<p className="text-sm text-muted-foreground">
+	            {t("activation.subtitle")}
+	          </p>
         </div>
 
         {/* Status Banners */}
-        {renderStatusBanner(license, remainingDays, isArabic, isTrialActive, isTrialExpired, isActive, isPermanent)}
+        {renderStatusBanner(license, remainingDays, isArabic, isTrialActive, isTrialExpired, isActive, isPermanent, t)}
 
         {/* User Info Card */}
-        {license && renderUserInfoCard(license, isArabic)}
+        {license && renderUserInfoCard(license, isArabic, t)}
 
         {hasPending && !isLicensed && (
           <div className="bg-warning/10 border border-warning/20 rounded-2xl p-5 text-center space-y-3">
             <Clock className="w-10 h-10 mx-auto text-warning" />
-            <h3 className="font-bold">{isArabic ? "طلب التفعيل قيد المراجعة" : "Activation request pending"}</h3>
-            <p className="text-sm text-muted-foreground">
-              {isArabic ? "تم استلام طلبك وهو قيد المراجعة من قبل الإدارة. سيتم إعلامك عند الموافقة." : "Your request has been received and is under review. You will be notified once approved."}
-            </p>
+            <h3 className="font-bold">{t("auth.activationPending")}</h3>
+<p className="text-sm text-muted-foreground">
+	                {t("activation.pendingReviewDesc")}
+	              </p>
           </div>
         )}
 
         {!hasPending && !isLicensed && !error && (
           <div className="space-y-3">
             <Button className="w-full h-12 font-bold rounded-xl shadow-sm" onClick={handleRequestActivation} disabled={requesting}>
-              {requesting ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-                <>{isArabic ? "طلب التفعيل الآن" : "Request activation now"}</>
-              )}
+{requesting ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+	                <> {t("activation.requestNow")} </>
+	              )}
             </Button>
-            <p className="text-xs text-muted-foreground text-center">
-              <Info className="w-3 h-3 inline mr-1" />
-              {isArabic ? "يمكنك طلب التفعيل في أي وقت حتى أثناء الفترة التجريبية" : "You can request activation at any time, even during the trial period"}
-            </p>
+<p className="text-xs text-muted-foreground text-center">
+	              <Info className="w-3 h-3 inline mr-1" />
+	              {t("activation.requestAnyTime")}
+	            </p>
           </div>
         )}
 
         {isLicensed && (
-          <p className="text-xs text-muted-foreground text-center">
-            <CheckCircle2 className="w-3 h-3 inline mr-1 text-success" />
-            {isArabic ? "ترخيصك نشط. لا حاجة لاتخاذ أي إجراء." : "Your license is active. No action needed."}
-          </p>
+<p className="text-xs text-muted-foreground text-center">
+	            <CheckCircle2 className="w-3 h-3 inline mr-1 text-success" />
+	            {t("activation.licenseActive")}
+	          </p>
         )}
 
         <div className="text-center">
           <Button variant="ghost" size="sm" onClick={() => nav("/")} className="rounded-xl">
             <ArrowLeftFromLine className="w-4 h-4 ml-2" />
-            {isArabic ? "العودة إلى التطبيق" : "Back to app"}
+            {t("activation.backToApp")}
           </Button>
         </div>
       </div>
@@ -151,10 +151,10 @@ const Activation = () => {
   );
 };
 
-function renderStatusBanner(license: any, remainingDays: number, isArabic: boolean, isTrialActive: boolean, isTrialExpired: boolean, isActive: boolean, isPermanent: boolean) {
+function renderStatusBanner(license: any, remainingDays: number, isArabic: boolean, isTrialActive: boolean, isTrialExpired: boolean, isActive: boolean, isPermanent: boolean, t: any) {
   if (isTrialActive) {
     if (license?.trial_end === null) {
-      return <StatusBanner type="success" icon={CheckCircle2} title={isArabic ? "الفترة التجريبية نشطة" : "Trial Active"} subtitle={isArabic ? "الترخيص التجريبي لا ينتهي" : "Trial license with no expiry"} />;
+      return <StatusBanner type="success" icon={CheckCircle2} title={t("activation.trialActive")} subtitle={t("activation.trialNoExpiry")} />;
     }
     const isUrgent = remainingDays <= 1;
     return (
@@ -163,26 +163,24 @@ function renderStatusBanner(license: any, remainingDays: number, isArabic: boole
         isUrgent ? "bg-destructive/10 border-destructive/20" : "bg-warning/10 border-warning/20"
       )}>
         <Clock className={cn("w-10 h-10 mx-auto", isUrgent ? "text-destructive" : "text-warning")} />
-        <h3 className="font-bold text-lg">{isArabic ? "الفترة التجريبية" : "Trial Period"}</h3>
+        <h3 className="font-bold text-lg">{t("activation.trialPeriod")}</h3>
         <p className={cn("text-3xl font-black", isUrgent ? "text-destructive" : "text-warning")}>
-          {remainingDays} <span className="text-lg">{isArabic ? "يوم متبقي" : "days remaining"}</span>
+          {remainingDays} <span className="text-lg">{t("activation.daysRemainingShort")}</span>
         </p>
-        <p className="text-sm text-muted-foreground">
-          {isArabic
-            ? `من ${formatDate(license!.trial_start!)} إلى ${formatDate(license!.trial_end!)}`
-            : `From ${formatDate(license!.trial_start!)} to ${formatDate(license!.trial_end!)}`}
-        </p>
+<p className="text-sm text-muted-foreground">
+	            {t("activation.trialRange", { start: formatDate(license!.trial_start!), end: formatDate(license!.trial_end!) })}
+	          </p>
       </div>
     );
   }
-  if (isTrialExpired) return <StatusBanner type="error" icon={AlertTriangle} title={isArabic ? "انتهت الفترة التجريبية" : "Trial Period Expired"} subtitle={isArabic ? "انتهت الفترة التجريبية. يرجى طلب التفعيل للمتابعة." : "Your trial has ended. Please request activation to continue."} />;
-  if (isActive) return <StatusBanner type="success" icon={CheckCircle2} title={isArabic ? "مفعل" : "Activated"} subtitle={license?.expiry_date ? `${isArabic ? "صالح حتى" : "Valid until"} ${formatDate(license.expiry_date)}` : isArabic ? "الترخيص نشط" : "License is active"} />;
-  if (isPermanent) return <StatusBanner type="success" icon={CheckCircle2} title={isArabic ? "مفعل بشكل دائم" : "Permanently Activated"} subtitle={isArabic ? "الترخيص لا ينتهي" : "License does not expire"} />;
-  if (license?.license_status === "pending") return <StatusBanner type="warning" icon={Clock} title={isArabic ? "قيد المراجعة" : "Pending Review"} subtitle={isArabic ? "طلب التفعيل قيد المراجعة من قبل الإدارة" : "Your activation request is under review"} />;
-  if (license?.license_status === "rejected") return <StatusBanner type="error" icon={XCircle} title={isArabic ? "تم رفض الطلب" : "Request Rejected"} subtitle={isArabic ? "لم تتم الموافقة على طلب التفعيل. يمكنك تقديم طلب جديد." : "Your activation request was not approved. You can submit a new request."} />;
-  if (license?.license_status === "suspended") return <StatusBanner type="error" icon={XCircle} title={isArabic ? "الحساب موقوف" : "Account Suspended"} />;
-  if (license?.license_status === "blocked") return <StatusBanner type="error" icon={XCircle} title={isArabic ? "الحساب محظور" : "Account Blocked"} />;
-  if (license?.license_status === "expired") return <StatusBanner type="error" icon={AlertTriangle} title={isArabic ? "انتهى الترخيص" : "License Expired"} subtitle={isArabic ? "انتهت صلاحية الترخيص. يرجى الاتصال بالإدارة للتجديد." : "Your license has expired. Please contact administration."} />;
+  if (isTrialExpired) return <StatusBanner type="error" icon={AlertTriangle} title={t("auth.trialExpired")} subtitle={t("activation.trialExpiredDesc")} />;
+  if (isActive) return <StatusBanner type="success" icon={CheckCircle2} title={t("activation.activated")} subtitle={license?.expiry_date ? `${t("auth.expiryDate")} ${formatDate(license.expiry_date)}` : t("activation.licenseActive")} />;
+  if (isPermanent) return <StatusBanner type="success" icon={CheckCircle2} title={t("activation.permanent")} subtitle={t("activation.noExpiry")} />;
+  if (license?.license_status === "pending") return <StatusBanner type="warning" icon={Clock} title={t("activation.pendingReview")} subtitle={t("activation.pendingReviewDesc")} />;
+  if (license?.license_status === "rejected") return <StatusBanner type="error" icon={XCircle} title={t("activation.rejected")} subtitle={t("activation.rejectedDesc")} />;
+  if (license?.license_status === "suspended") return <StatusBanner type="error" icon={XCircle} title={t("activation.suspended")} />;
+  if (license?.license_status === "blocked") return <StatusBanner type="error" icon={XCircle} title={t("activation.blocked")} />;
+  if (license?.license_status === "expired") return <StatusBanner type="error" icon={AlertTriangle} title={t("activation.licenseExpired")} subtitle={t("activation.licenseExpiredDesc")} />;
   return null;
 }
 
@@ -201,7 +199,7 @@ function StatusBanner({ type, icon: Icon, title, subtitle }: { type: "success" |
   );
 }
 
-function renderUserInfoCard(license: LicenseInfo, isArabic: boolean) {
+function renderUserInfoCard(license: LicenseInfo, isArabic: boolean, t: any) {
   return (
     <Card className="rounded-2xl p-5 space-y-4 shadow-sm border border-border/60">
       <div className="flex items-center gap-3">
@@ -212,7 +210,7 @@ function renderUserInfoCard(license: LicenseInfo, isArabic: boolean) {
           <p className="font-semibold text-sm truncate">{license.display_name || license.email}</p>
           <p className="text-xs text-muted-foreground truncate">{license.email}</p>
         </div>
-        <LicenseBadge status={license.license_status} isArabic={isArabic} />
+        <LicenseBadge status={license.license_status} isArabic={isArabic} t={t} />
       </div>
 
       {license.phone && (
@@ -223,12 +221,12 @@ function renderUserInfoCard(license: LicenseInfo, isArabic: boolean) {
       )}
 
       <div className="border-t border-border/60 pt-4 space-y-3">
-        <InfoRow label={isArabic ? "نوع الترخيص" : "License type"} value={formatLicenseType(license.license_type, isArabic)} />
-        <InfoRow label={isArabic ? "حالة الحساب" : "Account status"} value={<AccountBadge status={license.account_status} isArabic={isArabic} />} />
-        {license.trial_start && <InfoRow label={isArabic ? "بداية التجربة" : "Trial start"} value={formatDate(license.trial_start)} />}
-        {license.trial_end && <InfoRow label={isArabic ? "نهاية التجربة" : "Trial end"} value={formatDate(license.trial_end)} />}
-        {license.expiry_date && <InfoRow label={isArabic ? "تاريخ الانتهاء" : "Expiry date"} value={formatDate(license.expiry_date)} />}
-        {license.last_login && <InfoRow label={isArabic ? "آخر تسجيل دخول" : "Last login"} value={formatDateTime(license.last_login)} />}
+        <InfoRow label={t("auth.licenseType")} value={formatLicenseType(license.license_type, isArabic, t)} />
+        <InfoRow label={t("auth.accountStatus")} value={<AccountBadge status={license.account_status} isArabic={isArabic} t={t} />} />
+        {license.trial_start && <InfoRow label={t("activation.trialStart")} value={formatDate(license.trial_start)} />}
+        {license.trial_end && <InfoRow label={t("activation.trialEnd")} value={formatDate(license.trial_end)} />}
+        {license.expiry_date && <InfoRow label={t("auth.expiryDate")} value={formatDate(license.expiry_date)} />}
+        {license.last_login && <InfoRow label={t("activation.lastLogin")} value={formatDateTime(license.last_login)} />}
       </div>
     </Card>
   );
@@ -243,36 +241,36 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function LicenseBadge({ status, isArabic }: { status: string; isArabic: boolean }) {
+function LicenseBadge({ status, isArabic, t }: { status: string; isArabic: boolean; t: any }) {
   const config: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-    trial: { label: isArabic ? "تجريبي" : "Trial", variant: "secondary" },
-    active: { label: isArabic ? "نشط" : "Active", variant: "default" },
-    expired: { label: isArabic ? "منتهي" : "Expired", variant: "destructive" },
-    pending: { label: isArabic ? "معلق" : "Pending", variant: "secondary" },
-    rejected: { label: isArabic ? "مرفوض" : "Rejected", variant: "destructive" },
-    permanent: { label: isArabic ? "دائم" : "Permanent", variant: "default" },
-    suspended: { label: isArabic ? "موقوف" : "Suspended", variant: "destructive" },
-    blocked: { label: isArabic ? "محظور" : "Blocked", variant: "destructive" },
+    trial: { label: t("activation.trialBadge"), variant: "secondary" },
+    active: { label: t("activation.activeBadge"), variant: "default" },
+    expired: { label: t("activation.expiredBadge"), variant: "destructive" },
+    pending: { label: t("activation.pendingBadge"), variant: "secondary" },
+    rejected: { label: t("activation.rejectedBadge"), variant: "destructive" },
+    permanent: { label: t("activation.permanentBadge"), variant: "default" },
+    suspended: { label: t("activation.suspendedBadge"), variant: "destructive" },
+    blocked: { label: t("activation.blockedBadge"), variant: "destructive" },
   };
   const c = config[status] || { label: status, variant: "outline" as const };
   return <Badge variant={c.variant} className="rounded-full px-3 py-0.5">{c.label}</Badge>;
 }
 
-function AccountBadge({ status, isArabic }: { status: string; isArabic: boolean }) {
-  if (status === "active") return <Badge variant="default" className="rounded-full px-3 py-0.5">{isArabic ? "نشط" : "Active"}</Badge>;
-  if (status === "suspended") return <Badge variant="destructive" className="rounded-full px-3 py-0.5">{isArabic ? "موقوف" : "Suspended"}</Badge>;
-  if (status === "blocked") return <Badge variant="destructive" className="rounded-full px-3 py-0.5">{isArabic ? "محظور" : "Blocked"}</Badge>;
+function AccountBadge({ status, isArabic, t }: { status: string; isArabic: boolean; t: any }) {
+  if (status === "active") return <Badge variant="default" className="rounded-full px-3 py-0.5">{t("activation.activeBadge")}</Badge>;
+  if (status === "suspended") return <Badge variant="destructive" className="rounded-full px-3 py-0.5">{t("activation.suspendedBadge")}</Badge>;
+  if (status === "blocked") return <Badge variant="destructive" className="rounded-full px-3 py-0.5">{t("activation.blockedBadge")}</Badge>;
   return <Badge variant="outline" className="rounded-full px-3 py-0.5">{status}</Badge>;
 }
 
-function formatLicenseType(type: string, isArabic: boolean): string {
+function formatLicenseType(type: string, isArabic: boolean, t: any): string {
   const map: Record<string, string> = {
-    trial: isArabic ? "تجريبي (15 يوم)" : "Trial (15 days)",
-    days_30: isArabic ? "30 يوم" : "30 Days",
-    days_90: isArabic ? "90 يوم" : "90 Days",
-    days_180: isArabic ? "180 يوم" : "180 Days",
-    days_365: isArabic ? "سنة" : "1 Year",
-    permanent: isArabic ? "دائم" : "Permanent",
+    trial: t("activation.trialType"),
+    days_30: t("activation.days30"),
+    days_90: t("activation.days90"),
+    days_180: t("activation.days180"),
+    days_365: t("activation.yearType"),
+    permanent: t("activation.permanentType"),
   };
   return map[type] || type;
 }

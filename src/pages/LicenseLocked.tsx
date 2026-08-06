@@ -56,38 +56,38 @@ const LicenseLocked = ({ reason: initialReason, onUnlock }: LicenseLockedProps) 
     switch (reason) {
       case "trial_expired":
         return {
-          title: isArabic ? "انتهت الفترة التجريبية" : "Trial period ended",
-          description: isArabic ? "انتهت الفترة التجريبية لحسابك. يرجى طلب تفعيل التطبيق للمتابعة." : "Your trial period has ended. Please request activation to continue.",
+title: t("auth.trialExpired"),
+	           description: t("auth.trialExpiredDesc"),
           icon: <Clock className="w-12 h-12 text-destructive" />,
         };
       case "license_expired":
         return {
-          title: isArabic ? "انتهى الترخيص" : "License expired",
-          description: isArabic ? "انتهت صلاحية الترخيص الخاص بك. يرجى الاتصال بالإدارة للتجديد." : "Your license has expired. Please contact administration for renewal.",
+title: t("auth.licenseExpired"),
+	           description: t("auth.licenseExpiredDesc"),
           icon: <AlertTriangle className="w-12 h-12 text-destructive" />,
         };
       case "activation_rejected":
         return {
-          title: isArabic ? "تم رفض طلب التفعيل" : "Activation rejected",
-          description: isArabic ? "لم تتم الموافقة على طلب التفعيل الخاص بك. يرجى الاتصال بالإدارة." : "Your activation request was not approved. Please contact administration.",
+title: t("auth.activationRejected"),
+	           description: t("auth.activationRejectedDesc"),
           icon: <Shield className="w-12 h-12 text-destructive" />,
         };
       case "suspended":
         return {
-          title: isArabic ? "الحساب موقوف" : "Account suspended",
-          description: isArabic ? "تم إيقاف حسابك. يرجى الاتصال بالإدارة للمزيد من المعلومات." : "Your account has been suspended. Please contact administration for more information.",
+title: t("auth.accountSuspended"),
+	           description: t("auth.accountSuspendedDesc"),
           icon: <Lock className="w-12 h-12 text-destructive" />,
         };
       case "blocked":
         return {
-          title: isArabic ? "الحساب محظور" : "Account blocked",
-          description: isArabic ? "تم حظر حسابك. يرجى الاتصال بالإدارة للمزيد من المعلومات." : "Your account has been blocked. Please contact administration.",
+title: t("auth.accountBlocked"),
+	           description: t("auth.accountBlockedDesc"),
           icon: <Lock className="w-12 h-12 text-destructive" />,
         };
       default:
         return {
-          title: isArabic ? "التطبيق مقفل" : "Application locked",
-          description: isArabic ? "التطبيق يحتاج إلى تفعيل للمتابعة." : "The application requires activation to continue.",
+title: t("auth.appLocked"),
+	          description: t("auth.appLockedDesc"),
           icon: <Lock className="w-12 h-12 text-destructive" />,
         };
     }
@@ -111,12 +111,12 @@ const LicenseLocked = ({ reason: initialReason, onUnlock }: LicenseLockedProps) 
           {license && (
             <div className="bg-muted/50 rounded-xl p-4 space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">{isArabic ? "البريد الإلكتروني" : "Email"}</span>
+                <span className="text-muted-foreground">{t("auth.email")}</span>
                 <span className="font-medium" dir="ltr">{license.email}</span>
               </div>
               {license.trial_end && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">{isArabic ? "انتهاء التجربة" : "Trial ended"}</span>
+                  <span className="text-muted-foreground">{t("licenseLocked.trialEnded")}</span>
                   <span className="font-medium">{formatDate(license.trial_end)}</span>
                 </div>
               )}
@@ -126,12 +126,12 @@ const LicenseLocked = ({ reason: initialReason, onUnlock }: LicenseLockedProps) 
           <div className="space-y-3 pt-2">
             <Button onClick={() => nav("/activation")} className="w-full h-12 font-bold rounded-xl">
               <Shield className="w-4 h-4 mr-2" />
-              {isArabic ? "طلب التفعيل" : "Request activation"}
+              {t("auth.requestActivation")}
             </Button>
 
             <Button variant="outline" className="w-full h-11 rounded-xl" onClick={handleRecheck} disabled={checking}>
               <RefreshCw className={`w-4 h-4 mr-2 ${checking ? "animate-spin" : ""}`} />
-              {isArabic ? "التحقق مرة أخرى" : "Re-check"}
+              {t("auth.reCheck")}
             </Button>
 
             <Button variant="ghost" className="w-full" onClick={handleLogout}>

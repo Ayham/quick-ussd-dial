@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getHistory } from "./transfer-history";
 import { getActualDeductedAmount } from "./amount-utils";
+import i18n from "@/lib/i18n";
 
 export type ReportPeriod = "day" | "week" | "month";
 
@@ -185,7 +186,7 @@ function groupPeriods(rows: ReportRow[], period: ReportPeriod): ReportPeriodPoin
 function groupDimension(rows: ReportRow[], keyFor: (row: ReportRow) => string): ReportDimension[] {
   const groups = new Map<string, ReportDimension>();
   for (const row of rows) {
-    const key = keyFor(row) || "unknown";
+    const key = keyFor(row) || i18n.t("report.unknownValue");
     const item = groups.get(key) ?? { key, count: 0, amount: 0 };
     item.count += 1;
     item.amount += row.amount;
@@ -216,7 +217,7 @@ function normalizeRow(value: Record<string, unknown>): ReportRow {
     operator: String(value.operator ?? "unknown"),
     status: String(value.status ?? "unknown"),
     created_at: String(value.created_at ?? ""),
-    access_source: String(value.access_source ?? "none"),
+    access_source: String(value.access_source ?? i18n.t("report.noneValue")),
   };
 }
 

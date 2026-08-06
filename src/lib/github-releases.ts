@@ -4,6 +4,7 @@
  */
 
 import type { AppRelease } from './marketing';
+import i18n from "@/lib/i18n";
 
 const GITHUB_REPO = 'mobi1298-del/ussd';
 const GITHUB_API = `https://api.github.com/repos/${GITHUB_REPO}/releases`;

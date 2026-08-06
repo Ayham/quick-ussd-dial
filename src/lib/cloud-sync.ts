@@ -1,4 +1,5 @@
 import { pushEvent } from "./supabase-sync";
+import i18n from "@/lib/i18n";
 
 export function trackEvent(event: string, data: Record<string, unknown> = {}) {
   pushEvent(event, data);

@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Browser } from "@capacitor/browser";
 import { App } from "@capacitor/app";
 import { toast } from "sonner";
+import i18n from "@/lib/i18n";
 
 function normalizePhoneValue(phone?: string | null): string | null {
   if (!phone) return null;
@@ -103,7 +104,7 @@ export async function signInWithGoogle(next = "/") {
   if (error) return { error };
 
   const oauthUrl = data?.url;
-  if (!oauthUrl) return { error: new Error("No OAuth URL returned") };
+  if (!oauthUrl) return { error: new Error(i18n.t("errors.noOAuthUrl")) };
 
   await Browser.open({ url: oauthUrl, windowName: "_system" });
 
@@ -113,14 +114,14 @@ export async function signInWithGoogle(next = "/") {
 export async function handleOAuthDeepLink(url: string) {
   const urlObj = new URL(url);
   const code = urlObj.searchParams.get("code");
-  if (!code) return { error: new Error("No auth code in URL") };
+  if (!code) return { error: new Error(i18n.t("errors.noAuthCode")) };
 
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
     toast.error(error.message);
     return { error };
   }
-  toast.success("Signed in successfully");
+  toast.success(i18n.t("toast.signInSuccess"));
   return { data, error: null };
 }
 
@@ -148,27 +149,27 @@ export function getOAuthRedirectUrl(): string {
 }
 
 export function validateEmail(email: string): string | null {
-  if (!email.trim()) return "Email is required";
+  if (!email.trim()) return i18n.t("errors.emailRequired");
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!re.test(email)) return "Invalid email format";
+  if (!re.test(email)) return i18n.t("errors.invalidEmail");
   return null;
 }
 
 export function validatePhone(phone: string): string | null {
   if (!phone.trim()) return null;
   const cleaned = phone.replace(/[^\d+]/g, "");
-  if (cleaned.length < 10) return "Phone number too short";
+  if (cleaned.length < 10) return i18n.t("errors.phoneTooShort");
   return null;
 }
 
 export function validatePasswordStrength(password: string): string | null {
-  if (!password) return "Password is required";
-  if (password.length < 6) return "Password must be at least 6 characters";
+  if (!password) return i18n.t("errors.passwordRequired");
+  if (password.length < 6) return i18n.t("errors.passwordTooShort");
   return null;
 }
 
 export function validatePasswordsMatch(password: string, confirm: string): string | null {
-  if (password !== confirm) return "Passwords do not match";
+  if (password !== confirm) return i18n.t("errors.passwordsMismatch");
   return null;
 }
 
@@ -269,7 +270,7 @@ export async function getProfile(): Promise<UserProfile | null> {
 
 export async function updateProfile(patch: Partial<Pick<UserProfile, "display_name" | "phone" | "language" | "shop_name">>) {
   const user = await getCurrentUser();
-  if (!user) return { error: new Error("not authenticated") };
+  if (!user) return { error: new Error(i18n.t("errors.notAuthenticated")) };
 
   const normalizedPatch = {
     ...patch,

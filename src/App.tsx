@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import Balance from "./pages/Balance";
@@ -26,6 +27,7 @@ const queryClient = new QueryClient();
 const Reports = lazy(() => import("./pages/Reports"));
 
 const AppContent = () => {
+  const { t } = useTranslation();
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const isWeb = isWebBrowser();
@@ -49,8 +51,8 @@ const AppContent = () => {
     return (
       <div className="min-h-dvh bg-background p-6 flex items-center justify-center safe-area-insets">
         <div className="w-full max-w-sm border border-border bg-card p-6 text-center space-y-3">
-          <h1 className="text-xl font-bold">Maintenance in progress</h1>
-          <p className="text-sm text-muted-foreground">The service is temporarily unavailable. Access will resume automatically.</p>
+          <h1 className="text-xl font-bold">{t("common.maintenanceTitle")}</h1>
+          <p className="text-sm text-muted-foreground">{t("common.maintenanceDesc")}</p>
         </div>
       </div>
     );
@@ -71,7 +73,7 @@ const AppContent = () => {
           <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
           <Route path="/reports" element={
             <RequireAuth>
-              <Suspense fallback={<div className="min-h-dvh grid place-items-center text-sm text-muted-foreground">Loading reports...</div>}>
+              <Suspense fallback={<div className="min-h-dvh grid place-items-center text-sm text-muted-foreground">{t("common.loadingReports")}</div>}>
                 <Reports />
               </Suspense>
             </RequireAuth>

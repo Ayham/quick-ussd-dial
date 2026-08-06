@@ -1,4 +1,5 @@
 import { trackEvent } from './cloud-sync';
+import i18n from "@/lib/i18n";
 
 export type ActivityType =
   | 'app_launch'
@@ -6,7 +7,7 @@ export type ActivityType =
   | 'transfer_initiated'
   | 'settings_changed'
   | 'payment_info_viewed'
-  | 'qr_shared';
+  | 'qr_shared'; // i18n for these types is handled at the UI level
 
 export function logActivity(activity: ActivityType, data: Record<string, unknown> = {}) {
   const eventMap: Record<ActivityType, string> = {

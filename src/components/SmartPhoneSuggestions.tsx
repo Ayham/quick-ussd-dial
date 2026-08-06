@@ -1,4 +1,5 @@
 import { Phone, History, TrendingUp, Clock } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useTransferSuggestions, type TransferSuggestion, timeAgo } from "@/lib/use-transfer-suggestions";
 import { detectOperator } from "@/lib/ussd-profiles";
 import { cn } from "@/lib/utils";
@@ -10,6 +11,7 @@ interface SmartPhoneSuggestionsProps {
 }
 
 export default function SmartPhoneSuggestions({ query, onSelect, className }: SmartPhoneSuggestionsProps) {
+  const { t } = useTranslation();
   const { suggestions, settings } = useTransferSuggestions(query);
 
   if (!settings.enabled) return null;
@@ -21,7 +23,7 @@ export default function SmartPhoneSuggestions({ query, onSelect, className }: Sm
         <div>
           <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1.5 px-1 mb-2">
             <History className="w-3 h-3" />
-            اقتراحات العملاء
+            {t("suggestions.title")}
           </p>
           <div className="space-y-1.5">
             {suggestions.map((s) => (
@@ -43,6 +45,7 @@ function SuggestionCard({
   onSelect: (phone: string, lastPrice?: number, contactName?: string) => void;
   settings: { showLastPrice: boolean; showCount: boolean; showLastTime: boolean };
 }) {
+  const { t } = useTranslation();
   const op = detectOperator(suggestion.phone);
   const hasName = !!suggestion.contactName;
   const hasStats = suggestion.count > 0 || suggestion.lastPrice > 0 || suggestion.lastTimestamp > 0;
@@ -59,7 +62,7 @@ function SuggestionCard({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           {hasName ? (
-            <span className="text-sm font-bold text-foreground truncate" dir="rtl">{suggestion.contactName}</span>
+                  <span className="text-sm font-bold text-foreground truncate" dir="auto">{suggestion.contactName}</span>
           ) : (
             <span className="font-mono text-sm font-bold text-foreground tracking-wider">{suggestion.phone}</span>
           )}
@@ -68,7 +71,7 @@ function SuggestionCard({
               "text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none",
               op === "mtn" ? "bg-operator-mtn text-operator-mtn-foreground" : "bg-operator-syriatel text-white"
             )}>
-              {op === "mtn" ? "MTN" : "SYR"}
+              {t("suggestions.operatorBadge")}
             </span>
           )}
         </div>
@@ -79,13 +82,13 @@ function SuggestionCard({
           {hasStats && settings.showLastPrice && (
             <span className="text-[11px] text-muted-foreground flex items-center gap-1">
               <TrendingUp className="w-3 h-3" />
-              السعر: {suggestion.lastPrice.toLocaleString()} ل.س
+              {t("suggestions.lastPrice", { lastPrice: suggestion.lastPrice.toLocaleString() })}
             </span>
           )}
           {hasStats && settings.showCount && (
             <span className="text-[11px] text-muted-foreground flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              {suggestion.count} عملية
+              {t("suggestions.transactionCount", { count: suggestion.count })}
             </span>
           )}
         </div>

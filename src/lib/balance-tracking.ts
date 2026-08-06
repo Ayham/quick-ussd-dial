@@ -1,6 +1,7 @@
 import type { Operator } from "./ussd-profiles";
 import { getHistory } from "./transfer-history";
 import { getActualDeductedAmount } from "./amount-utils";
+import i18n from "@/lib/i18n";
 
 const BALANCE_STORAGE_KEY = "balance_tracking_v2";
 const THRESHOLD_KEY = "low_balance_thresholds_v1";
@@ -130,12 +131,12 @@ export function saveLowBalanceThresholds(thresholds: LowBalanceThresholds) {
 
 export function getTimeSince(timestamp: number): string {
   const mins = Math.floor((Date.now() - timestamp) / 60000);
-  if (mins < 1) return "الآن";
-  if (mins < 60) return `منذ ${mins} د`;
+  if (mins < 1) return i18n.t("lib.timeAgo.now");
+  if (mins < 60) return i18n.t("lib.timeAgo.minutes", { mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `منذ ${hrs} س`;
+  if (hrs < 24) return i18n.t("lib.timeAgo.hours", { hrs });
   const days = Math.floor(hrs / 24);
-  return `منذ ${days} يوم`;
+  return i18n.t("lib.timeAgo.days", { days });
 }
 
 function getWarningShown(): Record<Operator, boolean> {
@@ -159,8 +160,8 @@ export function checkAndWarnLowBalance(operator: Operator, showToast: (msg: stri
   if (estimated <= thresholds[operator]) {
     const shown = getWarningShown();
     if (!shown[operator]) {
-      const name = operator === "mtn" ? "MTN" : "Syriatel";
-      showToast(`⚠️ رصيد ${name} أوشك على الانتهاء، الرصيد الحالي: ${estimated.toLocaleString()} ل.س`);
+      const name = operator === "mtn" ? i18n.t("operator.mtn") : i18n.t("operator.syriatel");
+      showToast(`⚠️ ${i18n.t("toast.lowBalanceWarning", { name, amount: estimated.toLocaleString() })}`);
       markWarningShown(operator);
     }
   }

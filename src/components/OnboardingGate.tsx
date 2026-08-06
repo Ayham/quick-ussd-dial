@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuthSession } from "@/lib/auth-session";
 import { getProfile, type UserProfile } from "@/lib/auth";
 import { isSimConfigured, getBusinessName, shouldPromptBusinessName, shouldPromptProfile } from "@/lib/onboarding";
@@ -6,6 +7,7 @@ import { getCredentials } from "@/lib/ussd-profiles";
 import OnboardingWizard from "@/components/OnboardingWizard";
 
 export default function OnboardingGate() {
+  const { t } = useTranslation();
   const { user, loading } = useAuthSession();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);

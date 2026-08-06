@@ -1,25 +1,26 @@
 import { createRoot } from "react-dom/client";
-import { Component, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import App from "./App.tsx";
 import "./index.css";
+import { useTranslation } from "react-i18next";
 
-class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
-  state = { error: null as Error | null };
-  static getDerivedStateFromError(error: Error) { return { error }; }
-  render() {
-    if (this.state.error) {
-      return (
-        <div dir="rtl" style={{ padding: 32, textAlign: "center", fontFamily: "sans-serif" }}>
-          <h2 style={{ marginBottom: 12 }}>حدث خطأ غير متوقع</h2>
-          <p style={{ color: "#666", marginBottom: 16 }}>{this.state.error.message}</p>
-          <button onClick={() => { this.setState({ error: null }); location.reload(); }} style={{ padding: "8px 24px", cursor: "pointer" }}>
-            أعد المحاولة
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
+function ErrorBoundary({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
+  const [error, setError] = useState<Error | null>(null);
+
+  if (error) {
+    return (
+      <div dir={document.documentElement.dir} style={{ padding: 32, textAlign: "center", fontFamily: "sans-serif" }}>
+        <h2 style={{ marginBottom: 12 }}>{t("errors.boundaryTitle")}</h2>
+        <p style={{ color: "#666", marginBottom: 16 }}>{error.message}</p>
+        <button onClick={() => { setError(null); location.reload(); }} style={{ padding: "8px 24px", cursor: "pointer" }}>
+          {t("errors.boundaryRetry")}
+        </button>
+      </div>
+    );
   }
+
+  return children;
 }
 
 createRoot(document.getElementById("root")!).render(

@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getLicenseStatus, type LicenseInfo } from "./license";
+import i18n from "@/lib/i18n";
 
 const SESSION_CHECK_KEY = "app_session_last_check";
 const SESSION_CHECK_INTERVAL_MS = 1000 * 60 * 60 * 6; // 6 hours
@@ -14,30 +15,30 @@ export interface SessionValidationResult {
 export async function validateSession(): Promise<SessionValidationResult> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { valid: false, license: null, reason: "not_authenticated" };
+    if (!user) return { valid: false, license: null, reason: i18n.t("auth.notAuthenticated") };
 
     const license = await getLicenseStatus();
-    if (!license) return { valid: false, license: null, reason: "license_unavailable" };
+    if (!license) return { valid: false, license: null, reason: i18n.t("license.unavailable") };
 
-    if (license.account_status === "suspended") return { valid: false, license, reason: "account_suspended" };
-    if (license.account_status === "blocked") return { valid: false, license, reason: "account_blocked" };
-    if (license.license_status === "expired") return { valid: false, license, reason: "license_expired" };
-    if (license.license_status === "rejected") return { valid: false, license, reason: "activation_rejected" };
-    if (license.license_status === "blocked") return { valid: false, license, reason: "license_blocked" };
+    if (license.account_status === "suspended") return { valid: false, license, reason: i18n.t("license.accountSuspended") };
+    if (license.account_status === "blocked") return { valid: false, license, reason: i18n.t("license.accountBlocked") };
+    if (license.license_status === "expired") return { valid: false, license, reason: i18n.t("license.expired") };
+    if (license.license_status === "rejected") return { valid: false, license, reason: i18n.t("license.activationRejected") };
+    if (license.license_status === "blocked") return { valid: false, license, reason: i18n.t("license.blocked") };
 
     if (license.license_status === "trial" && license.trial_end) {
       const trialEnd = new Date(license.trial_end);
-      if (trialEnd < new Date()) return { valid: false, license, reason: "trial_expired" };
+      if (trialEnd < new Date()) return { valid: false, license, reason: i18n.t("license.trialExpired") };
     }
 
     if (license.expiry_date && license.license_status !== "permanent") {
       const expiry = new Date(license.expiry_date);
-      if (expiry < new Date()) return { valid: false, license, reason: "license_expired" };
+      if (expiry < new Date()) return { valid: false, license, reason: i18n.t("license.expired") };
     }
 
     return { valid: true, license };
   } catch {
-    return { valid: false, license: null, reason: "validation_error" };
+    return { valid: false, license: null, reason: i18n.t("license.validationError") };
   }
 }
 

@@ -1,9 +1,11 @@
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { Home, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const NotFound = () => {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -18,12 +20,12 @@ const NotFound = () => {
           <span className="text-4xl font-bold text-muted-foreground">404</span>
         </div>
         <div className="space-y-1">
-          <h1 className="text-xl font-bold text-foreground">الصفحة غير موجودة</h1>
-          <p className="text-sm text-muted-foreground">عذراً، لا يمكننا العثور على الصفحة المطلوبة</p>
+<h1 className="text-xl font-bold text-foreground">{t("notFound.title")}</h1>
+           <p className="text-sm text-muted-foreground">{t("notFound.description")}</p>
         </div>
         <Button onClick={() => navigate("/")} className="rounded-xl h-12 px-6">
           <Home className="w-4 h-4 me-2" />
-          العودة للرئيسية
+          {t("notFound.backToHome")}
         </Button>
       </div>
     </div>

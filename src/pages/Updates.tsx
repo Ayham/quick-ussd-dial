@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Download, RefreshCw, CheckCircle2, ArrowUpCircle, Clock, FileText, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AppLayout from "@/components/AppLayout";
@@ -9,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import type { AppRelease } from "@/lib/marketing";
 
 const Updates = () => {
+  const { t, i18n } = useTranslation();
   const [checking, setChecking] = useState(true);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [releases, setReleases] = useState<AppRelease[]>([]);
@@ -21,7 +23,7 @@ const Updates = () => {
     try {
       await downloadAndInstallApk(url, setDlProgress);
     } catch (e: any) {
-      toast({ title: "خطأ في التنزيل", description: e.message, variant: "destructive" });
+      toast({ title: t("updates.downloadError"), description: e.message, variant: "destructive" });
     }
   };
 
@@ -41,8 +43,8 @@ const Updates = () => {
   useEffect(() => { doCheck(); }, []);
 
   return (
-    <AppLayout title="التحديثات" titleIcon={<div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><Download className="w-4.5 h-4.5 text-white" /></div>}>
-      <div className="flex-1 overflow-auto" dir="rtl">
+    <AppLayout title={t("updates.title")} titleIcon={<div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><Download className="w-4.5 h-4.5 text-white" /></div>}>
+      <div className="flex-1 overflow-auto" dir={i18n.dir()}>
         <div className="p-4 space-y-4 max-w-lg mx-auto">
 
           <div className="bg-white rounded-2xl shadow-sm border border-border/60 p-5">
@@ -57,11 +59,11 @@ const Updates = () => {
                 }
               </div>
               <div>
-                <h2 className="text-base font-bold text-foreground">
-                  {checking ? "جاري الفحص..." : "حالة التطبيق"}
+<h2 className="text-base font-bold text-foreground">
+	                   {checking ? t("updates.checking") : t("updates.status")}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  النسخة الحالية: <span className="font-mono font-bold">{currentVersion}</span>
+                  {t("updates.currentVersion")}: <span className="font-mono font-bold">{currentVersion}</span>
                 </p>
               </div>
             </div>
@@ -70,12 +72,12 @@ const Updates = () => {
               <div className="space-y-3">
                 <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">النسخة الجديدة</span>
+                    <span className="text-xs text-muted-foreground">{t("updates.newVersion")}</span>
                     <span className="font-mono font-bold text-primary text-sm">{updateInfo.latestVersion}</span>
                   </div>
                   {updateInfo.releaseDate && (
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">تاريخ الإصدار</span>
+                      <span className="text-xs text-muted-foreground">{t("updates.releaseDate")}</span>
                       <span className="text-xs text-foreground">{updateInfo.releaseDate}</span>
                     </div>
                   )}
@@ -83,8 +85,8 @@ const Updates = () => {
 
                 {updateInfo.changelog && (
                   <div className="bg-muted/60 rounded-xl p-3 border border-border/50">
-                    <p className="text-[11px] text-muted-foreground font-medium mb-1.5 flex items-center gap-1">
-                      <FileText className="w-3 h-3" /> ما الجديد:
+<p className="text-[11px] text-muted-foreground font-medium mb-1.5 flex items-center gap-1">
+                       <FileText className="w-3 h-3" /> {t("updates.changelogTitle")}
                     </p>
                     <p className="text-xs text-foreground whitespace-pre-wrap leading-relaxed">{updateInfo.changelog}</p>
                   </div>
@@ -97,9 +99,9 @@ const Updates = () => {
                     size="lg"
                     disabled={isDownloading}
                   >
-                    {isDownloading
-                      ? <><Loader2 className="w-5 h-5 ml-2 animate-spin" />جاري التنزيل... {dlProgress.progress}%</>
-                      : <><Download className="w-5 h-5 ml-2" />تحميل وتثبيت التحديث</>
+{isDownloading
+	                       ? <><Loader2 className="w-5 h-5 ml-2 animate-spin" />{t("updates.downloading", { progress: dlProgress.progress })}</>
+	                       : <><Download className="w-5 h-5 ml-2" />{t("updates.downloadInstall")}</>
                     }
                   </Button>
                 )}
@@ -116,7 +118,7 @@ const Updates = () => {
             )}
 
             {!updateInfo?.hasUpdate && !checking && (
-              <p className="text-xs text-muted-foreground">أنت تستخدم أحدث إصدار من التطبيق.</p>
+              <p className="text-xs text-muted-foreground">{t("updates.upToDate")}</p>
             )}
 
             <Button
@@ -126,7 +128,7 @@ const Updates = () => {
               disabled={checking}
             >
               <RefreshCw className={`w-4 h-4 ml-1.5 ${checking ? "animate-spin" : ""}`} />
-              {checking ? "جاري الفحص..." : "البحث عن تحديثات"}
+              {checking ? t("updates.checkForUpdates") : t("updates.checkForUpdates")}
             </Button>
           </div>
 

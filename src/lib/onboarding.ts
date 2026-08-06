@@ -1,4 +1,5 @@
 import { getCredentials, type OperatorCredentials } from "@/lib/ussd-profiles";
+import i18n from "@/lib/i18n";
 
 const BUSINESS_NAME_KEY = "business-name";
 const BUSINESS_SKIP_KEY = "business-name-skipped";

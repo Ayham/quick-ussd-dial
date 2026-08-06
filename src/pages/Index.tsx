@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Phone, Clock, CheckCircle, Loader2, Send, TrendingUp, BookUser, UserPlus, Search } from "lucide-react";
 import {
@@ -60,6 +61,7 @@ type ContactMatch = {
 };
 
 const Index = () => {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [phone, setPhone] = useState("");
   const [selectedAmount, setSelectedAmount] = useState<AmountPreset | null>(null);
@@ -186,29 +188,29 @@ const Index = () => {
 
   const handleTransferClick = useCallback(async () => {
     if (!phone.trim()) {
-      toast.error("الرجاء إدخال رقم هاتف صحيح");
+      toast.error(t("index.invalidPhone"));
       return;
     }
     if (!isSecretNumber && phone.trim().length < 10) {
-      toast.error("الرجاء إدخال رقم هاتف صحيح");
+      toast.error(t("index.invalidPhone"));
       return;
     }
     if (!transferOperator) {
-      toast.error(isSecretNumber ? "الرجاء اختيار المشغّل" : "لم يتم التعرف على المشغّل");
+      toast.error(t("index.selectOperator"));
       return;
     }
     if (!selectedAmount) {
-      toast.error("الرجاء اختيار المبلغ");
+      toast.error(t("index.selectAmount"));
       return;
     }
     if (!isSimConfigured(credentials)) {
-      toast.error("الرجاء إكمال إعداد الشريحة أولاً");
+      toast.error(t("index.configureSimFirst"));
       return;
     }
     await validateDeviceSession();
     const guard = getTransferGuard();
     if (!guard.allowed) {
-      toast.error(guard.reason || "لا يمكن إجراء التحويل حالياً / Transfer not allowed");
+      toast.error(guard.reason || t("index.transferNotAllowed"));
       return;
     }
     setShowConfirm(true);
@@ -242,7 +244,7 @@ const Index = () => {
     const guard = getTransferGuard();
     if (!guard.allowed) {
       setShowConfirm(false);
-      toast.error(guard.reason || "لا يمكن إجراء التحويل حالياً / Transfer not allowed");
+      toast.error(guard.reason || t("index.transferNotAllowed"));
       return;
     }
     setShowConfirm(false);
@@ -270,7 +272,7 @@ const Index = () => {
         package_name: `${selectedAmount.amount}`,
       });
 
-      toast.success("تم إرسال الطلب بنجاح ✓");
+      toast.success(t("index.transferSuccess"));
 
       await saveContactAfterTransfer(phone.trim(), nameInput.trim() || contactName);
       setContactsVersion(v => v + 1);
@@ -281,7 +283,7 @@ const Index = () => {
       setShowSaveName(false);
       setNameInput('');
     } catch {
-      toast.error("فشل إرسال الطلب");
+      toast.error(t("index.transferFailed"));
     } finally {
       setDialing(false);
     }
@@ -296,7 +298,7 @@ const Index = () => {
   const handlePickContact = useCallback(async () => {
     const { Capacitor } = await import('@capacitor/core');
     if (!Capacitor.isNativePlatform()) {
-      toast.error("هذه الميزة متوفرة فقط على أندرويد / Available only on Android");
+      toast.error(t("index.androidOnly"));
       return;
     }
     const contact = await pickContactFromDevice();
@@ -335,7 +337,7 @@ const Index = () => {
   }, [phoneHistory]);
 
   return (
-    <AppLayout title={businessName || "تحويل رصيد"} onTitleClick={handleTitleTap}>
+    <AppLayout title={businessName || t("appName")} onTitleClick={handleTitleTap}>
       <main className="flex-1 w-full max-w-lg mx-auto space-y-3.5 px-3 py-3 overflow-y-auto">
 
         {/* Phone Input Card */}
@@ -346,7 +348,7 @@ const Index = () => {
                 onClick={handlePickContact}
                 className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all active:scale-90"
                 type="button"
-                aria-label="اختيار من جهات الاتصال"
+                aria-label={t("index.contactPickerAria")}
               >
                 <BookUser className="w-5 h-5" />
               </button>
@@ -354,14 +356,14 @@ const Index = () => {
             </div>
             <Input
               type="tel"
-              placeholder="رقم الهاتف"
+              placeholder={t("index.phonePlaceholder")}
               value={phone}
               onChange={(e) => { setPhone(e.target.value); setContactName(''); setShowSaveName(false); setNameInput(''); setAndroidContacts([]); }}
               onFocus={() => setShowContacts(true)}
               className="text-left text-lg h-13 tracking-wider rounded-xl border-2 border-border bg-background/50 focus:border-primary focus:bg-white transition-all pl-[4.25rem] font-mono shadow-sm"
               dir="ltr"
               inputMode="tel"
-              aria-label="رقم الهاتف"
+              aria-label={t("index.phoneAria")}
             />
 
             {showContacts && (
@@ -378,7 +380,7 @@ const Index = () => {
                       >
                         <div className="flex flex-col">
                           {contact.name && (
-                            <span className="text-sm font-medium text-foreground" dir="rtl">{contact.name}</span>
+                            <span className="text-sm font-medium text-foreground" dir="auto">{contact.name}</span>
                           )}
                           <span className="font-mono text-muted-foreground text-sm tracking-wider">{contact.phone}</span>
                         </div>
@@ -398,7 +400,7 @@ const Index = () => {
                 <div className="absolute z-10 top-full mt-2 w-full bg-white border border-border rounded-xl shadow-elevated max-h-52 overflow-y-auto scrollbar-thin">
                   <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1.5 px-3.5 pt-2.5 pb-1">
                     <Clock className="w-3 h-3" />
-                    الأرقام الأخيرة
+                    {t("index.recentNumbers")}
                   </p>
                   {recentNumbers.map((item) => (
                     <button
@@ -432,7 +434,7 @@ const Index = () => {
                 operator === "mtn" ? "bg-operator-mtn text-operator-mtn-foreground" : "bg-operator-syriatel text-white"
               )}>
                 <Phone className="w-3 h-3" />
-                {operator === "mtn" ? "MTN" : "Syriatel"}
+                {operator === "mtn" ? t("operator.mtn") : t("operator.syriatel")}
               </span>
               {contactName ? (
                 <span className="text-sm text-foreground font-medium flex items-center gap-1.5">
@@ -447,16 +449,16 @@ const Index = () => {
                   onClick={() => { setShowSaveName(true); setNameInput(''); }}
                 >
                   <UserPlus className="w-3.5 h-3.5 me-1" />
-                  حفظ الاسم
+                  {t("index.saveNameButton")}
                 </Button>
               ) : (
                 <div className="flex items-center gap-1.5">
                   <Input
                     value={nameInput}
                     onChange={(e) => setNameInput(e.target.value)}
-                    placeholder="الاسم"
+                    placeholder={t("index.namePlaceholder")}
                     className="h-8 text-xs rounded-xl w-36"
-                    dir="rtl"
+                    dir="auto"
                     autoFocus
                   />
                   <Button
@@ -467,22 +469,22 @@ const Index = () => {
                         const res = await saveNameToAndroid(phone.trim(), nameInput.trim());
                         if (res.ok) {
                           setContactName(nameInput.trim());
-                          toast.success("تم حفظ الاسم");
+                          toast.success(t("index.nameSaved"));
                           setContactsVersion(v => v + 1);
                         } else if (res.code === 'PERMISSION_DENIED') {
-                          toast.error("صلاحية جهات الاتصال مرفوضة. امنح التطبيق الإذن من الإعدادات ثم أعد المحاولة");
+                          toast.error(t("index.contactPermissionDenied"));
                           await openAppSettings();
                         } else {
                           console.warn('[Transfer] save name failed:', res.code, res.message);
                           toast.error(res.message
-                            ? `فشل حفظ الاسم (${res.code || 'خطأ'}): ${res.message}`
-                            : "فشل حفظ الاسم، حاول مرة أخرى");
+                            ? t("index.nameSaveFailedDetail", { code: res.code || t("common.error"), message: res.message })
+                            : t("index.nameSaveRetry"));
                         }
                       }
                       setShowSaveName(false);
                     }}
                   >
-                    حفظ
+                    {t("common.save")}
                   </Button>
                 </div>
               )}
@@ -510,7 +512,7 @@ const Index = () => {
           <div className="bg-white rounded-2xl p-4.5 shadow-sm border border-border/60 space-y-3.5 animate-slide-up">
             <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
               <Search className="w-3.5 h-3.5" />
-              تحويل عبر الرقم السري — اختر المشغّل
+              {t("index.secretNumberOperator")}
             </p>
             <RadioGroup
               value={secretOperator || ""}
@@ -549,7 +551,7 @@ const Index = () => {
           <div className="space-y-3 animate-slide-up">
             <p className="text-xs font-semibold text-muted-foreground px-1 flex items-center gap-1.5">
               <TrendingUp className="w-3.5 h-3.5" />
-              اختر المبلغ
+              {t("index.chooseAmount")}
             </p>
             {amountDisplayStyle === "horizontal" ? (
               <div className="flex gap-2.5 overflow-x-auto scrollbar-thin pb-1 pr-0.5 snap-x snap-mandatory scroll-smooth">
@@ -613,36 +615,36 @@ const Index = () => {
           ) : (
             <Send className="w-5 h-5 me-2" />
           )}
-          {dialing ? "جاري الإرسال..." : "تحويل"}
+          {dialing ? t("common.loading") : t("index.transferButton")}
         </Button>
 
         {/* Confirmation Dialog */}
         <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
-          <AlertDialogContent dir="rtl" className="rounded-2xl max-w-sm">
+          <AlertDialogContent dir={i18n.dir()} className="rounded-2xl max-w-sm">
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-lg">تأكيد التحويل</AlertDialogTitle>
+              <AlertDialogTitle className="text-lg">{t("index.confirmTransferTitle")}</AlertDialogTitle>
               <AlertDialogDescription className="text-right space-y-3">
                 <div className="bg-gradient-to-br from-primary/5 to-primary/[0.02] rounded-2xl p-4.5 space-y-3.5 border border-primary/10">
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground text-sm">المبلغ</span>
-                    <span className="font-bold text-foreground text-lg">{selectedAmount?.amount.toLocaleString()} ل.س</span>
+                    <span className="text-muted-foreground text-sm">{t("index.dialogAmount")}</span>
+                    <span className="font-bold text-foreground text-lg">{selectedAmount?.amount.toLocaleString()} {t("common.currencySymbol")}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground text-sm">السعر</span>
-                    <span className="font-bold text-foreground">{selectedAmount?.price.toLocaleString()} ل.س</span>
+                    <span className="text-muted-foreground text-sm">{t("index.dialogPrice")}</span>
+                    <span className="font-bold text-foreground">{selectedAmount?.price.toLocaleString()} {t("common.currencySymbol")}</span>
                   </div>
                   {contactName && (
                     <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground text-sm">الاسم</span>
+                      <span className="text-muted-foreground text-sm">{t("index.dialogName")}</span>
                       <span className="font-bold text-foreground">{contactName}</span>
                     </div>
                   )}
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground text-sm">الرقم</span>
+                    <span className="text-muted-foreground text-sm">{t("index.dialogPhone")}</span>
                     <span className="font-bold text-foreground font-mono" dir="ltr">{phone.trim()}</span>
                   </div>
                   <div className="flex justify-between items-center pt-1 border-t border-border/60">
-                    <span className="text-muted-foreground text-sm">المشغّل</span>
+                    <span className="text-muted-foreground text-sm">{t("index.dialogOperator")}</span>
                     <span className={cn(
                       "font-bold px-3 py-1 rounded-xl text-xs shadow-sm",
                       transferOperator === "mtn" ? "bg-operator-mtn text-operator-mtn-foreground" : "bg-operator-syriatel text-white"
@@ -654,8 +656,8 @@ const Index = () => {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="flex-row-reverse gap-2">
-              <AlertDialogAction onClick={handleConfirmTransfer} className="rounded-xl flex-1 h-12 text-base font-bold shadow-sm">تأكيد التحويل</AlertDialogAction>
-              <AlertDialogCancel className="rounded-xl h-12 text-base">إلغاء</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmTransfer} className="rounded-xl flex-1 h-12 text-base font-bold shadow-sm">{t("index.confirmTransferAction")}</AlertDialogAction>
+              <AlertDialogCancel className="rounded-xl h-12 text-base">{t("common.cancel")}</AlertDialogCancel>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -665,14 +667,14 @@ const Index = () => {
           <div className="space-y-3.5 animate-slide-up">
             <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 px-1">
               <TrendingUp className="w-3.5 h-3.5" />
-              ملخص التحويلات لهذا الرقم
+              {t("index.transferSummary")}
             </p>
 
             <div className="grid grid-cols-4 gap-2">
-              {[{ label: "اليوم", sum: phoneStats.todaySum, count: phoneStats.todayCount },
-                { label: "الأسبوع", sum: phoneStats.weekSum, count: phoneStats.weekCount },
-                { label: "الشهر", sum: phoneStats.monthSum, count: phoneStats.monthCount },
-                { label: "الإجمالي", sum: phoneStats.totalSum, count: phoneStats.totalCount }].map((stat) => (
+              {[{ label: t("common.today"), sum: phoneStats.todaySum, count: phoneStats.todayCount },
+                { label: t("common.week"), sum: phoneStats.weekSum, count: phoneStats.weekCount },
+                { label: t("common.month"), sum: phoneStats.monthSum, count: phoneStats.monthCount },
+                { label: t("common.total"), sum: phoneStats.totalSum, count: phoneStats.totalCount }].map((stat) => (
                 <div key={stat.label} className="bg-white border border-border/60 rounded-xl p-2.5 text-center shadow-sm">
                   <p className="text-[10px] text-muted-foreground mb-0.5 font-medium">{stat.label}</p>
                   <p className="text-xs font-bold text-foreground">{stat.sum.toLocaleString()}</p>
@@ -683,7 +685,7 @@ const Index = () => {
 
             <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 px-1">
               <Clock className="w-3.5 h-3.5" />
-              آخر العمليات
+              {t("index.lastTransactions")}
             </p>
             <div className="space-y-1.5 max-h-[140px] overflow-y-auto scrollbar-thin">
               {phoneHistory.slice(0, 8).map((record, i) => (

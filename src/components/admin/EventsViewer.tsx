@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateTime } from "@/lib/format-date";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ interface AppEvent {
 }
 
 export function EventsViewer() {
+  const { t } = useTranslation();
   const [rows, setRows] = useState<AppEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -53,14 +55,14 @@ export function EventsViewer() {
     <div className="space-y-3">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by event/device" className="pl-9 h-9" />
-        <Button
-          size="sm"
-          variant="ghost"
-          className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0 rounded-lg"
-          onClick={load}
-          title="Refresh events"
-        >
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("adminEvents.searchPlaceholder")} className="pl-9 h-9" />
+<Button
+	           size="sm"
+	           variant="ghost"
+	           className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0 rounded-lg"
+	           onClick={load}
+	           title={t("adminEvents.refresh")}
+	         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
         </Button>
       </div>
@@ -69,18 +71,18 @@ export function EventsViewer() {
         <div className="border border-destructive/30 bg-destructive/5 rounded-2xl p-3 flex items-center gap-2 text-sm text-destructive">
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span className="flex-1">{loadError}</span>
-          <Button variant="outline" size="sm" onClick={load}>Retry</Button>
+          <Button variant="outline" size="sm" onClick={load}>{t("common.retry")}</Button>
         </div>
       )}
 
-      {loading ? <div className="text-center py-8">Loading...</div> : (
+      {loading ? <div className="text-center py-8">{t("common.loading")}</div> : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className="border-b">
-              <th className="text-left p-2">Event</th>
-              <th className="text-left p-2">Device</th>
-              <th className="text-left p-2">Data</th>
-              <th className="text-left p-2">Time</th>
+<th className="text-left p-2">{t("adminEvents.event")}</th>
+	               <th className="text-left p-2">{t("adminEvents.device")}</th>
+	               <th className="text-left p-2">{t("adminEvents.data")}</th>
+	               <th className="text-left p-2">{t("adminEvents.time")}</th>
             </tr></thead>
             <tbody>
               {filtered.map((e) => (
@@ -97,9 +99,9 @@ export function EventsViewer() {
       )}
 
       <div className="flex justify-between text-xs text-muted-foreground">
-        <button disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))} className="disabled:opacity-30">Prev</button>
-        <span>Page {page + 1}</span>
-        <button disabled={rows.length < PAGE} onClick={() => setPage((p) => p + 1)} className="disabled:opacity-30">Next</button>
+<button disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))} className="disabled:opacity-30">{t("adminEvents.prev")}</button>
+	        <span>{t("adminEvents.page", { page: page + 1 })}</span>
+	        <button disabled={rows.length < PAGE} onClick={() => setPage((p) => p + 1)} className="disabled:opacity-30">{t("adminEvents.next")}</button>
       </div>
     </div>
   );

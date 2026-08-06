@@ -1,4 +1,5 @@
 import { APP_VERSION } from "@/config/version";
+import i18n from "@/lib/i18n";
 import {
   getPresets, savePresets,
   getUssdTemplates, saveUssdTemplates,
@@ -150,7 +151,7 @@ export function validateBackup(data: unknown): { valid: boolean; errors: string[
   const errors: string[] = [];
 
   if (typeof data !== "object" || data === null) {
-    errors.push("الملف غير صالح");
+    errors.push(i18n.t("errors.invalidBackupFile"));
     return { valid: false, errors, preview: null };
   }
 
@@ -169,12 +170,12 @@ export function validateBackup(data: unknown): { valid: boolean; errors: string[
   }
 
   if (!obj.backup_version || typeof obj.backup_version !== "string") {
-    errors.push("missing backup_version");
+    errors.push(i18n.t("errors.backupMissingVersion"));
   }
 
   const supportedVersions = ["1.0"];
   if (obj.backup_version && !supportedVersions.includes(obj.backup_version as string)) {
-    errors.push(`إصدار النسخة الاحتياطية غير مدعوم: ${obj.backup_version}`);
+    errors.push(i18n.t("errors.backupUnsupportedVersion", { version: obj.backup_version }));
   }
 
   const hasPresets = !!obj.presets && typeof obj.presets === "object";
@@ -197,7 +198,7 @@ export function validateBackup(data: unknown): { valid: boolean; errors: string[
   };
 
   if (!hasPresets && !hasHistory && !hasBalance) {
-    errors.push("الملف لا يحتوي على بيانات قابلة للاستعادة");
+    errors.push(i18n.t("errors.backupNoRestorableData"));
   }
 
   return { valid: errors.length === 0, errors, preview };
@@ -247,25 +248,25 @@ export function restoreBackup(data: unknown, password?: string): { success: bool
     const obj = data as Record<string, unknown>;
     if (obj._encrypted && password) {
       json = decryptBackup(JSON.stringify(obj), password);
-      if (!json) return { success: false, error: "كلمة المرور غير صحيحة" };
+      if (!json) return { success: false, error: i18n.t("errors.wrongPassword") };
     } else if (obj._encrypted && !password) {
-      return { success: false, error: "البيانات مشفرة — يرجى إدخال كلمة المرور" };
+      return { success: false, error: i18n.t("errors.encryptedDataPasswordRequired") };
     } else {
-      return { success: false, error: "بيانات غير صالحة" };
+      return { success: false, error: i18n.t("errors.invalidData") };
     }
   } else {
-    return { success: false, error: "ملف غير صالح" };
+    return { success: false, error: i18n.t("errors.invalidFile") };
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(json);
   } catch {
-    return { success: false, error: "فشل قراءة الملف" };
+    return { success: false, error: i18n.t("errors.failedReadFile") };
   }
 
   if (typeof parsed !== "object" || parsed === null) {
-    return { success: false, error: "هيكل البيانات غير صالح" };
+    return { success: false, error: i18n.t("errors.invalidDataStructure") };
   }
 
   const obj = parsed as Record<string, unknown>;

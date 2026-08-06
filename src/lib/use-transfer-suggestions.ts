@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import i18n from "@/lib/i18n";
 import { getHistory, recordPrice, type TransferRecord } from './transfer-history';
 import { getContactByPhone, normalizePhone, searchContactsSync } from './android-contacts';
 import { detectOperator } from './ussd-profiles';
@@ -185,13 +186,13 @@ export function useTransferSuggestions(query: string) {
 export function timeAgo(timestamp: number): string {
   const diff = Date.now() - timestamp;
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'منذ لحظات';
-  if (mins < 60) return `منذ ${mins} دقيقة`;
+  if (mins < 1) return i18n.t("lib.timeAgo.justNow");
+  if (mins < 60) return i18n.t("lib.timeAgo.minutesFull", { mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `منذ ${hours} ساعة`;
+  if (hours < 24) return i18n.t("lib.timeAgo.hoursFull", { hours });
   const days = Math.floor(hours / 24);
-  if (days === 1) return 'أمس';
-  if (days < 7) return `منذ ${days} أيام`;
+  if (days === 1) return i18n.t("lib.timeAgo.yesterday");
+  if (days < 7) return i18n.t("lib.timeAgo.daysAgo", { days });
   return new Date(timestamp).toLocaleDateString('ar-SY', {
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
   });

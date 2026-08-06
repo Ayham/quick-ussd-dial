@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { isNativeApp } from "./platform";
+import i18n from "@/lib/i18n";
 
 let cachedDeviceId: string | null = null;
 
@@ -23,7 +24,7 @@ export function getDeviceId(): string {
 export function getDeviceInfo() {
   return {
     device_id: getDeviceId(),
-    device_name: isNativeApp() ? "Android Device" : "Web Browser",
+    device_name: isNativeApp() ? i18n.t("device.androidDevice") : i18n.t("device.webBrowser"),
     device_model: navigator.platform || "unknown",
     platform: isNativeApp() ? "android" : "web",
     app_version: __APP_VERSION__ || "0.0.0",
