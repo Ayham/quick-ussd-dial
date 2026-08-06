@@ -5,7 +5,7 @@ import {
   AlertTriangle, Shield, Database, Settings as SettingsIcon,
   Download, Upload, Globe, ChevronDown, Lock, FolderOpen,
   Trash, RotateCw, HardDrive, Info, AlertCircle, CheckCircle,
-  Bell, Store,
+  Bell, Store, Palette,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
@@ -23,6 +23,7 @@ import {
   type UssdTemplates, type OperatorPrefixes, type SimSlot, type SimAssignment,
   type BalanceCheckTemplates,
 } from "@/lib/ussd-profiles";
+import { getAccentPreset } from "@/lib/accent-theme";
 import { getHistory } from "@/lib/transfer-history";
 import { getActualDeductedAmount } from "@/lib/amount-utils";
 import { getBusinessName, saveBusinessName } from "@/lib/onboarding";
@@ -52,18 +53,22 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { AccentColorDialog } from "@/components/theme/AccentColorDialog";
+import { useAccentTheme } from "@/components/theme/ThemeProvider";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-type SettingsSection = "sim" | "codes" | "amounts" | "thresholds" | "suggestions" | "data" | "language" | "business";
+type SettingsSection = "sim" | "codes" | "amounts" | "thresholds" | "suggestions" | "data" | "language" | "business" | "appearance";
 
 const Settings = () => {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const isArabic = i18n.language === "ar";
+  const { accentId, resetAccent } = useAccentTheme();
   const [activeSection, setActiveSection] = useState<SettingsSection | null>(null);
+  const [colorDialogOpen, setColorDialogOpen] = useState(false);
   const [presets, setPresets] = useState(() => getPresets());
   const [credentials, setCredentials] = useState<OperatorCredentials>(() => getCredentials());
   const [templates, setTemplates] = useState<UssdTemplates>(() => getUssdTemplates());
@@ -302,6 +307,7 @@ const Settings = () => {
   const sections: { id: SettingsSection; label: string; icon: React.ReactNode; description: string }[] = [
     { id: "sim", label: t("settings.sectionSim"), icon: <Smartphone className="w-5 h-5" />, description: t("settings.sectionSimDesc") },
     { id: "business", label: t("settings.sectionBusiness"), icon: <Store className="w-5 h-5" />, description: t("settings.sectionBusinessDesc") },
+    { id: "appearance", label: t("settings.sectionAppearance"), icon: <Palette className="w-5 h-5" />, description: t("settings.sectionAppearanceDesc") },
     { id: "codes", label: t("settings.sectionCodes"), icon: <Code className="w-5 h-5" />, description: t("settings.sectionCodesDesc") },
     { id: "amounts", label: t("settings.sectionAmounts"), icon: <SettingsIcon className="w-5 h-5" />, description: t("settings.sectionAmountsDesc") },
     { id: "thresholds", label: t("settings.sectionThresholds"), icon: <Bell className="w-5 h-5" />, description: t("settings.sectionThresholdsDesc") },
@@ -440,11 +446,45 @@ const Settings = () => {
                           />
                         </div>
                       </SettingsCard>
-                      <Button onClick={handleSaveBusinessName} className="w-full h-12 font-bold rounded-xl shadow-sm mt-2">{t("settings.saveBusinessName")}</Button>
-                    </>
-                  )}
+                       <Button onClick={handleSaveBusinessName} className="w-full h-12 font-bold rounded-xl shadow-sm mt-2">{t("settings.saveBusinessName")}</Button>
+                     </>
+                   )}
 
-                  {/* CODES SECTION */}
+                   {/* APPEARANCE SECTION */}
+                   {section.id === "appearance" && (
+                     <>
+                       <SettingsCard title={t("settings.appearanceTitle")} icon={<Palette className="w-4 h-4" />}>
+                         <div className="space-y-3">
+                           <p className="text-xs text-muted-foreground">{t("settings.appearanceDescription")}</p>
+                           <button
+                             type="button"
+                             onClick={() => setColorDialogOpen(true)}
+                             className="w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 border-border/60 bg-background/50 hover:border-primary/30 active:scale-[0.98] transition-all text-start"
+                           >
+                             <span
+                               className="w-10 h-10 rounded-full shrink-0"
+                               style={{
+                                 backgroundColor: "hsl(var(--primary))",
+                                 boxShadow: "0 0 0 2px hsl(var(--border)), 0 0 0 4px hsl(var(--background))",
+                               }}
+                             />
+                             <span className="flex-1">
+                               <span className="block text-sm font-bold text-foreground">{t("settings.applicationColor")}</span>
+                               <span className="block text-[11px] text-muted-foreground">{t(getAccentPreset(accentId).nameKey)}</span>
+                             </span>
+                             <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                           </button>
+                           <Button variant="outline" size="sm" className="w-full h-10 text-xs rounded-xl" onClick={() => { resetAccent(); toast.success(t("settings.colorReset")); }}>
+                             <RotateCw className="w-3.5 h-3.5 me-1" />
+                             {t("settings.resetToDefault")}
+                           </Button>
+                         </div>
+                       </SettingsCard>
+                       <AccentColorDialog open={colorDialogOpen} onOpenChange={setColorDialogOpen} />
+                     </>
+                   )}
+
+                   {/* CODES SECTION */}
                   {section.id === "codes" && (
                     <>
                       <SettingsCard title={t("settings.ussdCodes")} icon={<Code className="w-4 h-4" />}>
@@ -715,15 +755,15 @@ const Settings = () => {
                           <div className="bg-muted/40 rounded-xl p-3.5 space-y-2.5 border border-border/40">
                             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t("settings.includedData")}</p>
                             <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> {t("settings.appSettings")}</span>
-                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> {t("settings.ussdCodes")}</span>
-                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> {t("settings.readyAmounts")}</span>
-                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> {t("settings.prefixes")}</span>
-                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> {t("settings.simMaps")}</span>
-                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> {t("settings.balanceTemplates")}</span>
-                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> {t("settings.transferLog")}</span>
-                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> {t("settings.balanceData")}</span>
-                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-green-500" /> {t("settings.businessName")}</span>
+                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.appSettings")}</span>
+                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.ussdCodes")}</span>
+                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.readyAmounts")}</span>
+                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.prefixes")}</span>
+                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.simMaps")}</span>
+                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.balanceTemplates")}</span>
+                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.transferLog")}</span>
+                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.balanceData")}</span>
+                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.businessName")}</span>
                             </div>
                             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-2 pt-2 border-t border-border/40">{t("settings.excludedData")}</p>
                             <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
@@ -777,9 +817,9 @@ const Settings = () => {
                               <div className="flex justify-between items-center"><span className="text-muted-foreground">{t("settings.appVersion")}</span><span className={cn("font-bold", restorePreview.appVersion !== "0.4.5" ? "text-accent" : "")}>{restorePreview.appVersion}</span></div>
                             </div>
                             <div className="space-y-1.5">
-                              <div className="flex items-center gap-2 text-xs"><CheckCircle className="w-3.5 h-3.5 text-green-500" /><span>{t("settings.presetsCount", { count: restorePreview.presetsCount })}</span></div>
-                              <div className="flex items-center gap-2 text-xs"><CheckCircle className="w-3.5 h-3.5 text-green-500" /><span>{t("settings.transferCount", { count: restorePreview.transferCount })}</span></div>
-                              <div className="flex items-center gap-2 text-xs"><CheckCircle className="w-3.5 h-3.5 text-green-500" /><span>{t("settings.balanceEntries", { count: restorePreview.balanceEntries })}</span></div>
+                              <div className="flex items-center gap-2 text-xs"><CheckCircle className="w-3.5 h-3.5 text-success" /><span>{t("settings.presetsCount", { count: restorePreview.presetsCount })}</span></div>
+                              <div className="flex items-center gap-2 text-xs"><CheckCircle className="w-3.5 h-3.5 text-success" /><span>{t("settings.transferCount", { count: restorePreview.transferCount })}</span></div>
+                              <div className="flex items-center gap-2 text-xs"><CheckCircle className="w-3.5 h-3.5 text-success" /><span>{t("settings.balanceEntries", { count: restorePreview.balanceEntries })}</span></div>
                             </div>
                             {restoreErrors.length > 0 && (
                               <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-3 text-xs space-y-1">

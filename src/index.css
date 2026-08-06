@@ -13,11 +13,26 @@
     --popover: 0 0% 100%;
     --popover-foreground: 160 47% 11%;
 
-    --primary: 152 60% 42%;
+    --primary: 152 60% 32%;
+    --primary-hover: 152 60% 36%;
+    --primary-pressed: 152 60% 28%;
+    --primary-disabled: 152 33% 48%;
     --primary-foreground: 0 0% 100%;
+    --primary-container: 152 33% 93%;
+    --primary-container-foreground: 152 36% 24%;
+    --primary-end: 152 57% 28%;
+    --primary-end-hover: 152 54% 30%;
+    --primary-deep-1: 152 30% 13%;
+    --primary-deep-2: 152 27% 17%;
+    --primary-deep-3: 152 21% 23%;
+    --primary-h: 152;
+    --primary-s: 60%;
+    --primary-l: 32%;
 
-    --secondary: 150 25% 94%;
-    --secondary-foreground: 160 47% 20%;
+    --secondary: 152 18% 95%;
+    --secondary-foreground: 152 36% 27%;
+    --secondary-container: 152 15% 91%;
+    --secondary-container-foreground: 152 30% 21%;
 
     --muted: 150 15% 95%;
     --muted-foreground: 155 16% 47%;
@@ -39,7 +54,8 @@
 
     --border: 150 15% 90%;
     --input: 150 15% 90%;
-    --ring: 152 60% 42%;
+    --ring: 152 60% 32%;
+    --surface-tint: 152 36% 96%;
 
     --radius: 1rem;
     --radius-sm: 0.625rem;
@@ -47,20 +63,20 @@
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 160 47% 11%;
-    --sidebar-primary: 152 60% 42%;
+    --sidebar-primary: 152 60% 32%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 150 25% 95%;
     --sidebar-accent-foreground: 160 47% 11%;
     --sidebar-border: 150 15% 90%;
-    --sidebar-ring: 152 60% 42%;
+    --sidebar-ring: 152 60% 32%;
 
     --operator-mtn: 45 100% 50%;
     --operator-mtn-foreground: 0 0% 10%;
     --operator-syriatel: 200 80% 45%;
     --operator-syriatel-foreground: 0 0% 100%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(152 60% 42%), hsl(165 55% 38%));
-    --gradient-header: linear-gradient(135deg, hsl(152 60% 42%), hsl(158 58% 39%));
+    --gradient-primary: linear-gradient(135deg, hsl(152 60% 32%), hsl(152 57% 28%));
+    --gradient-header: linear-gradient(135deg, hsl(152 60% 32%), hsl(152 57% 28%));
     --gradient-surface: linear-gradient(180deg, hsl(150 20% 97%) 0%, hsl(150 15% 95%) 100%);
     --shadow-card: 0 1px 3px 0 hsl(150 15% 50% / 0.06), 0 1px 2px -1px hsl(150 15% 50% / 0.04);
     --shadow-elevated: 0 4px 16px -4px hsl(150 15% 50% / 0.1), 0 2px 8px -4px hsl(150 15% 50% / 0.06);
@@ -74,10 +90,25 @@
     --card-foreground: 150 20% 95%;
     --popover: 160 25% 11%;
     --popover-foreground: 150 20% 95%;
-    --primary: 152 60% 48%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 160 18% 16%;
-    --secondary-foreground: 150 20% 90%;
+    --primary: 152 57% 39%;
+    --primary-hover: 152 57% 43%;
+    --primary-pressed: 152 57% 36%;
+    --primary-disabled: 152 21% 52%;
+    --primary-foreground: 0 0% 12%;
+    --primary-container: 152 33% 23%;
+    --primary-container-foreground: 152 48% 90%;
+    --primary-end: 152 54% 34%;
+    --primary-end-hover: 152 54% 37%;
+    --primary-deep-1: 152 27% 10%;
+    --primary-deep-2: 152 24% 14%;
+    --primary-deep-3: 152 18% 20%;
+    --primary-h: 152;
+    --primary-s: 57%;
+    --primary-l: 39%;
+    --secondary: 152 18% 18%;
+    --secondary-foreground: 152 30% 85%;
+    --secondary-container: 152 21% 21%;
+    --secondary-container-foreground: 152 36% 87%;
     --muted: 160 18% 14%;
     --muted-foreground: 155 12% 55%;
     --accent: 38 92% 50%;
@@ -92,15 +123,16 @@
     --info-foreground: 0 0% 100%;
     --border: 160 18% 18%;
     --input: 160 18% 18%;
-    --ring: 152 60% 48%;
+    --ring: 152 57% 39%;
+    --surface-tint: 152 33% 26%;
     --sidebar-background: 160 25% 9%;
     --sidebar-foreground: 150 20% 95%;
-    --sidebar-primary: 152 60% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-primary: 152 57% 39%;
+    --sidebar-primary-foreground: 0 0% 12%;
     --sidebar-accent: 160 18% 14%;
     --sidebar-accent-foreground: 150 20% 95%;
     --sidebar-border: 160 18% 16%;
-    --sidebar-ring: 152 60% 48%;
+    --sidebar-ring: 152 57% 39%;
     --gradient-surface: linear-gradient(180deg, hsl(160 25% 7%) 0%, hsl(160 25% 9%) 100%);
   }
 }
@@ -253,5 +285,20 @@
 
 .pb-nav {
   padding-bottom: calc(72px + var(--sab));
+}
+
+/* Accent color transition — only active while the accent is changing */
+html.accent-animating,
+html.accent-animating *,
+html.accent-animating *::before,
+html.accent-animating *::after {
+  transition:
+    background-color 0.35s ease,
+    border-color 0.35s ease,
+    color 0.35s ease,
+    fill 0.35s ease,
+    stroke 0.35s ease,
+    box-shadow 0.35s ease,
+    opacity 0.35s ease !important;
 }
 

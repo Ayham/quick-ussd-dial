@@ -3,6 +3,7 @@ import { useState, type ReactNode } from "react";
 import App from "./App.tsx";
 import "./index.css";
 import { useTranslation } from "react-i18next";
+import { AccentThemeProvider } from "@/components/theme/ThemeProvider";
 
 function ErrorBoundary({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
@@ -25,6 +26,8 @@ function ErrorBoundary({ children }: { children: ReactNode }) {
 
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
-    <App />
+    <AccentThemeProvider>
+      <App />
+    </AccentThemeProvider>
   </ErrorBoundary>,
 );

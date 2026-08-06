@@ -122,7 +122,7 @@ const ActivationRequests = () => {
 
   const statusBadge = (status: string, t: any) => {
     if (status === "pending") return <Badge variant="secondary"><Clock className="w-3 h-3 me-1" />{t("admin.pending")}</Badge>;
-    if (status === "approved") return <Badge className="bg-green-600 hover:bg-green-700"><CheckCircle2 className="w-3 h-3 me-1" />{t("admin.active")}</Badge>;
+     if (status === "approved") return <Badge className="bg-success hover:bg-success/90"><CheckCircle2 className="w-3 h-3 me-1" />{t("admin.active")}</Badge>;
     if (status === "rejected") return <Badge variant="destructive"><XCircle className="w-3 h-3 me-1" />{t("admin.rejected")}</Badge>;
     return <Badge>{status}</Badge>;
   };

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Shield, LogOut, LayoutGrid, Users, Activity, FileText, Database, KeyRound, UserCheck, ChevronLeft, ChevronRight } from "lucide-react";
+import { Shield, LogOut, LayoutGrid, Users, Activity, FileText, Database, KeyRound, UserCheck, Bell, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { signOut } from "@/lib/auth";
@@ -11,6 +11,7 @@ import { TransfersViewer } from "@/components/admin/TransfersViewer";
 import { UsersRolesManager } from "@/components/admin/UsersRolesManager";
 import LicenseManagement from "@/components/admin/LicenseManagement";
 import ActivationRequests from "@/components/admin/ActivationRequests";
+import { NotificationManagement } from "@/components/admin/NotificationManagement";
 import { cn } from "@/lib/utils";
 
 const tabs = [
@@ -19,6 +20,7 @@ const tabs = [
    { value: "transfers", labelKey: "admin.transfers", icon: Activity },
   { value: "licenses", labelKey: "admin.licenses", icon: KeyRound },
   { value: "activations", labelKey: "admin.activationRequests", icon: UserCheck },
+  { value: "notifications", labelKey: "admin.notifications", icon: Bell },
   { value: "events", labelKey: "admin.events", icon: Database },
 ];
 
@@ -76,6 +78,8 @@ const Admin = () => {
         return <EventsViewer />;
       case "licenses":
         return <LicenseManagement />;
+      case "notifications":
+        return <NotificationManagement />;
        case "activations":
          return <ActivationRequests />;
        default:
@@ -85,7 +89,7 @@ const Admin = () => {
 
   return (
     <div className="min-h-dvh bg-background">
-      <header className="header-gradient px-5 pb-4 pt-[calc(var(--sat)+14px)] flex flex-col gap-4 shadow-[0_2px_20px_-4px_hsl(221_83%_53%/0.25)]">
+      <header className="header-gradient px-5 pb-4 pt-[calc(var(--sat)+14px)] flex flex-col gap-4 shadow-[0_2px_20px_-4px_hsl(var(--primary)/0.35)]">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-white/15 flex items-center justify-center shadow-inner">

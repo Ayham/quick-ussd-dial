@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   Send, Wallet, BarChart3, Settings, Zap, Menu, ChevronLeft,
   Download, Shield, ChevronDown, Home, LogIn, LogOut, User,
-  X, ExternalLink, KeyRound
+  X, ExternalLink, KeyRound, Bell
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -11,6 +11,7 @@ import { getCurrentUser, signOut, isAdminUser } from "@/lib/auth";
 import { getBusinessName } from "@/lib/onboarding";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 const BOTTOM_NAV_ITEMS = [
   { icon: Send, label: "تحويل", path: "/" },
@@ -25,6 +26,7 @@ function useMenuItems() {
     { icon: Send, label: t("nav.transfer"), path: "/", description: t("nav.transferDesc", "Quick balance transfer") },
     { icon: Wallet, label: t("nav.balance"), path: "/balance", description: t("nav.balanceDesc", "Track balance") },
     { icon: BarChart3, label: t("nav.reports"), path: "/reports", description: t("nav.reportsDesc", "Transfer statistics") },
+    { icon: Bell, label: t("nav.notifications", "الإشعارات"), path: "/notifications", description: t("nav.notificationsDesc", "Notifications") },
     { icon: User, label: t("nav.profile", "الملف الشخصي"), path: "/profile", description: t("nav.profileDesc", "Account & language") },
     { icon: Settings, label: t("nav.settings"), path: "/settings", description: t("nav.settingsDesc", "App settings") },
     { icon: Download, label: t("nav.updates"), path: "/updates", description: t("nav.updatesDesc", "Check for updates") },
@@ -39,9 +41,10 @@ interface AppLayoutProps {
   children: React.ReactNode;
   hideNav?: boolean;
   headerRight?: React.ReactNode;
+  hideNotificationsBell?: boolean;
 }
 
-const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRight }: AppLayoutProps) => {
+const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRight, hideNotificationsBell }: AppLayoutProps) => {
   const { t } = useTranslation();
   const menuItems = useMenuItems();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -65,7 +68,7 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
   return (
     <div className="min-h-dvh bg-background flex flex-col">
       {/* Header */}
-      <header className="header-gradient px-5 pb-4 pt-[calc(var(--sat)+14px)] flex items-center justify-between z-header sticky top-0 shadow-[0_2px_20px_-4px_hsl(221_83%_53%/0.25)]">
+      <header className="header-gradient px-5 pb-4 pt-[calc(var(--sat)+14px)] flex items-center justify-between z-header sticky top-0 shadow-[0_2px_20px_-4px_hsl(var(--primary)/0.35)]">
         <div className="flex items-center gap-3 cursor-pointer active:scale-95 transition-transform" onClick={onTitleClick}>
           {titleIcon || (
             <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center backdrop-blur-sm shadow-inner">
@@ -77,6 +80,7 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
 
         <div className="flex items-center gap-2.5">
           {headerRight}
+          {!hideNotificationsBell && <NotificationBell />}
           <button 
             onClick={() => setMenuOpen(true)} 
             className="text-white w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center hover:bg-white/20 active:bg-white/25 transition-all active:scale-90 backdrop-blur-sm"

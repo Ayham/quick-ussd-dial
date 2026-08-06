@@ -10,6 +10,26 @@ vi.mock("@/lib/cloud-sync", () => ({
   trackTransfer: vi.fn(),
 }));
 
+vi.mock("@/hooks/use-notifications", () => ({
+  useNotifications: () => ({
+    notifications: [],
+    unreadCount: 0,
+    total: 0,
+    loading: false,
+    refreshing: false,
+    error: null,
+    hasMore: false,
+    refresh: vi.fn(),
+    loadMore: vi.fn(),
+    markRead: vi.fn(),
+    markAllRead: vi.fn(),
+    toggleFavorite: vi.fn(),
+    dismiss: vi.fn(),
+    acknowledge: vi.fn(),
+    markAllReadLocal: vi.fn(),
+  }),
+}));
+
 vi.mock("@/lib/android-contacts", () => ({
   saveContactAfterTransfer: vi.fn().mockResolvedValue(undefined),
   getContactByPhone: vi.fn().mockResolvedValue(null),

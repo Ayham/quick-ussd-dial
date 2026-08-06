@@ -75,7 +75,7 @@ if (loading) {
       <div className="p-4 space-y-4 max-w-md mx-auto pb-8">
         {/* Avatar Card */}
         <div className="bg-white rounded-2xl shadow-sm border border-border/60 p-6 text-center space-y-3">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-[hsl(215_80%_48%)] mx-auto flex items-center justify-center shadow-lg shadow-primary/25">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-[hsl(var(--primary-end))] mx-auto flex items-center justify-center shadow-lg shadow-primary/25">
             <User className="w-10 h-10 text-white" />
           </div>
           <div>

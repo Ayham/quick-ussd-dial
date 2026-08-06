@@ -16,6 +16,7 @@ import Profile from "./pages/Profile";
 import Activation from "./pages/Activation";
 import LicenseLocked from "./pages/LicenseLocked";
 import { AuthSessionProvider, RequireAdmin, RequireAuth } from "@/lib/auth-session";
+import { NotificationsProvider } from "@/hooks/use-notifications";
 import OnboardingGate from "@/components/OnboardingGate";
 
 import "./lib/i18n";
@@ -25,6 +26,7 @@ import ForceUpdate from "@/components/ForceUpdate";
 
 const queryClient = new QueryClient();
 const Reports = lazy(() => import("./pages/Reports"));
+const Notifications = lazy(() => import("./pages/Notifications"));
 
 const AppContent = () => {
   const { t } = useTranslation();
@@ -65,26 +67,35 @@ const AppContent = () => {
   return (
     <BrowserRouter>
       <AuthSessionProvider>
-        <Routes>
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/activation" element={<RequireAuth><Activation /></RequireAuth>} />
-          <Route path="/license-locked" element={<RequireAuth><LicenseLocked /></RequireAuth>} />
-          <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
-          <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
-          <Route path="/reports" element={
-            <RequireAuth>
-              <Suspense fallback={<div className="min-h-dvh grid place-items-center text-sm text-muted-foreground">{t("common.loadingReports")}</div>}>
-                <Reports />
-              </Suspense>
-            </RequireAuth>
-          } />
-          <Route path="/balance" element={<RequireAuth><Balance /></RequireAuth>} />
-          <Route path="/sys-panel" element={<RequireAuth><RequireAdmin><Admin /></RequireAdmin></RequireAuth>} />
-          <Route path="/updates" element={<RequireAuth><Updates /></RequireAuth>} />
-          <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
-          <Route path="*" element={<RequireAuth><NotFound /></RequireAuth>} />
-        </Routes>
-        <OnboardingGate />
+        <NotificationsProvider>
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/activation" element={<RequireAuth><Activation /></RequireAuth>} />
+            <Route path="/license-locked" element={<RequireAuth><LicenseLocked /></RequireAuth>} />
+            <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
+            <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
+            <Route path="/reports" element={
+              <RequireAuth>
+                <Suspense fallback={<div className="min-h-dvh grid place-items-center text-sm text-muted-foreground">{t("common.loadingReports")}</div>}>
+                  <Reports />
+                </Suspense>
+              </RequireAuth>
+            } />
+            <Route path="/balance" element={<RequireAuth><Balance /></RequireAuth>} />
+            <Route path="/notifications" element={
+              <RequireAuth>
+                <Suspense fallback={<div className="min-h-dvh grid place-items-center text-sm text-muted-foreground">{t("common.loading")}</div>}>
+                  <Notifications />
+                </Suspense>
+              </RequireAuth>
+            } />
+            <Route path="/sys-panel" element={<RequireAuth><RequireAdmin><Admin /></RequireAdmin></RequireAuth>} />
+            <Route path="/updates" element={<RequireAuth><Updates /></RequireAuth>} />
+            <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+            <Route path="*" element={<RequireAuth><NotFound /></RequireAuth>} />
+          </Routes>
+          <OnboardingGate />
+        </NotificationsProvider>
       </AuthSessionProvider>
     </BrowserRouter>
   );

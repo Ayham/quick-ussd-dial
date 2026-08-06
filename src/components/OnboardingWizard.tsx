@@ -134,7 +134,7 @@ export default function OnboardingWizard({ initialStep = 1, businessNeeded, prof
 
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto" dir={i18n.dir()}>
-      <div className="min-h-full flex items-center justify-center p-4 sm:p-6 bg-gradient-to-b from-[hsl(158_55%_12%)] via-[hsl(158_50%_16%)] to-[hsl(215_60%_14%)]">
+      <div className="min-h-full flex items-center justify-center p-4 sm:p-6 bg-gradient-to-b from-[hsl(var(--primary-deep-1))] via-[hsl(var(--primary-deep-2))] to-[hsl(var(--primary-deep-3))]">
         <div className="w-full max-w-md">
           {/* Brand header */}
           <div className="flex flex-col items-center mb-5 text-center animate-slide-up">
@@ -159,7 +159,7 @@ export default function OnboardingWizard({ initialStep = 1, businessNeeded, prof
                     key={s}
                     className={cn(
                       "h-1.5 flex-1 rounded-full transition-all duration-300",
-                      s <= step ? "bg-gradient-to-l from-primary to-[hsl(165_55%_38%)]" : "bg-muted"
+                      s <= step ? "bg-gradient-to-l from-primary to-[hsl(var(--primary-end))]" : "bg-muted"
                     )}
                   />
                 ))}

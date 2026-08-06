@@ -603,8 +603,8 @@ const Index = () => {
           disabled={!transferOperator || !selectedAmount || dialing}
           className={cn(
             "w-full h-14 text-base font-bold rounded-xl shadow-lg transition-all duration-200",
-            "bg-gradient-to-l from-primary to-[hsl(165_55%_38%)]",
-            "hover:from-primary hover:to-[hsl(158_58%_39%)]",
+            "bg-gradient-to-l from-primary to-[hsl(var(--primary-end))]",
+            "hover:from-primary hover:to-[hsl(var(--primary-end-hover))]",
             "disabled:opacity-40 disabled:shadow-none",
             "active:scale-[0.98]"
           )}
@@ -742,7 +742,7 @@ function AmountCard({
   const bgLightness = 98 - intensity * 8;
   const bdSaturation = 25 + intensity * 35;
   const bdLightness = 85 - intensity * 28;
-  const txtColor = `hsl(152, ${Math.round(bgSaturation + 20)}%, ${Math.round(35 - intensity * 18)}%)`;
+  const txtColor = `hsl(var(--primary-h), ${Math.round(bgSaturation + 20)}%, ${Math.round(35 - intensity * 18)}%)`;
   return (
     <button
       onClick={onClick}
@@ -754,13 +754,13 @@ function AmountCard({
         className,
       )}
       style={(!isSelected ? {
-        backgroundColor: `hsl(152, ${Math.round(bgSaturation)}%, ${Math.round(bgLightness)}%)`,
-        borderColor: `hsl(152, ${Math.round(bdSaturation)}%, ${Math.round(bdLightness)}%)`,
+        backgroundColor: `hsl(var(--primary-h), ${Math.round(bgSaturation)}%, ${Math.round(bgLightness)}%)`,
+        borderColor: `hsl(var(--primary-h), ${Math.round(bdSaturation)}%, ${Math.round(bdLightness)}%)`,
       } : undefined) as any}
     >
       {!isSelected && intensity > 0.3 && (
         <span className="absolute top-0.5 end-1.5 text-[7px] font-bold uppercase tracking-widest"
-          style={{ color: `hsl(152, 60%, ${Math.round(70 - intensity * 25)}%)`, opacity: 0.5 }}>
+          style={{ color: `hsl(var(--primary-h), 60%, ${Math.round(70 - intensity * 25)}%)`, opacity: 0.5 }}>
           {index < totalPresets * 0.33 ? '' : index < totalPresets * 0.66 ? '●' : '●●'}
         </span>
       )}

@@ -1130,6 +1130,264 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_recipients: {
+        Row: {
+          acknowledged_at: string | null
+          created_at: string
+          delivered_at: string
+          delivered_version: number
+          dismissed_at: string | null
+          id: string
+          is_deleted: boolean
+          is_favorite: boolean
+          is_read: boolean
+          notification_id: string
+          read_at: string | null
+          read_version: number
+          status: Database["public"]["Enums"]["notification_recipient_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          created_at?: string
+          delivered_at?: string
+          delivered_version?: number
+          dismissed_at?: string | null
+          id?: string
+          is_deleted?: boolean
+          is_favorite?: boolean
+          is_read?: boolean
+          notification_id: string
+          read_at?: string | null
+          read_version?: number
+          status?: Database["public"]["Enums"]["notification_recipient_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          created_at?: string
+          delivered_at?: string
+          delivered_version?: number
+          dismissed_at?: string | null
+          id?: string
+          is_deleted?: boolean
+          is_favorite?: boolean
+          is_read?: boolean
+          notification_id?: string
+          read_at?: string | null
+          read_version?: number
+          status?: Database["public"]["Enums"]["notification_recipient_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_recipients_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_recipients_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      notification_preferences: {
+        Row: {
+          enabled: boolean
+          id: string
+          notification_type: Database["public"]["Enums"]["notification_type"]
+          sound_enabled: boolean
+          updated_at: string
+          user_id: string
+          vibration_enabled: boolean
+        }
+        Insert: {
+          enabled?: boolean
+          id?: string
+          notification_type: Database["public"]["Enums"]["notification_type"]
+          sound_enabled?: boolean
+          updated_at?: string
+          user_id: string
+          vibration_enabled?: boolean
+        }
+        Update: {
+          enabled?: boolean
+          id?: string
+          notification_type?: Database["public"]["Enums"]["notification_type"]
+          sound_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+          vibration_enabled?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      notification_versions: {
+        Row: {
+          action_target: string | null
+          action_type: Database["public"]["Enums"]["notification_action_type"] | null
+          body_ar: string
+          body_en: string
+          edited_at: string
+          edited_by: string | null
+          id: string
+          image_url: string | null
+          metadata: Json
+          notification_id: string
+          notification_type: Database["public"]["Enums"]["notification_type"] | null
+          priority: Database["public"]["Enums"]["notification_priority"] | null
+          title_ar: string
+          title_en: string
+          version: number
+        }
+        Insert: {
+          action_target?: string | null
+          action_type?: Database["public"]["Enums"]["notification_action_type"] | null
+          body_ar?: string
+          body_en?: string
+          edited_at?: string
+          edited_by?: string | null
+          id?: string
+          image_url?: string | null
+          metadata?: Json
+          notification_id: string
+          notification_type?: Database["public"]["Enums"]["notification_type"] | null
+          priority?: Database["public"]["Enums"]["notification_priority"] | null
+          title_ar?: string
+          title_en?: string
+          version: number
+        }
+        Update: {
+          action_target?: string | null
+          action_type?: Database["public"]["Enums"]["notification_action_type"] | null
+          body_ar?: string
+          body_en?: string
+          edited_at?: string
+          edited_by?: string | null
+          id?: string
+          image_url?: string | null
+          metadata?: Json
+          notification_id?: string
+          notification_type?: Database["public"]["Enums"]["notification_type"] | null
+          priority?: Database["public"]["Enums"]["notification_priority"] | null
+          title_ar?: string
+          title_en?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_versions_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          action_target: string | null
+          action_type: Database["public"]["Enums"]["notification_action_type"]
+          body_ar: string
+          body_en: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          image_url: string | null
+          is_announcement: boolean
+          is_deleted: boolean
+          is_pinned: boolean
+          metadata: Json
+          notification_type: Database["public"]["Enums"]["notification_type"]
+          priority: Database["public"]["Enums"]["notification_priority"]
+          requires_acknowledgement: boolean
+          scheduled_at: string | null
+          send_config: Json
+          sent_at: string | null
+          status: Database["public"]["Enums"]["notification_status"]
+          title_ar: string
+          title_en: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          action_target?: string | null
+          action_type?: Database["public"]["Enums"]["notification_action_type"]
+          body_ar?: string
+          body_en?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_announcement?: boolean
+          is_deleted?: boolean
+          is_pinned?: boolean
+          metadata?: Json
+          notification_type?: Database["public"]["Enums"]["notification_type"]
+          priority?: Database["public"]["Enums"]["notification_priority"]
+          requires_acknowledgement?: boolean
+          scheduled_at?: string | null
+          send_config?: Json
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["notification_status"]
+          title_ar?: string
+          title_en?: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          action_target?: string | null
+          action_type?: Database["public"]["Enums"]["notification_action_type"]
+          body_ar?: string
+          body_en?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_announcement?: boolean
+          is_deleted?: boolean
+          is_pinned?: boolean
+          metadata?: Json
+          notification_type?: Database["public"]["Enums"]["notification_type"]
+          priority?: Database["public"]["Enums"]["notification_priority"]
+          requires_acknowledgement?: boolean
+          scheduled_at?: string | null
+          send_config?: Json
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["notification_status"]
+          title_ar?: string
+          title_en?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1275,12 +1533,164 @@ export type Database = {
         Args: { _device_id: string }
         Returns: Json
       }
+      user_get_notifications: {
+        Args: {
+          p_since?: string
+          p_page?: number
+          p_page_size?: number
+          p_filter?: string
+          p_type?: string
+          p_priority?: string
+          p_search?: string
+          p_order?: string
+          p_date_from?: string
+          p_date_to?: string
+          p_include_dismissed?: boolean
+        }
+        Returns: Json
+      }
+      user_mark_notification_read: {
+        Args: {
+          p_notification_id: string
+          p_read_version?: number
+          p_read_at?: string
+        }
+        Returns: Json
+      }
+      user_mark_all_notifications_read: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      user_toggle_notification_favorite: {
+        Args: { p_favorite?: boolean; p_notification_id: string }
+        Returns: Json
+      }
+      user_dismiss_notification: {
+        Args: { p_notification_id: string }
+        Returns: Json
+      }
+      user_acknowledge_notification: {
+        Args: { p_notification_id: string }
+        Returns: Json
+      }
+      user_get_notification_preferences: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      user_set_notification_preferences: {
+        Args: {
+          p_enabled?: boolean
+          p_notification_type: Database["public"]["Enums"]["notification_type"]
+          p_sound_enabled?: boolean
+          p_vibration_enabled?: boolean
+        }
+        Returns: Json
+      }
+      admin_create_notification: {
+        Args: {
+          p_action_target?: string
+          p_action_type?: Database["public"]["Enums"]["notification_action_type"]
+          p_body_ar: string
+          p_body_en: string
+          p_expires_at?: string
+          p_image_url?: string
+          p_is_announcement?: boolean
+          p_is_pinned?: boolean
+          p_metadata?: Json
+          p_priority?: Database["public"]["Enums"]["notification_priority"]
+          p_requires_acknowledgement?: boolean
+          p_scheduled_at?: string
+          p_send_config?: Json
+          p_title_ar: string
+          p_title_en: string
+          p_type?: Database["public"]["Enums"]["notification_type"]
+        }
+        Returns: Json
+      }
+      admin_update_notification: {
+        Args: {
+          p_action_target?: string
+          p_action_type?: Database["public"]["Enums"]["notification_action_type"]
+          p_body_ar?: string
+          p_body_en?: string
+          p_clear_expires_at?: boolean
+          p_expires_at?: string
+          p_id: string
+          p_image_url?: string
+          p_is_announcement?: boolean
+          p_is_pinned?: boolean
+          p_metadata?: Json
+          p_priority?: Database["public"]["Enums"]["notification_priority"]
+          p_title_ar?: string
+          p_title_en?: string
+          p_type?: Database["public"]["Enums"]["notification_type"]
+        }
+        Returns: Json
+      }
+      admin_delete_notification: {
+        Args: { p_id: string }
+        Returns: Json
+      }
+      admin_restore_notification: {
+        Args: { p_id: string }
+        Returns: Json
+      }
+      admin_archive_notification: {
+        Args: { p_id: string }
+        Returns: Json
+      }
+      admin_cancel_notification: {
+        Args: { p_id: string }
+        Returns: Json
+      }
+      admin_process_scheduled_notifications: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      admin_resend_notification: {
+        Args: { p_id: string; p_recipient_ids?: string[] }
+        Returns: Json
+      }
+      admin_get_notifications: {
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_include_deleted?: boolean
+          p_page?: number
+          p_page_size?: number
+          p_search?: string
+          p_status?: string
+          p_type?: string
+        }
+        Returns: Json
+      }
+      admin_get_notification_detail: {
+        Args: { p_id: string }
+        Returns: Json
+      }
+      admin_search_notification_users: {
+        Args: { p_page?: number; p_page_size?: number; p_search?: string }
+        Returns: Json
+      }
+      admin_get_notification_segments: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      admin_get_notification_stats: {
+        Args: Record<string, never>
+        Returns: Json
+      }
     }
     Enums: {
       activation_status: "pending" | "approved" | "rejected"
        app_role: "admin" | "user"
       license_status: "active" | "expired" | "revoked" | "pending" | "suspended" | "trial" | "rejected" | "permanent" | "blocked"
       license_type: "trial" | "days_30" | "days_90" | "days_180" | "days_365" | "permanent"
+      notification_action_type: "none" | "screen" | "url" | "custom"
+      notification_priority: "low" | "normal" | "high" | "critical"
+      notification_recipient_status: "pending" | "delivered" | "failed"
+      notification_status: "draft" | "scheduled" | "sent" | "archived" | "cancelled" | "failed"
+      notification_type: "custom" | "license_expiring" | "license_expired" | "license_activated" | "license_revoked" | "trial_started" | "trial_ended" | "account_suspended" | "account_restored" | "security_alert" | "announcement" | "system_update" | "transfer_success" | "transfer_failure"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1412,6 +1822,11 @@ export const Constants = {
        app_role: ["admin", "user"],
       license_status: ["active", "expired", "revoked", "pending", "suspended", "trial", "rejected", "permanent", "blocked"],
       license_type: ["trial", "days_30", "days_90", "days_180", "days_365", "permanent"],
+      notification_action_type: ["none", "screen", "url", "custom"],
+      notification_priority: ["low", "normal", "high", "critical"],
+      notification_recipient_status: ["pending", "delivered", "failed"],
+      notification_status: ["draft", "scheduled", "sent", "archived", "cancelled", "failed"],
+      notification_type: ["custom", "license_expiring", "license_expired", "license_activated", "license_revoked", "trial_started", "trial_ended", "account_suspended", "account_restored", "security_alert", "announcement", "system_update", "transfer_success", "transfer_failure"],
     },
   },
 } as const
