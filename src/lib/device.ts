@@ -53,6 +53,7 @@ function getDeviceFingerprint(): string {
 }
 
 export async function registerDeviceLogin(): Promise<boolean> {
+  if (!isNativeApp()) return true;
   try {
     const info = getDeviceInfo();
     const { data, error } = await supabase.functions.invoke("device-login", { body: info });
@@ -63,9 +64,10 @@ export async function registerDeviceLogin(): Promise<boolean> {
 }
 
 export async function registerDeviceLogout(): Promise<boolean> {
+  if (!isNativeApp()) return true;
   try {
     const deviceId = getDeviceId();
-    const { data, error } = await supabase.functions.invoke("device-logout", { body: { device_id: deviceId } });
+    const { data, error } = await supabase.functions.invoke("device-logout", { body: { device_id: deviceId, platform: isNativeApp() ? "android" : "web" } });
     return !error && data?.success === true;
   } catch {
     return false;

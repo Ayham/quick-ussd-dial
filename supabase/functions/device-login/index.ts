@@ -6,7 +6,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 serve(async (req) => {
   const origin = req.headers.get("origin") || "*";
-  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Methods": "POST,OPTIONS", "Access-Control-Allow-Headers": "authorization,content-type,x-client-info" } });
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Methods": "POST,OPTIONS", "Access-Control-Allow-Headers": "authorization,content-type,x-client-info,apikey" } });
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -20,6 +20,20 @@ serve(async (req) => {
     const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
     const { data: { user }, error: authError } = await serviceClient.auth.getUser(token);
     if (authError || !user) throw new Error("invalid_token");
+
+    // Web/browser logins (e.g. admin panel) don't participate in single-device
+    // enforcement and must never revoke the mobile app's session or overwrite
+    // current_device. Just record the login time.
+    if (body.platform === "web") {
+      await serviceClient
+        .from("profiles")
+        .update({ last_login: new Date().toISOString() })
+        .eq("user_id", user.id);
+      return new Response(JSON.stringify({ success: true, device_id: deviceId, platform: "web" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": origin },
+      });
+    }
 
     const rateKey = `login:${user.id}`;
     const { data: rateOk } = await serviceClient.rpc("check_rate_limit", { _key: rateKey, _window_seconds: 60, _max_requests: 5 });

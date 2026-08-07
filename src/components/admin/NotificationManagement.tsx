@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useAuthSession } from "@/lib/auth-session";
 import {
   Archive, Bell, CalendarClock, Copy, Eye, Loader2, Pencil, Plus, RefreshCw,
   Send, Trash2, Undo2, XCircle, Users,

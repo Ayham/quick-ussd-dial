@@ -6,19 +6,27 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 serve(async (req) => {
   const origin = req.headers.get("origin") || "*";
-  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Methods": "POST,OPTIONS", "Access-Control-Allow-Headers": "authorization,content-type,x-client-info" } });
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Methods": "POST,OPTIONS", "Access-Control-Allow-Headers": "authorization,content-type,x-client-info,apikey" } });
 
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("missing authorization");
     const token = authHeader.replace("Bearer ", "");
 
-    const body: { device_id?: string } = await req.json().catch(() => ({}));
+    const body: { device_id?: string; platform?: string } = await req.json().catch(() => ({}));
     const deviceId = body.device_id;
 
     const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
     const { data: { user }, error: authError } = await serviceClient.auth.getUser(token);
     if (authError || !user) throw new Error("invalid_token");
+
+    // Web/browser logins never register devices, so nothing to revoke.
+    if (body.platform === "web") {
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": origin },
+      });
+    }
 
     // Revoke sessions for this device
     await serviceClient

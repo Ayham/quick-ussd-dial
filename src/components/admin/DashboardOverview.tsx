@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, type ComponentType } from "react";
+import { useEffect, useState, useCallback, useRef, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import { Activity, RefreshCw, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,43 +19,87 @@ interface Metrics {
 
 const EMPTY: Metrics = { totalUsers: 0, failedSyncs: 0, suspiciousEvents: 0 };
 
+const MAX_RETRIES = 3;
+const REQUEST_TIMEOUT_MS = 8000;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("Request timeout")), ms)),
+  ]);
+}
+
 export function DashboardOverview() {
   const { t } = useTranslation();
   const [metrics, setMetrics] = useState(EMPTY);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const retryCountRef = useRef(0);
+  const isMountedRef = useRef(true);
 
   const loadMetrics = useCallback(async () => {
+    if (!isMountedRef.current) return;
     setError(null);
     setLoading(true);
     const failuresSince = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
-    try {
-      const results = await Promise.all([
-        supabase.from("profiles").select("id", { count: "exact", head: true }),
-        supabase.from("sync_logs").select("id", { count: "exact", head: true })
-          .eq("status", "failed").gte("created_at", failuresSince),
-      ]);
-      const firstError = results.find((r) => r.error)?.error;
-      if (firstError) {
-        setError(firstError.message);
-      } else {
-        setMetrics({
-          totalUsers: results[0].count || 0,
-          failedSyncs: results[1].count || 0,
-          suspiciousEvents: 0,
-        });
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      if (!isMountedRef.current) return;
+      try {
+        const results = await withTimeout(
+          Promise.all([
+            supabase.from("profiles").select("id", { count: "exact", head: true }),
+            supabase.from("sync_logs").select("id", { count: "exact", head: true })
+              .eq("status", "failed").gte("created_at", failuresSince),
+          ]),
+          REQUEST_TIMEOUT_MS
+        );
+
+        const firstError = results.find((r) => r.error)?.error;
+        if (firstError) {
+          throw firstError;
+        }
+
+        if (isMountedRef.current) {
+          setMetrics({
+            totalUsers: results[0].count || 0,
+            failedSyncs: results[1].count || 0,
+            suspiciousEvents: 0,
+          });
+          retryCountRef.current = 0;
+        }
+        return;
+      } catch (err) {
+        const isNetworkError = err instanceof TypeError && err.message.includes("Failed to fetch") ||
+          err instanceof Error && (err.message.includes("timeout") || err.message.includes("ERR_CONNECTION_CLOSED"));
+        
+        if (isNetworkError && attempt < MAX_RETRIES) {
+          const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+          await sleep(delay);
+          continue;
+        }
+
+        if (isMountedRef.current) {
+          setError(err instanceof Error ? err.message : String(err));
+          retryCountRef.current = attempt + 1;
+        }
+        return;
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    isMountedRef.current = true;
     loadMetrics();
     const interval = window.setInterval(loadMetrics, 30_000);
-    return () => window.clearInterval(interval);
+    return () => {
+      isMountedRef.current = false;
+      window.clearInterval(interval);
+    };
   }, [loadMetrics]);
 
   const cards: Metric[] = [

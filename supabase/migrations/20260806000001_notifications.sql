@@ -247,10 +247,13 @@ CREATE INDEX IF NOT EXISTS idx_notif_versions_notification ON public.notificatio
 -- ---------------------------------------------------------------------------
 -- 4. TRIGGERS (updated_at)
 -- ---------------------------------------------------------------------------
+DROP TRIGGER IF EXISTS notifications_updated ON public.notifications;
 CREATE TRIGGER notifications_updated BEFORE UPDATE ON public.notifications
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+DROP TRIGGER IF EXISTS notification_recipients_updated ON public.notification_recipients;
 CREATE TRIGGER notification_recipients_updated BEFORE UPDATE ON public.notification_recipients
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+DROP TRIGGER IF EXISTS notification_preferences_updated ON public.notification_preferences;
 CREATE TRIGGER notification_preferences_updated BEFORE UPDATE ON public.notification_preferences
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -447,7 +450,19 @@ BEGIN
       AND (p_date_from IS NULL OR n.created_at >= p_date_from)
       AND (p_date_to IS NULL OR n.created_at < p_date_to)
   )
-  SELECT count(*) INTO v_total FROM base;
+  SELECT
+    (SELECT count(*) FROM base) AS total,
+    COALESCE(jsonb_agg(to_jsonb(sub)), '[]'::jsonb) AS items
+  INTO v_total, v_items
+  FROM (
+    SELECT *
+    FROM base
+    ORDER BY is_pinned DESC,
+             (NOT is_read) DESC,
+             CASE WHEN p_order = 'oldest' THEN created_at END ASC,
+             CASE WHEN p_order <> 'oldest' THEN created_at END DESC
+    LIMIT v_page_size OFFSET v_offset
+  ) sub;
 
   SELECT count(*) INTO v_unread
   FROM public.notification_recipients r
@@ -457,16 +472,6 @@ BEGIN
     AND n.status IN ('sent', 'archived')
     AND (n.expires_at IS NULL OR n.expires_at > now())
     AND r.dismissed_at IS NULL;
-
-  SELECT COALESCE(jsonb_agg(to_jsonb(sub)), '[]'::jsonb) INTO v_items FROM (
-    SELECT *
-    FROM base
-    ORDER BY is_pinned DESC,
-             (NOT is_read) DESC,
-             CASE WHEN p_order = 'oldest' THEN created_at END ASC,
-             CASE WHEN p_order <> 'oldest' THEN created_at END DESC
-    LIMIT v_page_size OFFSET v_offset
-  ) sub;
 
   RETURN jsonb_build_object(
     'ok', true,
@@ -960,8 +965,11 @@ BEGIN
       AND (p_date_from IS NULL OR n.created_at >= p_date_from)
       AND (p_date_to IS NULL OR n.created_at < p_date_to)
   )
-  SELECT count(*) INTO v_total FROM base;
-  SELECT COALESCE(jsonb_agg(to_jsonb(sub)), '[]'::jsonb) INTO v_items FROM (
+  SELECT
+    (SELECT count(*) FROM base) AS total,
+    COALESCE(jsonb_agg(to_jsonb(sub)), '[]'::jsonb) AS items
+  INTO v_total, v_items
+  FROM (
     SELECT * FROM base ORDER BY created_at DESC LIMIT v_page_size OFFSET v_offset
   ) sub;
   RETURN jsonb_build_object('ok', true, 'items', v_items, 'total', v_total,
@@ -1083,6 +1091,7 @@ DECLARE v_admin UUID; v_result JSONB;
 BEGIN
   v_admin := public._require_admin();
   SELECT jsonb_build_object(
+    'ok', true,
     'total', (SELECT count(*) FROM public.notifications WHERE NOT is_deleted),
     'sent_today', (SELECT count(*) FROM public.notifications WHERE NOT is_deleted AND sent_at IS NOT NULL AND sent_at >= date_trunc('day', now())),
     'sent_week', (SELECT count(*) FROM public.notifications WHERE NOT is_deleted AND sent_at IS NOT NULL AND sent_at >= now() - INTERVAL '7 days'),

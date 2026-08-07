@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Smartphone, Eye, EyeOff, Store, User, ShieldCheck, Check, ChevronLeft } from "lucide-react";
+import { Smartphone, Store, User, ShieldCheck, Check, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,6 @@ export default function OnboardingWizard({ initialStep = 1, businessNeeded, prof
   const [credentials, setCredentials] = useState<OperatorCredentials>(() => getCredentials());
   const [simAssignment, setSimAssignment] = useState<SimAssignment>(() => getSimAssignment());
   const [activeTab, setActiveTab] = useState<Operator>("syriatel");
-  const [showFields, setShowFields] = useState<Record<string, boolean>>({});
   const [businessName, setBusinessName] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -40,8 +39,6 @@ export default function OnboardingWizard({ initialStep = 1, businessNeeded, prof
     }
     setProfileReady(true);
   }, [profile]);
-
-  const toggleShow = (key: string) => setShowFields((s) => ({ ...s, [key]: !s[key] }));
 
   const handleStep1Continue = () => {
     if (!credentials.syriatelDistributor.trim()) {
@@ -199,20 +196,16 @@ export default function OnboardingWizard({ initialStep = 1, businessNeeded, prof
 
                   {activeTab === "syriatel" ? (
                     <div className="space-y-4">
-                      <SecretField
+                      <SimField
                         label={t("onboarding.distributorLabel")}
                         value={credentials.syriatelDistributor}
                         placeholder={t("onboarding.distributorPlaceholder")}
-                        visible={showFields["distributor"]}
-                        onToggle={() => toggleShow("distributor")}
                         onChange={(v) => setCredentials({ ...credentials, syriatelDistributor: v })}
                       />
-                      <SecretField
+                      <SimField
                         label={t("onboarding.secretLabel")}
                         value={credentials.syriatelSerial}
                         placeholder={t("onboarding.secretPlaceholder")}
-                        visible={showFields["serial"]}
-                        onToggle={() => toggleShow("serial")}
                         onChange={(v) => setCredentials({ ...credentials, syriatelSerial: v })}
                       />
                       <SimSlotPicker
@@ -223,12 +216,10 @@ export default function OnboardingWizard({ initialStep = 1, businessNeeded, prof
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <SecretField
+                      <SimField
                         label={t("onboarding.mtnSecretLabel")}
                         value={credentials.mtnSecret}
                         placeholder={t("onboarding.mtnSecretPlaceholder")}
-                        visible={showFields["mtn"]}
-                        onToggle={() => toggleShow("mtn")}
                         onChange={(v) => setCredentials({ ...credentials, mtnSecret: v })}
                       />
                       <SimSlotPicker
@@ -343,44 +334,29 @@ export default function OnboardingWizard({ initialStep = 1, businessNeeded, prof
   );
 }
 
-function SecretField({
+function SimField({
   label,
   value,
   placeholder,
-  visible,
-  onToggle,
   onChange,
 }: {
   label: string;
   value: string;
   placeholder: string;
-  visible: boolean;
-  onToggle: () => void;
   onChange: (v: string) => void;
 }) {
-  const { t } = useTranslation();
   return (
     <div className="space-y-1.5">
       <Label className="text-xs font-bold text-foreground">{label}</Label>
-      <div className="relative">
-        <Input
-          type={visible ? "text" : "password"}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="h-12 rounded-xl bg-background/50 pe-12"
-          dir="ltr"
-          inputMode="numeric"
-        />
-        <button
-          type="button"
-          onClick={onToggle}
-          className="absolute end-2 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          aria-label={t("onboarding.toggleVisibility")}
-        >
-          {visible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-        </button>
-      </div>
+      <Input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="h-12 rounded-xl bg-background/50"
+        dir="ltr"
+        inputMode="numeric"
+      />
     </div>
   );
 }

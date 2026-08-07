@@ -21,8 +21,15 @@ function isRpcOk(result: RpcResult | null | undefined): result is RpcResult & { 
   return !!result && result.ok === true;
 }
 
-async function callRpc<T extends RpcResult>(name: string, args?: Record<string, unknown>): Promise<T> {
+async function callRpc<T extends RpcResult>(name: string, args?: Record<string, unknown>, retry = true): Promise<T> {
   const { data, error } = await supabase.rpc(name, args as object);
+  
+  // If RPC returns 404 (function not found), try refreshing session and retry once
+  if (error && error.code === 'PGRST202' && retry) {
+    await supabase.auth.refreshSession();
+    return callRpc(name, args, false);
+  }
+  
   if (error) throw error;
   const result = data as unknown as T;
   if (!isRpcOk(result)) {

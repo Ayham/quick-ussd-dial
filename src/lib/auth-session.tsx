@@ -53,6 +53,12 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     const load = async () => {
       try {
         await refresh();
+        // Ensure session is valid by refreshing if needed
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const { error } = await supabase.auth.refreshSession();
+          if (error) console.warn('Session refresh failed:', error.message);
+        }
       } finally {
         if (alive) setLoading(false);
       }
