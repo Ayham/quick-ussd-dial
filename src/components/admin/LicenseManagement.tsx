@@ -12,7 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Search, ChevronLeft, ChevronRight, Shield, CheckCircle2, XCircle, Ban, Clock, UserCheck, History, ArrowUpDown, Wrench, RefreshCw } from "lucide-react";
+import { calculateExpiryDate, formatLicenseTypeLabel } from "@/lib/license";
+import { Search, ChevronLeft, ChevronRight, Shield, CheckCircle2, XCircle, Ban, Clock, UserCheck, History, ArrowUpDown, Wrench, RefreshCw, Smartphone, MonitorSmartphone, Loader2, Eye, Trash2, ShieldCheck, ShieldOff, Wallet } from "lucide-react";
+import { PaymentsDialog } from "@/components/admin/PaymentsDialog";
 
 interface UserLicense {
   user_id: string;
@@ -32,6 +34,47 @@ interface UserLicense {
   trial_remaining_days: number | null;
   activation_status: string | null;
   activation_processed_at: string | null;
+  activation_processed_by: string | null;
+  language: string | null;
+  updated_at: string | null;
+  role: string | null;
+  notes: string | null;
+  customer_status: string | null;
+  shop_name: string | null;
+  city: string | null;
+  address: string | null;
+  commission_type: string | null;
+  commission_value: number | null;
+  commission_min: number | null;
+  commission_max: number | null;
+  credit_limit: number | null;
+  emergency_phone: string | null;
+  service_type: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  email_confirmed_at: string | null;
+  phone_confirmed_at: string | null;
+  last_sign_in_at: string | null;
+  banned_until: string | null;
+}
+
+interface DeviceInfo {
+  device_id: string;
+  device_name: string | null;
+  device_model: string | null;
+  platform: string | null;
+  app_version: string | null;
+  first_seen_at: string | null;
+  last_seen_at: string | null;
+  is_active: boolean;
+  is_blocked: boolean;
+  is_banned: boolean;
+  lifecycle_state: string | null;
+  session_count: number;
+  revoked_count: number;
+  has_active_session: boolean;
+  is_current: boolean;
+  status: "active" | "registered" | "revoked" | "blocked";
 }
 
 interface ActivationRequest {
@@ -44,15 +87,7 @@ interface ActivationRequest {
 }
 
 function formatLicenseType(type: string, isArabic: boolean, t: any): string {
-  const map: Record<string, string> = {
-    trial: t("adminLicenses.trial"),
-    days_30: t("activation.days30"),
-    days_90: t("activation.days90"),
-    days_180: t("activation.days180"),
-    days_365: t("activation.yearType"),
-    permanent: t("adminActivationRequests.permanent"),
-  };
-  return map[type] ?? type;
+  return formatLicenseTypeLabel(type as any, t);
 }
 
 function LicenseBadge({ status, isArabic, t }: { status: string; isArabic: boolean; t: any }) {
@@ -80,22 +115,36 @@ const LicenseManagement = () => {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [resetDeviceUser, setResetDeviceUser] = useState<UserLicense | null>(null);
   const pageSize = 20;
 
   const [selectedUser, setSelectedUser] = useState<UserLicense | null>(null);
   const [showLicenseDialog, setShowLicenseDialog] = useState(false);
   const [licenseStatus, setLicenseStatus] = useState("");
   const [licenseType, setLicenseType] = useState("");
-  const [expiryDays, setExpiryDays] = useState("30");
+  const [customExpiryDate, setCustomExpiryDate] = useState("");
   const [licenseNotes, setLicenseNotes] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  const [showDevices, setShowDevices] = useState(false);
+  const [devices, setDevices] = useState<DeviceInfo[]>([]);
+  const [devicesLoading, setDevicesLoading] = useState(false);
+  const [devicesUser, setDevicesUser] = useState<UserLicense | null>(null);
+
+  const [deleteUserTarget, setDeleteUserTarget] = useState<UserLicense | null>(null);
+  const [blockTarget, setBlockTarget] = useState<UserLicense | null>(null);
+  const [blockAction, setBlockAction] = useState<"block" | "unblock">("block");
+  const [showDetails, setShowDetails] = useState(false);
+  const [detailsUser, setDetailsUser] = useState<UserLicense | null>(null);
+  const [showPayments, setShowPayments] = useState(false);
+  const [paymentsUser, setPaymentsUser] = useState<UserLicense | null>(null);
+
   const [showActivationDialog, setShowActivationDialog] = useState(false);
   const [activationId, setActivationId] = useState<string | null>(null);
   const [activationAction, setActivationAction] = useState<"approve" | "reject" | null>(null);
-  const [activationDuration, setActivationDuration] = useState("30");
+
   const [loadError, setLoadError] = useState<string | null>(null);
   const [repairing, setRepairing] = useState(false);
 
@@ -128,10 +177,8 @@ const LicenseManagement = () => {
     setActionLoading("set_" + selectedUser.user_id);
     try {
       let expiryDate: string | null = null;
-      if (licenseStatus === "active" && !isNaN(parseInt(expiryDays))) {
-        const date = new Date();
-        date.setDate(date.getDate() + parseInt(expiryDays));
-        expiryDate = date.toISOString().split("T")[0];
+      if (licenseStatus === "active" && licenseType !== "lifetime" && licenseType !== "permanent") {
+        expiryDate = calculateExpiryDate(licenseType as any, customExpiryDate || undefined);
       }
       const { error } = await supabase.rpc("admin_set_license", {
         _target_user_id: selectedUser.user_id,
@@ -179,6 +226,48 @@ const LicenseManagement = () => {
     }
   };
 
+  const handleDeleteUser = async () => {
+    if (!deleteUserTarget) return;
+    setActionLoading("delete_" + deleteUserTarget.user_id);
+    try {
+      const { data, error } = await supabase.rpc("admin_delete_user", { _target_user_id: deleteUserTarget.user_id });
+      if (error) throw error;
+      const result = data as unknown as { ok?: boolean; reason?: string } | null;
+      if (!result?.ok) {
+        const reason = result?.reason;
+        if (reason === "cannot_delete_self") throw new Error(t("adminLicenses.cannotDeleteSelf"));
+        throw new Error(reason || "failed");
+      }
+      toast.success(t("adminLicenses.deleteUserSuccess"));
+      setDeleteUserTarget(null);
+      loadUsers();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("adminLicenses.deleteUserFailed"));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleBlockToggle = async () => {
+    if (!blockTarget) return;
+    setActionLoading("block_" + blockTarget.user_id);
+    try {
+      const { error } = await supabase.rpc("admin_suspend_user", {
+        _target_user_id: blockTarget.user_id,
+        _status: blockAction === "block" ? "blocked" : "active",
+        _reason: blockAction === "block" ? "admin_block" : null,
+      });
+      if (error) throw error;
+      toast.success(blockAction === "block" ? t("adminLicenses.blockUserSuccess") : t("adminLicenses.accountStatusUpdated"));
+      setBlockTarget(null);
+      loadUsers();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("adminLicenses.blockUserFailed"));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const loadHistory = async (userId: string) => {
     setHistoryLoading(true);
     setShowHistory(true);
@@ -190,6 +279,23 @@ const LicenseManagement = () => {
       setHistory([]);
     } finally {
       setHistoryLoading(false);
+    }
+  };
+
+  const loadDevices = async (user: UserLicense) => {
+    setDevicesUser(user);
+    setDevicesLoading(true);
+    setShowDevices(true);
+    try {
+      const { data, error } = await supabase.rpc("admin_get_user_devices", { _user_id: user.user_id });
+      if (error) throw error;
+      const result = data as unknown as { ok: boolean; devices?: DeviceInfo[] };
+      setDevices(result?.devices || []);
+    } catch {
+      setDevices([]);
+      toast.error(t("adminLicenses.devicesError"));
+    } finally {
+      setDevicesLoading(false);
     }
   };
 
@@ -210,6 +316,24 @@ const LicenseManagement = () => {
       toast.error(err instanceof Error ? err.message : t("adminLicenses.repairFailed"));
     } finally {
       setRepairing(false);
+    }
+  };
+
+  const handleResetDevice = async () => {
+    if (!resetDeviceUser) return;
+    setActionLoading("reset_" + resetDeviceUser.user_id);
+    try {
+      const { data, error } = await supabase.rpc("admin_reset_user_device", { _user_id: resetDeviceUser.user_id });
+      if (error) throw error;
+      const result = data as unknown as { ok?: boolean; error?: string; reason?: string };
+      if (!result?.ok) throw new Error(result?.error || result?.reason || "failed");
+      toast.success(t("adminLicenses.resetDeviceSuccess"));
+      setResetDeviceUser(null);
+      loadUsers();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("adminLicenses.resetDeviceFailed"));
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -315,11 +439,11 @@ const LicenseManagement = () => {
                         <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
                           {(u.display_name || u.email || "?")[0].toUpperCase()}
                         </div>
-                        <span className="font-medium text-sm truncate max-w-[120px]">{u.display_name || u.email}</span>
+                        <span className="font-medium text-sm break-all min-w-0">{u.display_name || u.email}</span>
                       </div>
                     </td>
-                    <td className="p-3 text-xs text-muted-foreground" dir="ltr">{u.email}</td>
-                    <td className="p-3 text-xs text-muted-foreground" dir="ltr">{u.phone || "-"}</td>
+                    <td className="p-3 text-xs text-muted-foreground break-all" dir="ltr">{u.email}</td>
+                    <td className="p-3 text-xs text-muted-foreground break-all" dir="ltr">{u.phone || "-"}</td>
                     <td className="p-3"><LicenseBadge status={u.license_status} isArabic={isArabic} t={t} /></td>
                     <td className="p-3 text-xs text-muted-foreground">{formatLicenseType(u.license_type, isArabic, t)}</td>
                     <td className="p-3 text-xs">
@@ -329,33 +453,86 @@ const LicenseManagement = () => {
                           ? <span className="text-xs">{formatDate(u.expiry_date)}</span>
                           : "-"}
                     </td>
-                    <td className="p-3 text-xs text-muted-foreground truncate max-w-[100px]" dir="ltr">{u.current_device || "-"}</td>
-                    <td className="p-3 text-xs text-muted-foreground">{u.last_login ? formatDate(u.last_login) : "-"}</td>
-                    <td className="p-3 text-xs text-muted-foreground">{u.created_at ? formatDate(u.created_at) : "-"}</td>
+                    <td className="p-3 text-xs text-muted-foreground break-all min-w-[140px]" dir="ltr">{u.current_device || "-"}</td>
+                    <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">{u.last_login ? formatDate(u.last_login) : "-"}</td>
+                    <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">{u.created_at ? formatDate(u.created_at) : "-"}</td>
                     <td className="p-3">
                       <div className="flex items-center gap-1 flex-wrap">
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title={t("adminLicenses.editLicense")}
-                          onClick={() => { setSelectedUser(u); setLicenseStatus(u.license_status); setLicenseType(u.license_type); setShowLicenseDialog(true); }}>
-                          <Shield className="w-4 h-4" />
+                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" title={t("adminLicenses.viewDetails")}
+                          onClick={() => { setDetailsUser(u); setShowDetails(true); }}>
+                          <Eye className="w-3.5 h-3.5 me-1" />
+                          {t("adminLicenses.viewDetails")}
                         </Button>
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-warning" title={t("adminLicenses.extendTrial")}
+                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs"
+                          title={t("adminLicenses.editLicense")}
+                          onClick={() => { setSelectedUser(u); setLicenseStatus(u.license_status); setLicenseType(u.license_type); setCustomExpiryDate(u.expiry_date || ""); setShowLicenseDialog(true); }}>
+                          <Shield className="w-3.5 h-3.5 me-1" />
+                          {t("adminLicenses.editShort")}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-warning"
+                          title={t("adminLicenses.extendTrial")}
                           onClick={() => handleExtendTrial(u.user_id, 7)} disabled={actionLoading === "extend_" + u.user_id}>
-                          <Clock className="w-4 h-4" />
+                          {actionLoading === "extend_" + u.user_id
+                            ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
+                            : <Clock className="w-3.5 h-3.5 me-1" />}
+                          {t("adminLicenses.extendShort")}
                         </Button>
                         {u.account_status === "active" ? (
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" title={t("adminLicenses.suspend")}
+                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-destructive" title={t("adminLicenses.suspend")}
                             onClick={() => handleSuspend(u.user_id, "suspended")} disabled={actionLoading === "suspend_" + u.user_id}>
-                            <Ban className="w-4 h-4" />
+                            {actionLoading === "suspend_" + u.user_id
+                              ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
+                              : <Ban className="w-3.5 h-3.5 me-1" />}
+                            {t("adminLicenses.suspend")}
                           </Button>
                         ) : (
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-success" title={t("adminLicenses.activate")}
+                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-success" title={t("adminLicenses.activate")}
                             onClick={() => handleSuspend(u.user_id, "active")} disabled={actionLoading === "suspend_" + u.user_id}>
-                            <CheckCircle2 className="w-4 h-4" />
+                            {actionLoading === "suspend_" + u.user_id
+                              ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
+                              : <CheckCircle2 className="w-3.5 h-3.5 me-1" />}
+                            {t("adminLicenses.activate")}
                           </Button>
                         )}
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title={t("adminLicenses.history")}
+                        {u.account_status === "blocked" ? (
+                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-success" title={t("adminLicenses.unblockUser")}
+                            onClick={() => { setBlockTarget(u); setBlockAction("unblock"); }}>
+                            <ShieldCheck className="w-3.5 h-3.5 me-1" />
+                            {t("adminLicenses.unblockUser")}
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-destructive" title={t("adminLicenses.blockUser")}
+                            onClick={() => { setBlockTarget(u); setBlockAction("block"); }} disabled={actionLoading === "block_" + u.user_id}>
+                            <ShieldOff className="w-3.5 h-3.5 me-1" />
+                            {t("adminLicenses.blockUser")}
+                          </Button>
+                        )}
+                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" title={t("adminLicenses.viewDevices")}
+                          onClick={() => loadDevices(u)}>
+                          <MonitorSmartphone className="w-3.5 h-3.5 me-1" />
+                          {t("adminLicenses.viewDevices")}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" title={t("adminLicenses.history")}
                           onClick={() => loadHistory(u.user_id)}>
-                          <History className="w-4 h-4" />
+                          <History className="w-3.5 h-3.5 me-1" />
+                          {t("adminLicenses.history")}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" title={t("adminPayments.title")}
+                          onClick={() => { setPaymentsUser(u); setShowPayments(true); }}>
+                          <Wallet className="w-3.5 h-3.5 me-1" />
+                          {t("adminPayments.title")}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-warning" title={t("adminLicenses.resetDevice")}
+                          onClick={() => setResetDeviceUser(u)} disabled={actionLoading === "reset_" + u.user_id}>
+                          {actionLoading === "reset_" + u.user_id
+                            ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
+                            : <Smartphone className="w-3.5 h-3.5 me-1" />}
+                          {t("adminLicenses.resetDevice")}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-destructive" title={t("adminLicenses.deleteUser")}
+                          onClick={() => setDeleteUserTarget(u)} disabled={actionLoading === "delete_" + u.user_id}>
+                          <Trash2 className="w-3.5 h-3.5 me-1" />
+                          {t("adminLicenses.deleteUser")}
                         </Button>
                       </div>
                     </td>
@@ -406,29 +583,37 @@ const LicenseManagement = () => {
                 </SelectContent>
               </Select>
             </div>
-            {licenseStatus === "active" && (
-              <>
-                <div className="space-y-2">
-                  <Label>{t("adminLicenses.licenseType")}</Label>
-                  <Select value={licenseType} onValueChange={setLicenseType}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="days_30">30 Days</SelectItem>
-                      <SelectItem value="days_90">90 Days</SelectItem>
-                      <SelectItem value="days_180">180 Days</SelectItem>
-                      <SelectItem value="days_365">365 Days</SelectItem>
-                      <SelectItem value="permanent">Permanent</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {licenseType !== "permanent" && (
-                  <div className="space-y-2">
-                    <Label>{t("adminActivationRequests.durationDays")}</Label>
-                    <Input type="number" value={expiryDays} onChange={(e) => setExpiryDays(e.target.value)} className="rounded-xl" />
-                  </div>
-                )}
-              </>
-            )}
+             {licenseStatus === "active" && (
+               <>
+                 <div className="space-y-2">
+                   <Label>{t("adminLicenses.licenseType")}</Label>
+                   <Select value={licenseType} onValueChange={setLicenseType}>
+                     <SelectTrigger><SelectValue /></SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="year_1">{t("activation.year1")}</SelectItem>
+                       <SelectItem value="year_2">{t("activation.year2")}</SelectItem>
+                       <SelectItem value="year_3">{t("activation.year3")}</SelectItem>
+                       <SelectItem value="custom_date">{t("activation.customDate")}</SelectItem>
+                       <SelectItem value="lifetime">{t("adminActivationRequests.permanent")}</SelectItem>
+                     </SelectContent>
+                   </Select>
+                 </div>
+                 {licenseType === "custom_date" && (
+                   <div className="space-y-2">
+                     <Label>{t("adminActivationRequests.customExpiryDate")}</Label>
+                     <Input type="date" value={customExpiryDate} onChange={(e) => setCustomExpiryDate(e.target.value)} className="rounded-xl" />
+                   </div>
+                 )}
+                 {licenseType !== "lifetime" && licenseType !== "custom_date" && licenseType !== "" && (
+                   <div className="space-y-2">
+                     <Label>{t("adminActivationRequests.expectedExpiry")}</Label>
+                     <div className="flex h-10 w-full rounded-xl border border-input bg-muted/30 px-3 py-2 text-sm items-center">
+                       {calculateExpiryDate(licenseType as any, customExpiryDate || undefined)}
+                     </div>
+                   </div>
+                 )}
+               </>
+             )}
             <div className="space-y-2">
               <Label>{t("adminLicenses.notes")}</Label>
               <Textarea value={licenseNotes} onChange={(e) => setLicenseNotes(e.target.value)} className="rounded-xl" rows={2} />
@@ -469,6 +654,177 @@ const LicenseManagement = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={showDevices} onOpenChange={setShowDevices}>
+        <DialogContent className="rounded-2xl max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t("adminLicenses.devicesTitle")}</DialogTitle>
+            <DialogDescription>{devicesUser?.display_name || devicesUser?.email || ""}</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[65vh] overflow-y-auto space-y-3">
+            {devicesLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+              </div>
+            ) : devices.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-8">{t("adminLicenses.devicesEmpty")}</p>
+            ) : (
+              devices.map((d) => {
+                const statusConfig: Record<DeviceInfo["status"], { label: string; cls: string }> = {
+                  active: { label: t("adminLicenses.activeDevice"), cls: "bg-green-500/10 text-green-600" },
+                  registered: { label: t("adminLicenses.registeredDevice"), cls: "bg-blue-500/10 text-blue-600" },
+                  revoked: { label: t("adminLicenses.revokedDevice"), cls: "bg-muted text-muted-foreground" },
+                  blocked: { label: t("adminLicenses.blockedDevice"), cls: "bg-red-500/10 text-red-600" },
+                };
+                const cfg = statusConfig[d.status] || statusConfig.registered;
+                return (
+                  <div key={d.device_id} className="border rounded-xl p-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <MonitorSmartphone className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                        <span className="font-medium text-sm break-all min-w-0" dir="ltr">
+                          {d.device_name || d.device_id}
+                        </span>
+                      </div>
+                      <span className={"text-xs px-2 py-0.5 rounded-full " + cfg.cls}>
+                        {d.is_current ? cfg.label + " ✓" : cfg.label}
+                      </span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      <span>{t("adminLicenses.devicePlatform")}: <span dir="ltr">{d.platform || "-"}</span></span>
+                      <span>{t("adminLicenses.deviceVersion")}: <span dir="ltr">{d.app_version || "-"}</span></span>
+                      <span>{t("adminLicenses.deviceModel")}: <span dir="ltr">{d.device_model || "-"}</span></span>
+                      <span>{t("adminLicenses.deviceSessions")}: {d.session_count} ({t("adminLicenses.deviceActiveSessions")}: {d.session_count - d.revoked_count} / {t("adminLicenses.deviceRevokedSessions")}: {d.revoked_count})</span>
+                      <span>{t("adminLicenses.deviceFirstSeen")}: {d.first_seen_at ? formatDateTime(d.first_seen_at) : "-"}</span>
+                      <span>{t("adminLicenses.deviceLastSeen")}: {d.last_seen_at ? formatDateTime(d.last_seen_at) : "-"}</span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!resetDeviceUser} onOpenChange={(open) => { if (!open) setResetDeviceUser(null); }}>
+        <DialogContent className="rounded-2xl max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("adminLicenses.resetDeviceConfirm")}</DialogTitle>
+            <DialogDescription>{resetDeviceUser?.display_name || resetDeviceUser?.email}</DialogDescription>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground leading-relaxed">{t("adminLicenses.resetDeviceDescription")}</p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setResetDeviceUser(null)} disabled={!!actionLoading?.startsWith("reset_")}>
+              {t("common.cancel")}
+            </Button>
+            <Button variant="destructive" onClick={handleResetDevice} disabled={!!actionLoading?.startsWith("reset_")}>
+              {t("adminLicenses.resetDevice")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDetails} onOpenChange={setShowDetails}>
+        <DialogContent className="rounded-2xl max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t("adminLicenses.viewDetails")}</DialogTitle>
+            <DialogDescription>{detailsUser?.display_name || detailsUser?.email}</DialogDescription>
+          </DialogHeader>
+          {detailsUser && (
+            <div className="max-h-[65vh] overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                <Detail label={t("adminActivationRequests.user")} value={detailsUser.display_name || "-"} ltr />
+                <Detail label={t("adminLicenses.fullName")} value={detailsUser.full_name || "-"} ltr />
+                <Detail label={t("adminActivationRequests.email")} value={detailsUser.email || "-"} ltr />
+                <Detail label={t("adminActivationRequests.phone")} value={detailsUser.phone || "-"} ltr />
+                <Detail label={t("adminLicenses.emergencyPhone")} value={detailsUser.emergency_phone || "-"} ltr />
+                <Detail label={t("adminLicenses.userRole")} value={detailsUser.role || "-"} />
+                <Detail label={t("adminLicenses.language")} value={detailsUser.language || "-"} />
+                <Detail label={t("adminLicenses.shopName")} value={detailsUser.shop_name || "-"} />
+                <Detail label={t("adminLicenses.city")} value={detailsUser.city || "-"} />
+                <Detail label={t("adminLicenses.address")} value={detailsUser.address || "-"} />
+                <Detail label={t("adminLicenses.serviceType")} value={detailsUser.service_type || "-"} />
+                <Detail label={t("adminLicenses.customerStatus")} value={detailsUser.customer_status || "-"} />
+                <Detail label={t("adminLicenses.commissionType")} value={detailsUser.commission_type || "-"} />
+                <Detail label={t("adminLicenses.commissionValue")} value={detailsUser.commission_value != null ? String(detailsUser.commission_value) : "-"} />
+                <Detail label={t("adminLicenses.creditLimit")} value={detailsUser.credit_limit != null ? String(detailsUser.credit_limit) : "-"} />
+                <Detail label={t("adminLicenses.notes")} value={detailsUser.notes || "-"} />
+              </div>
+              <div className="mt-4 pt-3 border-t space-y-2 text-sm">
+                <Detail label={t("adminLicenses.licenseStatus")} value={detailsUser.license_status || "-"} />
+                <Detail label={t("adminLicenses.licenseType")} value={detailsUser.license_type || "-"} />
+                <Detail label={t("adminLicenses.expiry")} value={detailsUser.expiry_date ? formatDate(detailsUser.expiry_date) : "-"} />
+                <Detail label={t("adminLicenses.device")} value={detailsUser.current_device || "-"} ltr />
+                <Detail label={t("adminLicenses.lastLogin")} value={detailsUser.last_login ? formatDateTime(detailsUser.last_login) : "-"} />
+                <Detail label={t("adminLicenses.lastSignIn")} value={detailsUser.last_sign_in_at ? formatDateTime(detailsUser.last_sign_in_at) : "-"} />
+                <Detail label={t("adminLicenses.lastSync")} value={detailsUser.last_sync ? formatDateTime(detailsUser.last_sync) : "-"} />
+                <Detail label={t("adminLicenses.created")} value={detailsUser.created_at ? formatDateTime(detailsUser.created_at) : "-"} />
+                <Detail label={t("adminLicenses.activationStatus")} value={detailsUser.activation_status || "-"} />
+                <Detail label={t("adminLicenses.emailConfirmed")} value={detailsUser.email_confirmed_at ? formatDateTime(detailsUser.email_confirmed_at) : "-"} />
+                <Detail label={t("adminLicenses.phoneConfirmed")} value={detailsUser.phone_confirmed_at ? formatDateTime(detailsUser.phone_confirmed_at) : "-"} />
+                <Detail label={t("adminLicenses.bannedUntil")} value={detailsUser.banned_until ? formatDateTime(detailsUser.banned_until) : "-"} />
+              </div>
+              <p className="mt-4 text-[10px] text-muted-foreground font-mono break-all" dir="ltr">{detailsUser.user_id}</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!blockTarget} onOpenChange={(open) => { if (!open) setBlockTarget(null); }}>
+        <DialogContent className="rounded-2xl max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{blockAction === "block" ? t("adminLicenses.blockUser") : t("adminLicenses.unblockUser")}</DialogTitle>
+            <DialogDescription>{blockTarget?.display_name || blockTarget?.email}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setBlockTarget(null)} disabled={!!actionLoading?.startsWith("block_")}>
+              {t("common.cancel")}
+            </Button>
+            <Button variant={blockAction === "block" ? "destructive" : "default"} onClick={handleBlockToggle} disabled={!!actionLoading?.startsWith("block_")}>
+              {blockAction === "block" ? t("adminLicenses.blockUser") : t("adminLicenses.unblockUser")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteUserTarget} onOpenChange={(open) => { if (!open) setDeleteUserTarget(null); }}>
+        <DialogContent className="rounded-2xl max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("adminLicenses.deleteUserConfirm")}</DialogTitle>
+            <DialogDescription>{deleteUserTarget?.display_name || deleteUserTarget?.email}</DialogDescription>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground leading-relaxed">{t("adminLicenses.deleteUserDescription")}</p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteUserTarget(null)} disabled={!!actionLoading?.startsWith("delete_")}>
+              {t("common.cancel")}
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteUser} disabled={!!actionLoading?.startsWith("delete_")}>
+              <Trash2 className="w-4 h-4 me-1" />
+              {t("adminLicenses.deleteUser")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {paymentsUser && (
+        <PaymentsDialog
+          open={showPayments}
+          onOpenChange={setShowPayments}
+          userId={paymentsUser.user_id}
+          userName={paymentsUser.display_name || paymentsUser.email || ""}
+        />
+      )}
+    </div>
+  );
+}
+
+function Detail({ label, value, ltr }: { label: string; value: string; ltr?: boolean }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[11px] text-muted-foreground">{label}</span>
+      <span className="text-sm font-medium break-all" dir={ltr ? "ltr" : undefined}>{value || "-"}</span>
     </div>
   );
 }
