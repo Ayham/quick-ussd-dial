@@ -1,11 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 import {
   Plus, Trash2, Key, Code, ArrowUp, ArrowDown, Smartphone, Signal,
   AlertTriangle, Shield, Database, Settings as SettingsIcon,
   Download, Upload, Globe, ChevronDown, Lock, FolderOpen,
   Trash, RotateCw, HardDrive, Info, AlertCircle, CheckCircle,
-  Bell, Store, Palette,
+  Bell, Store, Palette, Wand2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
@@ -19,6 +19,7 @@ import {
   getSimAssignment, saveSimAssignment,
   getBalanceTemplates, saveBalanceTemplates,
   resetAllSettings,
+  DEFAULT_CREDENTIALS,
   type Operator, type AmountPreset, type OperatorCredentials,
   type UssdTemplates, type OperatorPrefixes, type SimSlot, type SimAssignment,
   type BalanceCheckTemplates,
@@ -27,6 +28,7 @@ import { getAccentPreset } from "@/lib/accent-theme";
 import { getHistory } from "@/lib/transfer-history";
 import { getActualDeductedAmount } from "@/lib/amount-utils";
 import { getBusinessName, saveBusinessName } from "@/lib/onboarding";
+import { getProfile } from "@/lib/auth";
 import {
   getLowBalanceThresholds,
   saveLowBalanceThresholds,
@@ -55,12 +57,14 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { AccentColorDialog } from "@/components/theme/AccentColorDialog";
 import { useAccentTheme } from "@/components/theme/ThemeProvider";
+import SetupWizard from "@/components/SetupWizard";
+import { getSetupProgress } from "@/lib/setup-wizard";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-type SettingsSection = "sim" | "codes" | "amounts" | "thresholds" | "suggestions" | "data" | "language" | "business" | "appearance";
+type SettingsSection = "sim" | "codes" | "amounts" | "thresholds" | "suggestions" | "data" | "language" | "business" | "appearance" | "setupWizard";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -69,8 +73,10 @@ const Settings = () => {
   const { accentId, resetAccent } = useAccentTheme();
   const [activeSection, setActiveSection] = useState<SettingsSection | null>(null);
   const [colorDialogOpen, setColorDialogOpen] = useState(false);
+  const [setupWizardOpen, setSetupWizardOpen] = useState(false);
+  const [setupProgress, setSetupProgress] = useState<number | null>(null);
   const [presets, setPresets] = useState(() => getPresets());
-  const [credentials, setCredentials] = useState<OperatorCredentials>(() => getCredentials());
+  const [credentials, setCredentials] = useState<OperatorCredentials>(DEFAULT_CREDENTIALS);
   const [templates, setTemplates] = useState<UssdTemplates>(() => getUssdTemplates());
   const [prefixes, setPrefixes] = useState<OperatorPrefixes>(() => getPrefixes());
   const [simAssignment, setSimAssignment] = useState<SimAssignment>(() => getSimAssignment());
@@ -82,6 +88,19 @@ const Settings = () => {
   const [thresholds, setThresholds] = useState<LowBalanceThresholds>(() => getLowBalanceThresholds());
   const [amountDisplayStyle, setAmountDisplayStyle] = useState<AmountDisplayStyle>(() => getAmountDisplayStyle());
   const [businessName, setBusinessName] = useState(() => getBusinessName());
+
+  // Load credentials async on mount
+  useEffect(() => {
+    getCredentials().then(setCredentials);
+  }, []);
+
+  // Load profile and setup progress for the Setup Wizard section
+  useEffect(() => {
+    getProfile()
+      .then((p) => getSetupProgress(p))
+      .then((snapshot) => setSetupProgress(snapshot.overallProgress))
+      .catch(() => {});
+  }, []);
 
   const [backupPassword, setBackupPassword] = useState("");
   const [backupWithPassword, setBackupWithPassword] = useState(false);
@@ -139,7 +158,7 @@ const Settings = () => {
     setPrefixes({ ...prefixes, [op]: prefixes[op].filter((p) => p !== prefix) });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!credentials.mtnSecret.trim()) {
       toast.error(t("settings.mtnSecretRequired"));
       return;
@@ -153,7 +172,7 @@ const Settings = () => {
       return;
     }
     savePresets(presets);
-    saveCredentials(credentials);
+    await saveCredentials(credentials);
     saveUssdTemplates(templates);
     savePrefixes(prefixes);
     saveSimAssignment(simAssignment);
@@ -180,9 +199,9 @@ const Settings = () => {
   const totalAmount = allHistory.filter(r => r.status === "success").reduce((s, r) => s + getActualDeductedAmount(r.operator, Number(r.amount)), 0);
 
 
-  const handleExportBackup = () => {
+  const handleExportBackup = async () => {
     try {
-      const json = backupWithPassword ? createBackup(backupPassword || undefined) : createBackup();
+      const json = backupWithPassword ? await createBackup(backupPassword || undefined) : await createBackup();
       const blob = new Blob([json], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -226,7 +245,7 @@ const Settings = () => {
     input.click();
   };
 
-  const handleDoRestore = () => {
+const handleDoRestore = async () => {
     if (!restorePreview) return;
     setRestoreLoading(true);
     const input = document.createElement('input');
@@ -236,13 +255,14 @@ const Settings = () => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) { setRestoreLoading(false); return; }
       const reader = new FileReader();
-      reader.onload = (ev) => {
+      reader.onload = async (ev) => {
         try {
           const data = JSON.parse(ev.target?.result as string);
-          const result = restoreBackup(data, restorePassword || undefined);
+
+          const result = await restoreBackup(data, restorePassword || undefined);
           if (result.success) {
             setPresets(getPresets());
-            setCredentials(getCredentials());
+            getCredentials().then(setCredentials);
             setTemplates(getUssdTemplates());
             setBalanceTemplates(getBalanceTemplates());
             setPrefixes(getPrefixes());
@@ -269,7 +289,7 @@ const Settings = () => {
     resetAllSettings();
     toast.success(t("settings.resetSuccess"));
     setPresets(getPresets());
-    setCredentials(getCredentials());
+    getCredentials().then(setCredentials);
     setTemplates(getUssdTemplates());
     setBalanceTemplates(getBalanceTemplates());
     setPrefixes(getPrefixes());
@@ -279,7 +299,7 @@ const Settings = () => {
   const handleDeleteAllData = () => {
     deleteAllData();
     setPresets(getPresets());
-    setCredentials(getCredentials());
+    getCredentials().then(setCredentials);
     setTemplates(getUssdTemplates());
     setBalanceTemplates(getBalanceTemplates());
     setPrefixes(getPrefixes());
@@ -307,6 +327,7 @@ const Settings = () => {
   const sections: { id: SettingsSection; label: string; icon: React.ReactNode; description: string }[] = [
     { id: "sim", label: t("settings.sectionSim"), icon: <Smartphone className="w-5 h-5" />, description: t("settings.sectionSimDesc") },
     { id: "business", label: t("settings.sectionBusiness"), icon: <Store className="w-5 h-5" />, description: t("settings.sectionBusinessDesc") },
+    { id: "setupWizard", label: t("settings.sectionSetupWizard"), icon: <Wand2 className="w-5 h-5" />, description: t("settings.sectionSetupWizardDesc") },
     { id: "appearance", label: t("settings.sectionAppearance"), icon: <Palette className="w-5 h-5" />, description: t("settings.sectionAppearanceDesc") },
     { id: "codes", label: t("settings.sectionCodes"), icon: <Code className="w-5 h-5" />, description: t("settings.sectionCodesDesc") },
     { id: "amounts", label: t("settings.sectionAmounts"), icon: <SettingsIcon className="w-5 h-5" />, description: t("settings.sectionAmountsDesc") },
@@ -430,7 +451,7 @@ const Settings = () => {
                     </>
                   )}
 
-                  {/* BUSINESS SECTION */}
+{/* BUSINESS SECTION */}
                   {section.id === "business" && (
                     <>
                       <SettingsCard title={t("settings.businessName")} icon={<Store className="w-4 h-4" />}>
@@ -447,10 +468,51 @@ const Settings = () => {
                         </div>
                       </SettingsCard>
                        <Button onClick={handleSaveBusinessName} className="w-full h-12 font-bold rounded-xl shadow-sm mt-2">{t("settings.saveBusinessName")}</Button>
-                     </>
-                   )}
+                    </>
+                  )}
 
-                   {/* APPEARANCE SECTION */}
+                  {/* SETUP WIZARD SECTION */}
+                  {section.id === "setupWizard" && (
+                    <>
+                      <SettingsCard title={t("settings.setupWizardTitle")} icon={<Wand2 className="w-4 h-4" />}>
+                        <div className="space-y-3">
+                          <p className="text-xs text-muted-foreground">
+                            {t("settings.setupWizardDescription")}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {t("settings.setupWizardNote")}
+                          </p>
+                          {setupProgress !== null && (
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-foreground">{t("setupWizard.stepTitle")}</span>
+                                <span className="text-xs font-semibold text-muted-foreground">{t("setupWizard.stepProgress", { progress: setupProgress })}</span>
+                              </div>
+                              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-l from-primary to-[hsl(var(--primary-end))] transition-all duration-500"
+                                  style={{ width: `${setupProgress}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </SettingsCard>
+                      <Button onClick={() => setSetupWizardOpen(true)} className="w-full h-12 font-bold rounded-xl shadow-sm mt-2">{t("settings.openSetupWizard")}</Button>
+                      {setupWizardOpen && (
+                        <SetupWizard onCompleted={() => {
+                          setSetupWizardOpen(false);
+                          setSetupProgress(null);
+                          getProfile()
+                            .then((p) => getSetupProgress(p))
+                            .then((snapshot) => setSetupProgress(snapshot.overallProgress))
+                            .catch(() => {});
+                        }} />
+                      )}
+                    </>
+                  )}
+
+                  {/* APPEARANCE SECTION */}
                    {section.id === "appearance" && (
                      <>
                        <SettingsCard title={t("settings.appearanceTitle")} icon={<Palette className="w-4 h-4" />}>

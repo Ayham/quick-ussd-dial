@@ -1,10 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getLicenseStatus, type LicenseInfo } from "./license";
+import { getCachedPolicy } from "./license-cache";
 import i18n from "@/lib/i18n";
 
 const SESSION_CHECK_KEY = "app_session_last_check";
-const SESSION_CHECK_INTERVAL_MS = 1000 * 60 * 60 * 6; // 6 hours
-const SESSION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
+// Local defaults until the first server policy is received.
+const DEFAULT_SESSION_CHECK_INTERVAL_MS = 1000 * 60 * 60 * 24;
+const DEFAULT_SESSION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7;
 
 export interface SessionValidationResult {
   valid: boolean;
@@ -25,6 +27,7 @@ export async function validateSession(): Promise<SessionValidationResult> {
     if (license.license_status === "expired") return { valid: false, license, reason: i18n.t("license.expired") };
     if (license.license_status === "rejected") return { valid: false, license, reason: i18n.t("license.activationRejected") };
     if (license.license_status === "blocked") return { valid: false, license, reason: i18n.t("license.blocked") };
+    if (license.license_status === "revoked") return { valid: false, license, reason: i18n.t("license.blocked") };
 
     if (license.license_status === "trial" && license.trial_end) {
       const trialEnd = new Date(license.trial_end);
@@ -46,7 +49,8 @@ export function shouldRefreshSession(): boolean {
   const lastCheck = localStorage.getItem(SESSION_CHECK_KEY);
   if (!lastCheck) return true;
   const elapsed = Date.now() - parseInt(lastCheck, 10);
-  return elapsed > SESSION_CHECK_INTERVAL_MS;
+  const interval = getCachedPolicy().minimum_validation_interval_ms || DEFAULT_SESSION_CHECK_INTERVAL_MS;
+  return elapsed > interval;
 }
 
 export async function refreshSessionIfNeeded(): Promise<boolean> {
@@ -57,7 +61,7 @@ export async function refreshSessionIfNeeded(): Promise<boolean> {
     if (!session) return false;
 
     const sessionAge = Date.now() - new Date(session.created_at).getTime();
-    if (sessionAge > SESSION_MAX_AGE_MS) {
+    if (sessionAge > DEFAULT_SESSION_MAX_AGE_MS) {
       const { error } = await supabase.auth.refreshSession();
       if (error) return false;
     }

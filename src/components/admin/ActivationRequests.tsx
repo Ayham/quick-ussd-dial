@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { calculateExpiryDate } from "@/lib/license";
 import { CheckCircle2, XCircle, Search, Clock, Mail, Phone, User, RefreshCw } from "lucide-react";
 
 interface ActivationRequest {
@@ -42,8 +43,8 @@ const ActivationRequests = () => {
   const [showDialog, setShowDialog] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<ActivationRequest | null>(null);
   const [dialogAction, setDialogAction] = useState<"approve" | "reject" | "modify" | "revoke">("approve");
-  const [licenseType, setLicenseType] = useState("days_30");
-  const [expiryDays, setExpiryDays] = useState("30");
+  const [licenseType, setLicenseType] = useState("year_1");
+  const [customExpiryDate, setCustomExpiryDate] = useState("");
   const [rejectReason, setRejectReason] = useState("");
 
   const load = useCallback(async () => {
@@ -68,8 +69,8 @@ const ActivationRequests = () => {
   const handleOpenDialog = (req: ActivationRequest, action: "approve" | "reject" | "modify" | "revoke") => {
     setSelectedRequest(req);
     setDialogAction(action);
-    setLicenseType((req.license_type as string) || "days_30");
-    setExpiryDays("30");
+    setLicenseType("year_1");
+    setCustomExpiryDate("");
     setRejectReason("");
     setShowDialog(true);
   };
@@ -78,11 +79,12 @@ const ActivationRequests = () => {
     if (!selectedRequest) return;
     setActionLoading(dialogAction + "_" + selectedRequest.id);
     try {
+      const computedExpiry = licenseType === "lifetime" ? null : calculateExpiryDate(licenseType as any, customExpiryDate || undefined);
       if (dialogAction === "approve") {
         const { error } = await supabase.rpc("admin_approve_activation", {
           _request_id: selectedRequest.id,
           _license_type: licenseType,
-          _duration_days: licenseType !== "permanent" ? parseInt(expiryDays) : 30,
+          _expiry_date: computedExpiry,
           _notes: null,
         });
         if (error) throw error;
@@ -98,7 +100,7 @@ const ActivationRequests = () => {
         const { error } = await supabase.rpc("admin_modify_activation", {
           _request_id: selectedRequest.id,
           _license_type: licenseType,
-          _duration_days: licenseType !== "permanent" ? parseInt(expiryDays) : 30,
+          _expiry_date: computedExpiry,
           _notes: null,
         });
         if (error) throw error;
@@ -272,23 +274,31 @@ const ActivationRequests = () => {
                 <Select value={licenseType} onValueChange={setLicenseType}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-<SelectItem value="days_30">30 {t("adminActivationRequests.daysUnit")}</SelectItem>
-	                     <SelectItem value="days_90">90 {t("adminActivationRequests.daysUnit")}</SelectItem>
-	                     <SelectItem value="days_180">180 {t("adminActivationRequests.daysUnit")}</SelectItem>
-	                     <SelectItem value="days_365">365 {t("adminActivationRequests.daysUnit")}</SelectItem>
-	                     <SelectItem value="permanent">{t("adminActivationRequests.permanent")}</SelectItem>
+                    <SelectItem value="year_1">{t("activation.year1")}</SelectItem>
+                    <SelectItem value="year_2">{t("activation.year2")}</SelectItem>
+                    <SelectItem value="year_3">{t("activation.year3")}</SelectItem>
+                    <SelectItem value="custom_date">{t("activation.customDate")}</SelectItem>
+                    <SelectItem value="lifetime">{t("adminActivationRequests.permanent")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              {licenseType !== "permanent" && (
+              {licenseType === "custom_date" && (
                 <div className="space-y-2">
-                  <Label>{t("adminActivationRequests.durationDays")}</Label>
+                  <Label>{t("adminActivationRequests.customExpiryDate")}</Label>
                   <input
-                    type="number"
-                    value={expiryDays}
-                    onChange={(e) => setExpiryDays(e.target.value)}
+                    type="date"
+                    value={customExpiryDate}
+                    onChange={(e) => setCustomExpiryDate(e.target.value)}
                     className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
                   />
+                </div>
+              )}
+              {licenseType !== "lifetime" && licenseType !== "custom_date" && (
+                <div className="space-y-2">
+                  <Label>{t("adminActivationRequests.expectedExpiry")}</Label>
+                  <div className="flex h-10 w-full rounded-xl border border-input bg-muted/30 px-3 py-2 text-sm items-center">
+                    {calculateExpiryDate(licenseType as any)}
+                  </div>
                 </div>
               )}
             </div>

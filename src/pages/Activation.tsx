@@ -266,11 +266,11 @@ function AccountBadge({ status, isArabic, t }: { status: string; isArabic: boole
 function formatLicenseType(type: string, isArabic: boolean, t: any): string {
   const map: Record<string, string> = {
     trial: t("activation.trialType"),
-    days_30: t("activation.days30"),
-    days_90: t("activation.days90"),
-    days_180: t("activation.days180"),
-    days_365: t("activation.yearType"),
-    permanent: t("activation.permanentType"),
+    year_1: t("activation.year1"),
+    year_2: t("activation.year2"),
+    year_3: t("activation.year3"),
+    custom_date: t("activation.customDate"),
+    lifetime: t("activation.lifetime"),
   };
   return map[type] || type;
 }

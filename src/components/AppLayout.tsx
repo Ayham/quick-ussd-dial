@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   Send, Wallet, BarChart3, Settings, Zap, Menu, ChevronLeft,
   Download, Shield, ChevronDown, Home, LogIn, LogOut, User,
-  X, ExternalLink, KeyRound, Bell
+  X, ExternalLink, KeyRound, Bell, History
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,7 @@ function useMenuItems() {
   const { t } = useTranslation();
   return [
     { icon: Send, label: t("nav.transfer"), path: "/", description: t("nav.transferDesc", "Quick balance transfer") },
+    { icon: History, label: t("nav.transferHistory", "سجل التحويلات"), path: "/transfer-history", description: t("nav.transferHistoryDesc", "All previous transfers") },
     { icon: Wallet, label: t("nav.balance"), path: "/balance", description: t("nav.balanceDesc", "Track balance") },
     { icon: BarChart3, label: t("nav.reports"), path: "/reports", description: t("nav.reportsDesc", "Transfer statistics") },
     { icon: Bell, label: t("nav.notifications", "الإشعارات"), path: "/notifications", description: t("nav.notificationsDesc", "Notifications") },
@@ -80,7 +81,20 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
 
         <div className="flex items-center gap-2.5">
           {headerRight}
-          {!hideNotificationsBell && <NotificationBell />}
+          {!hideNotificationsBell && (
+            <>
+              {location.pathname !== "/" && (
+                <button
+                  onClick={() => navigate("/")}
+                  className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white hover:bg-white/20 active:bg-white/25 transition-all active:scale-90 backdrop-blur-sm"
+                  aria-label={t("appLayout.homeAria")}
+                >
+                  <Home className="w-5.5 h-5.5" />
+                </button>
+              )}
+              <NotificationBell />
+            </>
+          )}
           <button 
             onClick={() => setMenuOpen(true)} 
             className="text-white w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center hover:bg-white/20 active:bg-white/25 transition-all active:scale-90 backdrop-blur-sm"

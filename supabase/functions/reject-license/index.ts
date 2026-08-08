@@ -20,6 +20,10 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await serviceClient.auth.getUser(token);
     if (authError || !user) throw new Error("invalid_token");
 
+    // Rate limit: 20 rejections per minute per admin
+    const { data: rateOk } = await serviceClient.rpc("check_rate_limit", { _key: `admin_reject:${user.id}`, _window_seconds: 60, _max_requests: 20 });
+    if (!rateOk) throw new Error("rate_limited");
+
     // Verify admin
     const { data: roleData } = await serviceClient
       .from("user_roles")

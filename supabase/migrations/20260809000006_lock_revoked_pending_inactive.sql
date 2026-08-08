@@ -1,9 +1,11 @@
--- validate_device_session(_device_id TEXT)
--- Validates that the current device matches the user's registered device,
--- and checks license/account status. Returns JSONB with validation result.
--- Safe to run multiple times.
+-- ============================================================================
+-- 20260809000005_lock_revoked_pending_inactive.sql
+-- validate_device_session must deny revoked / pending / inactive licenses
+-- server-side, matching the client guard and the edge functions.
+-- ============================================================================
+
 CREATE OR REPLACE FUNCTION public.validate_device_session(_device_id TEXT)
- RETURNS JSONB LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+RETURNS JSONB LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   _profile RECORD;
   _now CONSTANT TIMESTAMPTZ := now();

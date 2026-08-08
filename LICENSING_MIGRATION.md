@@ -5,7 +5,25 @@
 ### Migration: `20260730000000_licensing_system.sql`
 
 #### New Enum Types
-- `license_type`: `trial`, `days_30`, `days_90`, `days_180`, `days_365`, `permanent`
+- `license_status`: `active`, `expired`, `revoked`, `pending`, `trial`, `rejected`, `permanent`, `blocked`
+- `license_type` (v1, deprecated): `trial`, `days_30`, `days_90`, `days_180`, `days_365`, `permanent`
+
+#### License Type Overhaul Migration: `20260808000003_license_type_overhaul.sql`
+
+##### New Enum Values
+- `license_type` (v2): `trial`, `year_1`, `year_2`, `year_3`, `custom_date`, `lifetime`
+
+##### What Changed
+- Dropped deprecated values: `days_30`, `days_90`, `days_180`, `days_365`, `permanent`
+- Added new values: `year_1`, `year_2`, `year_3`, `custom_date`, `lifetime`
+- Backfilled existing profiles:
+  - `days_30` → `year_1` (with `expiry_date` = now + 1 year)
+  - `days_90` → `year_1` (with `expiry_date` = now + 1 year)
+  - `days_180` → `year_1` (with `expiry_date` = now + 1 year)
+  - `days_365` → `year_1` (with `expiry_date` = now + 1 year)
+  - `permanent` → `lifetime` (with `license_status = 'permanent'`, `expiry_date = NULL`)
+- Updated RPC functions `admin_approve_activation` and `admin_modify_activation` to use new types
+- Added `get_user_license_status()` returns full license info including `license_type`, `expiry_date`
 
 #### Extended Enum Values
 - `license_status` now includes: `trial`, `rejected`, `permanent`, `blocked` (in addition to existing `active`, `expired`, `revoked`, `pending`, `suspended`)
@@ -50,6 +68,18 @@
 ---
 
 ## Edge Functions (7 New)
+
+| Function | Path | Purpose | JWT |
+|----------|------|---------|-----|
+| `validate-session` | `supabase/functions/validate-session/index.ts` | Validate auth + license + device. Returns server-controlled `validation_policy` | Required |
+| `validate-license` | `supabase/functions/validate-license/index.ts` | Check license validity. Returns server-controlled `validation_policy` | Required |
+| `device-login` | `supabase/functions/device-login/index.ts` | Register device, revoke other sessions | Required |
+| `device-logout` | `supabase/functions/device-logout/index.ts` | De-authorize device | Required |
+| `request-activation` | `supabase/functions/request-activation/index.ts` | Submit activation request (service-role) | Required |
+| `approve-license` | `supabase/functions/approve-license/index.ts` | Admin approve activation with license_type selection (year_1/2/3, custom_date, lifetime) | Required |
+| `reject-license` | `supabase/functions/reject-license/index.ts` | Admin reject activation (service-role) | Required |
+
+> **Note**: A portable copy of each edge function lives in `db/portable/edge-functions/` with identical logic.
 
 | Function | Path | Purpose | JWT |
 |----------|------|---------|-----|

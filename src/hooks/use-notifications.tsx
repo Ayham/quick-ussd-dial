@@ -30,10 +30,6 @@ import {
   getCachedNotifications,
   setCachedNotifications,
 } from "@/lib/notifications/offline";
-import {
-  onNotificationChange,
-  setNotificationStreamUser,
-} from "@/lib/notifications/realtime";
 
 interface NotificationsContextValue {
   notifications: UserNotification[];
@@ -130,52 +126,31 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       setItems([]);
       setTotal(0);
       setHasMore(false);
-      setLoading(true);
-      setNotificationStreamUser(null);
+      setLoading(false);
       return;
     }
 
     userIdRef.current = userId;
-    setLoading(true);
+    // Hydrate instantly from the local offline cache. No network on mount.
     hydrateFromCache(userId);
-    refresh();
-    setNotificationStreamUser(userId);
+    setLoading(false);
 
+    // Background pending-op flush only — never auto-fetches notifications.
     const onOnline = () => {
-      flushPendingOps().then(() => refresh());
+      flushPendingOps().catch(() => {});
     };
     window.addEventListener("online", onOnline);
     const intervalId = window.setInterval(() => {
       if (navigator.onLine) {
-        flushPendingOps().then(() => refresh());
+        flushPendingOps().catch(() => {});
       }
     }, 60 * 1000);
-
-    const unsubscribeRealtime = onNotificationChange((event) => {
-      if (event.table === "notification_recipients") {
-        const payload = event.payload;
-        const recipientUserId = payload.user_id;
-        if (recipientUserId && recipientUserId !== userId) return;
-        if (event.eventType === "DELETE") {
-          setItems((prev) => prev.filter((n) => n.recipient_id !== payload.id));
-        } else {
-          // Refresh from server to reconcile versions & new deliveries.
-          refresh();
-        }
-      } else if (event.table === "notifications" && event.eventType === "INSERT") {
-        refresh();
-      }
-    });
 
     return () => {
       window.removeEventListener("online", onOnline);
       window.clearInterval(intervalId);
-      unsubscribeRealtime();
-      if (userIdRef.current === userId) {
-        setNotificationStreamUser(null);
-      }
     };
-  }, [userId, hydrateFromCache, refresh]);
+  }, [userId, hydrateFromCache]);
 
   const markRead = useCallback(
     async (notificationId: string) => {

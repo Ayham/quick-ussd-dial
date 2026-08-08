@@ -1,46 +1,61 @@
 import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { useAuthSession } from "@/lib/auth-session";
 import { getProfile, type UserProfile } from "@/lib/auth";
-import { isSimConfigured, getBusinessName, shouldPromptBusinessName, shouldPromptProfile } from "@/lib/onboarding";
-import { getCredentials } from "@/lib/ussd-profiles";
-import OnboardingWizard from "@/components/OnboardingWizard";
+import { getCredentials, DEFAULT_CREDENTIALS, type OperatorCredentials } from "@/lib/ussd-profiles";
+import { computeSetupProgress, shouldShowWizard, shouldShowReminder, markWizardShown, markReminderShown } from "@/lib/setup-wizard";
+import SetupWizard from "@/components/SetupWizard";
+import SetupReminder from "@/components/SetupReminder";
+
+const PROFILE_CACHE_KEY = "app_profile_cache_v1";
+
+function readCachedProfile(): UserProfile | null {
+  try {
+    const raw = localStorage.getItem(PROFILE_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as UserProfile) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedProfile(profile: UserProfile | null): void {
+  try {
+    if (profile) {
+      localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile));
+    } else {
+      localStorage.removeItem(PROFILE_CACHE_KEY);
+    }
+  } catch {}
+}
 
 export default function OnboardingGate() {
-  const { t } = useTranslation();
   const { user, loading } = useAuthSession();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [businessName, setBusinessNameState] = useState(() => getBusinessName());
+  const [profile, setProfile] = useState<UserProfile | null>(() => readCachedProfile());
+  const [credentials, setCredentials] = useState<OperatorCredentials>(() => DEFAULT_CREDENTIALS);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [version, setVersion] = useState(0);
 
-  const refresh = () => setBusinessNameState(getBusinessName());
+  const refresh = () => setVersion((v) => v + 1);
 
   useEffect(() => {
     if (loading) return;
     if (!user) {
       setProfile(null);
-      setProfileLoading(false);
       return;
     }
     let alive = true;
-    setProfileLoading(true);
     getProfile()
       .then((p) => {
-        if (alive) {
-          setProfile(p);
-          setProfileLoading(false);
-        }
+        if (!alive) return;
+        setProfile(p);
+        writeCachedProfile(p);
       })
-      .catch(() => {
-        if (alive) {
-          setProfile(null);
-          setProfileLoading(false);
-        }
-      });
+      .catch(() => {});
     return () => {
       alive = false;
     };
-  }, [user, loading]);
+  }, [user, loading, version]);
 
   useEffect(() => {
     const onFocus = () => refresh();
@@ -48,31 +63,45 @@ export default function OnboardingGate() {
     return () => window.removeEventListener("focus", onFocus);
   }, []);
 
-  if (loading || !user || profileLoading) return null;
+  useEffect(() => {
+    getCredentials().then((c) => {
+      setCredentials(c);
+      setReady(true);
+    });
+  }, []);
 
-  const simConfigured = isSimConfigured(getCredentials());
-  const businessNeeded = shouldPromptBusinessName();
-  const profileIncomplete = !profile?.display_name?.trim() || !profile?.phone?.trim();
-  const profileNeeded = shouldPromptProfile(profileIncomplete);
+  if (loading || !user || !ready) return null;
 
-  if (simConfigured && !businessNeeded && !profileNeeded) return null;
+  const snapshot = computeSetupProgress(profile, credentials);
 
-  const initialStep = simConfigured ? (businessNeeded ? 2 : 3) : 1;
+  const showWizardNow = wizardOpen || shouldShowWizard(profile, credentials);
+  const showReminderNow = !showWizardNow && shouldShowReminder(profile, credentials);
 
   const handleCompleted = () => {
+    setWizardOpen(false);
+    setReminderOpen(false);
+    markWizardShown();
     refresh();
-    getProfile()
-      .then((p) => setProfile(p))
-      .catch(() => {});
+  };
+
+  const handleReminderDismiss = () => {
+    setReminderOpen(false);
+    markReminderShown();
   };
 
   return (
-    <OnboardingWizard
-      initialStep={initialStep}
-      businessNeeded={businessNeeded}
-      profileNeeded={profileNeeded}
-      profile={profile}
-      onCompleted={handleCompleted}
-    />
+    <>
+      {showWizardNow && <SetupWizard onCompleted={handleCompleted} />}
+      {showReminderNow && (
+        <SetupReminder
+          snapshot={snapshot}
+          onOpen={() => {
+            setReminderOpen(false);
+            setWizardOpen(true);
+          }}
+          onDismiss={handleReminderDismiss}
+        />
+      )}
+    </>
   );
 }

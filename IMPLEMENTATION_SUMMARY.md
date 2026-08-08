@@ -34,23 +34,33 @@ supabase/config.toml     — New edge function configs
 
 ## Database Migration
 
-1 migration: `20260730000000_licensing_system.sql`
+2 migrations:
+1. `20260730000000_licensing_system.sql` — Initial licensing system (profiles columns, license_status enum, license_type enum v1)
+2. `20260808000003_license_type_overhaul.sql` — License type overhaul: new enum values (year_1, year_2, year_3, custom_date, lifetime), backfill from deprecated types, updated RPC functions
+
+Migration 1 details:
 - 9 new columns on `profiles`
-- 1 new enum (`license_type`)
+- 1 new enum (`license_type` v1) → replaced by v2 in migration 2
 - 4 new enum values for `license_status`
 - 3 new indexes
 - 1 updated trigger (`handle_new_user`)
 - 11 new RPC functions
+- Backfilled `license_status` enum adding `permanent`, `blocked`, `rejected`, `trial`
+
+Migration 2 details:
+- Enum alteration: `license_type` values replaced (days_30/90/180/365 → year_1/2/3, permanent → lifetime, added custom_date)
+- Backfill: old types mapped to nearest new type + expiry_date computed
+- RPC functions `admin_approve_activation` / `admin_modify_activation` updated to accept new `license_type` + `expiry_date`
 
 ## Edge Functions
 
 7 new functions, all with JWT verification:
-- `validate-session` — Auth + license + device check
-- `validate-license` — License validity check
+- `validate-session` — Auth + license check. Returns server-controlled `validation_policy` (offline grace, cadence, force)
+- `validate-license` — License validity check. Returns server-controlled `validation_policy`
 - `device-login` — Register device, enforce one-device policy
 - `device-logout` — De-authorize device
 - `request-activation` — Submit activation request (service-role)
-- `approve-license` — Admin approve (service-role)
+- `approve-license` — Admin approve with license_type selection (year_1/2/3, custom_date, lifetime)
 - `reject-license` — Admin reject (service-role)
 
 ## Security Improvements
@@ -68,3 +78,5 @@ supabase/config.toml     — New edge function configs
 
 - TypeScript: ✅ Zero errors
 - Vite build: ✅ Successful
+- ESLint: ✅ Zero errors (pre-existing warnings only)
+- Vitest: ✅ 92 tests passing across 13 files

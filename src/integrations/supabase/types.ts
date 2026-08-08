@@ -1470,7 +1470,7 @@ export type Database = {
         Returns: Json
       }
       admin_approve_activation: {
-        Args: { _request_id: string; _license_type?: string; _duration_days?: number; _notes?: string }
+        Args: { _request_id: string; _license_type?: string; _expiry_date?: string; _notes?: string }
         Returns: Json
       }
       admin_reject_activation: {
@@ -1478,7 +1478,7 @@ export type Database = {
         Returns: Json
       }
       admin_modify_activation: {
-        Args: { _request_id: string; _license_type?: string; _duration_days?: number; _notes?: string }
+        Args: { _request_id: string; _license_type?: string; _expiry_date?: string; _notes?: string }
         Returns: Json
       }
       admin_revoke_activation: {
@@ -1685,7 +1685,7 @@ export type Database = {
       activation_status: "pending" | "approved" | "rejected"
        app_role: "admin" | "user"
       license_status: "active" | "expired" | "revoked" | "pending" | "suspended" | "trial" | "rejected" | "permanent" | "blocked"
-      license_type: "trial" | "days_30" | "days_90" | "days_180" | "days_365" | "permanent"
+      license_type: "trial" | "year_1" | "year_2" | "year_3" | "custom_date" | "lifetime"
       notification_action_type: "none" | "screen" | "url" | "custom"
       notification_priority: "low" | "normal" | "high" | "critical"
       notification_recipient_status: "pending" | "delivered" | "failed"
@@ -1821,7 +1821,7 @@ export const Constants = {
       activation_status: ["pending", "approved", "rejected"],
        app_role: ["admin", "user"],
       license_status: ["active", "expired", "revoked", "pending", "suspended", "trial", "rejected", "permanent", "blocked"],
-      license_type: ["trial", "days_30", "days_90", "days_180", "days_365", "permanent"],
+      license_type: ["trial", "year_1", "year_2", "year_3", "custom_date", "lifetime"],
       notification_action_type: ["none", "screen", "url", "custom"],
       notification_priority: ["low", "normal", "high", "critical"],
       notification_recipient_status: ["pending", "delivered", "failed"],

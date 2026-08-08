@@ -88,12 +88,18 @@ export async function signUpWithEmail(
   return result;
 }
 
+let oauthBrowserOpen = false;
+
 export async function signInWithGoogle(next = "/") {
   const redirectTo = getRedirectUrl();
+  const native = isCapacitorNativePlatform();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
       redirectTo,
+      // Native: open the URL ourselves via the Custom Tab and never let the
+      // WebView navigate to it. On web, let supabase-js navigate the tab.
+      skipBrowserRedirect: native,
       queryParams: {
         access_type: "offline",
         prompt: "consent",
@@ -106,15 +112,40 @@ export async function signInWithGoogle(next = "/") {
   const oauthUrl = data?.url;
   if (!oauthUrl) return { error: new Error(i18n.t("errors.noOAuthUrl")) };
 
-  await Browser.open({ url: oauthUrl, windowName: "_system" });
+  if (native) {
+    oauthBrowserOpen = true;
+    try {
+      await Browser.open({ url: oauthUrl, windowName: "_system" });
+    } catch {
+      oauthBrowserOpen = false;
+    }
+  }
 
   return { error: null };
 }
 
+const processedOAuthCodes = new Set<string>();
+
 export async function handleOAuthDeepLink(url: string) {
   const urlObj = new URL(url);
   const code = urlObj.searchParams.get("code");
-  if (!code) return { error: new Error(i18n.t("errors.noAuthCode")) };
+  if (!code) {
+    // Deep link without an auth code (e.g. plain email-confirmation mode) —
+    // nothing to exchange; not an OAuth sign-in.
+    return { error: new Error(i18n.t("errors.noAuthCode")) };
+  }
+
+  // The OAuth browser is done; close the Custom Tab so the app becomes
+  // visible again instead of staying stuck behind the browser.
+  if (oauthBrowserOpen) {
+    oauthBrowserOpen = false;
+    Browser.close().catch(() => {});
+  }
+
+  if (processedOAuthCodes.has(code)) {
+    return { data: null, error: null, alreadyHandled: true };
+  }
+  processedOAuthCodes.add(code);
 
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {

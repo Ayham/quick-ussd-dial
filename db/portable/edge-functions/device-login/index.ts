@@ -13,7 +13,7 @@ serve(async (req) => {
     if (!authHeader) throw new Error("missing authorization");
     const token = authHeader.replace("Bearer ", "");
 
-    const body: { device_id?: string; device_name?: string; device_model?: string; platform?: string; app_version?: string; fingerprint?: string } = await req.json().catch(() => ({}));
+    const body: { device_id?: string; device_name?: string; device_model?: string; platform?: string; app_version?: string; fingerprint?: string; force?: boolean; refresh_token?: string } = await req.json().catch(() => ({}));
     const deviceId = body.device_id;
     if (!deviceId) throw new Error("device_id_required");
 
@@ -38,10 +38,60 @@ serve(async (req) => {
     // Check account status
     const { data: profile } = await serviceClient
       .from("profiles")
-      .select("account_status, license_status")
+      .select("account_status, license_status, current_device")
       .eq("user_id", user.id)
       .maybeSingle();
     if (profile?.account_status === "suspended" || profile?.account_status === "blocked") throw new Error("account_suspended");
+
+    // Reject login from a device that has been banned or blocked by an admin.
+    const { data: deviceRow } = await serviceClient
+      .from("devices")
+      .select("is_blocked, is_banned, lifecycle_state")
+      .eq("device_id", deviceId)
+      .maybeSingle();
+    if (deviceRow && (deviceRow.is_blocked || deviceRow.is_banned || deviceRow.lifecycle_state === "blocked")) {
+      return new Response(JSON.stringify({ success: false, error: "device_banned", device_id: deviceId }), {
+        status: 403,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": origin },
+      });
+    }
+
+    // Enforce single device: reject login from a different device if current_device is set.
+    // The client may explicitly pass force=true to log the other device out and take over.
+    if (profile?.current_device && profile.current_device !== deviceId) {
+      if (!body.force) {
+        return new Response(JSON.stringify({ success: false, error: "device_mismatch", current_device: profile.current_device }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": origin },
+        });
+      }
+    }
+
+    // Log out every OTHER device's real Supabase auth session so it can no
+    // longer refresh. Runs on force takeover as well as after an admin device
+    // reset (current_device cleared) or a previous device logout: whichever
+    // device binds next is the only one that stays signed in.
+    const { data: displaced } = await serviceClient
+      .from("device_auth")
+      .select("id, refresh_token")
+      .eq("user_id", user.id)
+      .neq("device_id", deviceId)
+      .is("revoked_at", null);
+    for (const row of displaced ?? []) {
+      if (row.refresh_token) {
+        try {
+          // Redeem the displaced device's refresh token: GoTrue rotates it and
+          // invalidates the old one, so the displaced device's session can no
+          // longer refresh. (admin.signOut() expects a user JWT, not a refresh
+          // token, so it cannot be used here.)
+          await serviceClient.auth.refreshSession({ refresh_token: row.refresh_token });
+        } catch {}
+      }
+      await serviceClient
+        .from("device_auth")
+        .update({ revoked_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq("id", row.id);
+    }
 
     // Revoke all other sessions for this user
     await serviceClient
@@ -82,6 +132,18 @@ serve(async (req) => {
         last_seen: new Date().toISOString(),
         is_active: true,
       }, { onConflict: "device_id" });
+
+    // Store this device's auth refresh token so a future bind can revoke
+    // this exact Supabase session.
+    await serviceClient
+      .from("device_auth")
+      .upsert({
+        user_id: user.id,
+        device_id: deviceId,
+        refresh_token: body.refresh_token || null,
+        revoked_at: null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id,device_id" });
 
     return new Response(JSON.stringify({ success: true, session_id: sessionId, device_id: deviceId }), {
       status: 200,

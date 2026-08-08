@@ -12,6 +12,7 @@ import {
   type Operator,
   type AmountPreset,
   type OperatorCredentials,
+  DEFAULT_CREDENTIALS,
 } from "@/lib/ussd-profiles";
 import {
   addToHistory,
@@ -32,8 +33,9 @@ import {
 import { getAmountDisplayStyle, type AmountDisplayStyle } from "@/lib/amount-display";
 import { dialUssdDirect } from "@/lib/ussd-dialer";
 import { trackTransfer } from "@/lib/cloud-sync";
-import { getTransferGuard, validateDeviceSession } from "@/lib/license-cache";
+import { ensureTransferAllowed } from "@/lib/license-cache";
 import { isSimConfigured, getBusinessName } from "@/lib/onboarding";
+import { incrementTransferCount } from "@/lib/setup-wizard";
 import { formatDate, formatDateTime } from "@/lib/format-date";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,10 +68,11 @@ const Index = () => {
   const [phone, setPhone] = useState("");
   const [selectedAmount, setSelectedAmount] = useState<AmountPreset | null>(null);
   const [presets, setPresets] = useState(() => getPresets());
-  const [credentials, setCredentials] = useState<OperatorCredentials>(() => getCredentials());
+  const [credentials, setCredentials] = useState<OperatorCredentials>(DEFAULT_CREDENTIALS);
   const [showContacts, setShowContacts] = useState(false);
   const [history, setHistory] = useState<TransferRecord[]>(() => getHistory());
   const [dialing, setDialing] = useState(false);
+  const [validating, setValidating] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [contactName, setContactName] = useState('');
   const [showSaveName, setShowSaveName] = useState(false);
@@ -79,6 +82,11 @@ const Index = () => {
   const [contactsVersion, setContactsVersion] = useState(0);
   const [amountDisplayStyle, setAmountDisplayStyle] = useState<AmountDisplayStyle>(() => getAmountDisplayStyle());
   const [businessName, setBusinessName] = useState(() => getBusinessName());
+
+  // Load credentials async on mount
+  useEffect(() => {
+    getCredentials().then(setCredentials);
+  }, []);
 
   const contactsRef = useRef<HTMLDivElement>(null);
   const RECENT_LIMIT = 4;
@@ -173,7 +181,7 @@ const Index = () => {
   useEffect(() => {
     const handleFocus = () => {
       setPresets(getPresets());
-      setCredentials(getCredentials());
+      getCredentials().then(setCredentials);
       setHistory(getHistory());
       setAmountDisplayStyle(getAmountDisplayStyle());
       setBusinessName(getBusinessName());
@@ -207,14 +215,33 @@ const Index = () => {
       toast.error(t("index.configureSimFirst"));
       return;
     }
-    await validateDeviceSession();
-    const guard = getTransferGuard();
-    if (!guard.allowed) {
-      toast.error(guard.reason || t("index.transferNotAllowed"));
+    const freshCredentials = await getCredentials();
+    if (!isSimConfigured(freshCredentials)) {
+      toast.error(t("index.configureSimFirst"));
+      navigate("/settings");
       return;
     }
-    setShowConfirm(true);
-  }, [phone, isSecretNumber, transferOperator, selectedAmount, credentials]);
+    setCredentials(freshCredentials);
+    setValidating(true);
+    try {
+      const guard = await ensureTransferAllowed();
+      if (!guard.allowed) {
+        const reactivationCodes = new Set([
+          "expired", "revoked", "suspended", "blocked", "license_blocked",
+          "activation_rejected", "inactive", "trial_ended",
+        ]);
+        if (reactivationCodes.has(guard.reasonCode || "")) {
+          toast.error(t("index.licenseReactivate"));
+        } else {
+          toast.error(guard.reason || t("index.transferNotAllowed"));
+        }
+        return;
+      }
+      setShowConfirm(true);
+    } finally {
+      setValidating(false);
+    }
+  }, [phone, isSecretNumber, transferOperator, selectedAmount, credentials, navigate]);
 
   const saveNameToAndroid = useCallback(
     async (phoneNumber: string, name: string): Promise<{ ok: boolean; code?: string; message?: string }> => {
@@ -241,20 +268,26 @@ const Index = () => {
 
   const handleConfirmTransfer = useCallback(async () => {
     if (!transferOperator || !selectedAmount) return;
-    const guard = getTransferGuard();
-    if (!guard.allowed) {
-      setShowConfirm(false);
-      toast.error(guard.reason || t("index.transferNotAllowed"));
-      return;
-    }
     setShowConfirm(false);
-    const ussd = buildUssdCode(transferOperator, phone.trim(), String(selectedAmount.amount), credentials);
-    const simAssignment = getSimAssignment();
-    const simSlot = simAssignment[transferOperator];
-
     setDialing(true);
 
     try {
+      const guard = await ensureTransferAllowed();
+      if (!guard.allowed) {
+        toast.error(guard.reason || t("index.transferNotAllowed"));
+        return;
+      }
+      const freshCredentials = await getCredentials();
+      if (!isSimConfigured(freshCredentials)) {
+        toast.error(t("index.configureSimFirst"));
+        navigate("/settings");
+        return;
+      }
+      setCredentials(freshCredentials);
+      const ussd = buildUssdCode(transferOperator, phone.trim(), String(selectedAmount.amount), freshCredentials);
+      const simAssignment = getSimAssignment();
+      const simSlot = simAssignment[transferOperator];
+
       await dialUssdDirect(ussd, simSlot);
 
       addToHistory({
@@ -274,6 +307,8 @@ const Index = () => {
 
       toast.success(t("index.transferSuccess"));
 
+      incrementTransferCount();
+
       await saveContactAfterTransfer(phone.trim(), nameInput.trim() || contactName);
       setContactsVersion(v => v + 1);
 
@@ -287,7 +322,7 @@ const Index = () => {
     } finally {
       setDialing(false);
     }
-  }, [phone, transferOperator, selectedAmount, credentials, operator, contactName, nameInput]);
+  }, [phone, transferOperator, selectedAmount, credentials, operator, contactName, nameInput, navigate]);
 
   const selectContact = (contact: ContactMatch) => {
     setPhone(contact.phone);
@@ -600,7 +635,7 @@ const Index = () => {
         {/* Transfer Button */}
         <Button
           onClick={handleTransferClick}
-          disabled={!transferOperator || !selectedAmount || dialing}
+          disabled={!transferOperator || !selectedAmount || dialing || validating}
           className={cn(
             "w-full h-14 text-base font-bold rounded-xl shadow-lg transition-all duration-200",
             "bg-gradient-to-l from-primary to-[hsl(var(--primary-end))]",
@@ -610,12 +645,12 @@ const Index = () => {
           )}
           size="lg"
         >
-          {dialing ? (
+          {(dialing || validating) ? (
             <Loader2 className="w-5 h-5 me-2 animate-spin" />
           ) : (
             <Send className="w-5 h-5 me-2" />
           )}
-          {dialing ? t("common.loading") : t("index.transferButton")}
+          {(dialing || validating) ? t("common.loading") : t("index.transferButton")}
         </Button>
 
         {/* Confirmation Dialog */}

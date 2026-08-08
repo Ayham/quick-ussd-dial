@@ -4,8 +4,8 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { isAdminUser } from "@/lib/auth";
 import { validateAndRefreshSession } from "@/lib/session-service";
-import { getDeviceId, registerDeviceLogin } from "@/lib/device";
-import { refreshLicenseCacheIfNeeded, validateDeviceSession } from "@/lib/license-cache";
+import { registerDeviceLogin } from "@/lib/device";
+import { refreshLicenseCacheIfNeeded } from "@/lib/license-cache";
 import { listenForOAuthCallback, getInitialDeepLink, handleOAuthDeepLink } from "@/lib/auth";
 
 type AuthState = {
@@ -21,6 +21,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const userRef = useRef<User | null>(null);
 
   const refresh = async () => {
     const { data, error } = await supabase.auth.getUser();
@@ -39,6 +40,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       return;
     }
     const sessionUser = data.user ?? null;
+    userRef.current = sessionUser;
     setUser(sessionUser);
     if (sessionUser) {
       setIsAdmin(await isAdminUser());
@@ -50,25 +52,48 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let alive = true;
 
+    // Background network refreshes — never block render. Also re-runs when the
+    // app regains focus so a device that was displaced by a login on another
+    // device detects it and signs out promptly.
+    const runBackgroundChecks = () => {
+      window.setTimeout(async () => {
+        try {
+          await refresh();
+        } catch {}
+        try {
+          await registerDeviceLogin();
+        } catch {}
+        try {
+          await refreshLicenseCacheIfNeeded();
+        } catch {}
+        validateAndRefreshSession().catch(() => {});
+      }, 0);
+    };
+
+    // Local-first cold start: read the session straight from device storage so
+    // the UI renders instantly (<1s) without any network call.
     const load = async () => {
+      let sessionUser: User | null = null;
       try {
-        await refresh();
-        // Ensure session is valid by refreshing if needed
         const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          const { error } = await supabase.auth.refreshSession();
-          if (error) console.warn('Session refresh failed:', error.message);
-        }
-      } finally {
-        if (alive) setLoading(false);
-      }
+        sessionUser = session?.user ?? null;
+      } catch {}
+      if (!alive) return;
+      userRef.current = sessionUser;
+      setUser(sessionUser);
+      setLoading(false);
+
+      if (!sessionUser) return;
+      runBackgroundChecks();
     };
 
     load();
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       const sessionUser = session?.user ?? null;
+      userRef.current = sessionUser;
       setUser(sessionUser);
+      setLoading(false);
       if (!sessionUser) {
         setIsAdmin(false);
         return;
@@ -80,24 +105,32 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         } catch {
           setIsAdmin(false);
         }
+        try {
+          await refreshLicenseCacheIfNeeded();
+        } catch {}
       }, 0);
     });
 
+    const onFocus = () => {
+      if (document.visibilityState === "visible" && userRef.current) {
+        runBackgroundChecks();
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        runBackgroundChecks();
+      }
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       alive = false;
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
       data.subscription.unsubscribe();
     };
   }, []);
-
-  useEffect(() => {
-    if (!user) return;
-    validateDeviceSession();
-    const intervalId = setInterval(
-      () => { refreshLicenseCacheIfNeeded(); },
-      7 * 24 * 60 * 60 * 1000,
-    );
-    return () => clearInterval(intervalId);
-  }, [user]);
 
   useEffect(() => {
     let alive = true;

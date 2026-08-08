@@ -6,7 +6,7 @@
 
 -- 1. CREATE LICENSE_TYPE ENUM (if not exists)
 DO $$ BEGIN
-  CREATE TYPE public.license_type AS ENUM ('trial', 'days_30', 'days_90', 'days_180', 'days_365', 'permanent');
+  CREATE TYPE public.license_type AS ENUM ('trial', 'year_1', 'year_2', 'year_3', 'custom_date', 'lifetime');
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
@@ -58,7 +58,9 @@ BEGIN
   _trial_end := now() + INTERVAL '15 days';
   INSERT INTO public.profiles (user_id, email, display_name, trial_start, trial_end, license_status, license_type, account_status)
   VALUES (NEW.id, NEW.email, COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email), now(), _trial_end, 'trial', 'trial', 'active');
-  INSERT INTO public.user_roles (user_id, role) VALUES (NEW.id, 'user');
+  INSERT INTO public.user_roles (user_id, role)
+SELECT NEW.id, 'user'::app_role
+WHERE NOT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = NEW.id);
   RETURN NEW;
 END; $$;
 
@@ -95,8 +97,7 @@ BEGIN
   PERFORM public._require_admin();
   INSERT INTO public.profiles (user_id, email, display_name, trial_start, trial_end, license_status, license_type, account_status)
   SELECT au.id, au.email, COALESCE(au.raw_user_meta_data->>'full_name', au.email), COALESCE(au.created_at, now()), COALESCE(au.created_at, now()) + INTERVAL '15 days', 'trial', 'trial', 'active'
-  FROM auth.users au WHERE NOT EXISTS (SELECT 1 FROM public.profiles p WHERE p.user_id = au.id)
-  ON CONFLICT (user_id) DO NOTHING;
+  FROM auth.users au WHERE NOT EXISTS (SELECT 1 FROM public.profiles p WHERE p.user_id = au.id);
   SELECT count(*) INTO _total FROM public.profiles;
   SELECT jsonb_agg(sub) INTO _users FROM (
     SELECT p.user_id, p.display_name, p.email, p.phone, p.created_at, p.trial_start, p.trial_end, p.license_status, p.license_type, p.expiry_date, p.current_device, p.last_login, p.last_sync, p.account_status,
@@ -246,7 +247,7 @@ BEGIN
   IF EXISTS (SELECT 1 FROM public.user_roles WHERE role = 'admin'::app_role) THEN
     RETURN jsonb_build_object('success', false, 'error', 'admin_already_exists');
   END IF;
-  INSERT INTO public.user_roles (user_id, role) VALUES (v_uid, 'admin'::app_role) ON CONFLICT (user_id, role) DO NOTHING;
+  INSERT INTO public.user_roles (user_id, role) VALUES (v_uid, 'admin'::app_role);
   RETURN jsonb_build_object('success', true, 'promoted', true);
 END; $$;
 REVOKE EXECUTE ON FUNCTION public.admin_repair_self FROM PUBLIC, ANON;
@@ -261,8 +262,7 @@ INSERT INTO public.profiles (user_id, email, display_name, trial_start, trial_en
 SELECT au.id, au.email, COALESCE(au.raw_user_meta_data->>'full_name', au.raw_user_meta_data->>'display_name', au.email),
   COALESCE(au.created_at, now()), COALESCE(au.created_at, now()) + INTERVAL '15 days', 'trial', 'trial', 'active'
 FROM auth.users au
-WHERE NOT EXISTS (SELECT 1 FROM public.profiles p WHERE p.user_id = au.id)
-ON CONFLICT (user_id) DO NOTHING;
+WHERE NOT EXISTS (SELECT 1 FROM public.profiles p WHERE p.user_id = au.id);
 
 -- 19. Fix trial dates for existing profiles
 UPDATE public.profiles
@@ -273,15 +273,13 @@ WHERE license_status = 'trial' AND (trial_start IS NULL OR trial_end IS NULL);
 -- 20. Ensure every user has a role entry
 INSERT INTO public.user_roles (user_id, role)
 SELECT au.id, 'user'::app_role FROM auth.users au
-WHERE NOT EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = au.id)
-ON CONFLICT DO NOTHING;
+WHERE NOT EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = au.id);
 
 -- 21. If no admin exists, promote the first user
 WITH first_user AS (SELECT au.id FROM auth.users au ORDER BY au.created_at ASC LIMIT 1)
 INSERT INTO public.user_roles (user_id, role)
 SELECT id, 'admin'::app_role FROM first_user
-WHERE NOT EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.role = 'admin'::app_role)
-ON CONFLICT (user_id, role) DO NOTHING;
+WHERE NOT EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.role = 'admin'::app_role);
 
 -- 22. Ensure RLS policy for activations
 DO $$ BEGIN

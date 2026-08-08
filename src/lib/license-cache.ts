@@ -1,12 +1,16 @@
 import { supabase } from "@/integrations/supabase/client";
-import { getDeviceId } from "./device";
+import { getDeviceId, getStoredDeviceBinding, getDeviceBindingSignatureSync, storeDeviceBinding, notifyDeviceMismatch } from "./device";
 import i18n from "@/lib/i18n";
-import type { LicenseInfo } from "./license";
 
 const CACHE_KEY = "app_license_cache";
 const CACHE_AGE_KEY = "app_license_cache_age";
-const REFRESH_INTERVAL_MS = 1000 * 60 * 60 * 24 * 7;
-const MAX_OFFLINE_GRACE_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
+const POLICY_KEY = "app_validation_policy";
+
+// Offline fallbacks — used ONLY until the first server policy is received.
+// After the first validation the SERVER controls these values.
+const DEFAULT_REFRESH_INTERVAL_MS = 1000 * 60 * 60 * 24;
+const DEFAULT_OFFLINE_GRACE_MS = 1000 * 60 * 60 * 24 * 7;
+const DEFAULT_FORCE_VALIDATION = false;
 
 export interface ValidationResult {
   valid: boolean;
@@ -23,6 +27,52 @@ export interface ValidationResult {
 export interface TransferGuardResult {
   allowed: boolean;
   reason?: string;
+  reasonCode?: string;
+}
+
+/**
+ * Server-controlled offline validation policy.
+ *
+ * The SERVER decides:
+ *  - minimum_validation_interval_ms: how often the client must silently validate
+ *  - offline_grace_ms: max offline time before transfers are locked
+ *  - next_required_validation: when the next silent validation is due
+ *  - force_validation: server demands a fresh validation before transfers
+ *  - license_expiration: the real expiration (blocking applies when reached)
+ *  - revoked: license revoked server-side
+ *  - validation_policy: "normal" | "expiring_soon" | "force"
+ *
+ * The client NEVER hardcodes any of these values.
+ */
+export interface ValidationPolicy {
+  valid: boolean;
+  reason?: string;
+  minimum_validation_interval_ms: number;
+  offline_grace_ms: number;
+  next_required_validation: string | null;
+  force_validation: boolean;
+  license_expiration: string | null;
+  revoked: boolean;
+  validation_policy: "normal" | "expiring_soon" | "force";
+}
+
+export interface ValidationReminder {
+  show: boolean;
+  blocked: boolean;
+  days: number | null;
+}
+
+function defaultPolicy(): ValidationPolicy {
+  return {
+    valid: true,
+    minimum_validation_interval_ms: DEFAULT_REFRESH_INTERVAL_MS,
+    offline_grace_ms: DEFAULT_OFFLINE_GRACE_MS,
+    next_required_validation: null,
+    force_validation: DEFAULT_FORCE_VALIDATION,
+    license_expiration: null,
+    revoked: false,
+    validation_policy: "normal",
+  };
 }
 
 function getCachedRaw(): { data: ValidationResult | null; age: number } {
@@ -44,25 +94,98 @@ function setCachedRaw(result: ValidationResult): void {
   } catch {}
 }
 
+export function getCachedPolicy(): ValidationPolicy {
+  try {
+    const raw = localStorage.getItem(POLICY_KEY);
+    if (!raw) return defaultPolicy();
+    const parsed = JSON.parse(raw) as Partial<ValidationPolicy>;
+    return {
+      ...defaultPolicy(),
+      ...parsed,
+      minimum_validation_interval_ms:
+        typeof parsed.minimum_validation_interval_ms === "number" && parsed.minimum_validation_interval_ms > 0
+          ? parsed.minimum_validation_interval_ms
+          : DEFAULT_REFRESH_INTERVAL_MS,
+      offline_grace_ms:
+        typeof parsed.offline_grace_ms === "number" && parsed.offline_grace_ms > 0
+          ? parsed.offline_grace_ms
+          : DEFAULT_OFFLINE_GRACE_MS,
+    };
+  } catch {
+    return defaultPolicy();
+  }
+}
+
+function storeCachedPolicy(policy: ValidationPolicy): void {
+  try {
+    localStorage.setItem(POLICY_KEY, JSON.stringify(policy));
+  } catch {}
+}
+
 function needsRefresh(): boolean {
   const ageStr = localStorage.getItem(CACHE_AGE_KEY);
   if (!ageStr) return true;
   const age = parseInt(ageStr, 10);
-  return Date.now() - age > REFRESH_INTERVAL_MS;
+  const policy = getCachedPolicy();
+  if (policy.next_required_validation) {
+    const next = new Date(policy.next_required_validation).getTime();
+    if (!Number.isNaN(next) && Date.now() < next) return false;
+    return true;
+  }
+  return Date.now() - age > policy.minimum_validation_interval_ms;
 }
 
 export async function validateDeviceSession(): Promise<ValidationResult> {
   try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { valid: false, reason: "not_authenticated", error: i18n.t("auth.notAuthenticated") };
+    }
+
     const deviceId = getDeviceId();
     const { data, error } = await supabase.rpc("validate_device_session", { _device_id: deviceId });
     if (error) throw error;
     const result = data as unknown as ValidationResult;
     setCachedRaw(result);
+    // Fetch the server-controlled policy and store it with the cache.
+    await refreshValidationPolicy();
+    // Record the local device binding signature for offline tamper detection.
+    // Only recorded when the server accepted the device (no device_mismatch).
+    if (result.valid && result.reason !== "device_mismatch") {
+      storeDeviceBinding();
+    }
+    // Surface device takeover (e.g. the account was logged in on another device)
+    // so the UI can offer to log that device out and take over.
+    if (result.reason === "device_mismatch") {
+      notifyDeviceMismatch(result.current_device ?? null);
+    }
     return result;
   } catch {
     const cached = getCachedRaw();
-    if (cached.data && cached.age <= MAX_OFFLINE_GRACE_MS) return cached.data;
+    if (cached.data && cached.age <= getCachedPolicy().offline_grace_ms) return cached.data;
     return { valid: false, reason: "no_connection", error: i18n.t("errors.noConnection") };
+  }
+}
+
+/**
+ * Server-controlled validation policy — the client never decides cadence,
+ * grace or force requirements itself.
+ */
+export async function refreshValidationPolicy(): Promise<ValidationPolicy | null> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return getCachedPolicy();
+
+    const { data, error } = await supabase.rpc("get_validation_policy");
+    if (error) throw error;
+    const policy = data as unknown as ValidationPolicy;
+    if (policy && typeof policy === "object") {
+      storeCachedPolicy(policy);
+      return policy;
+    }
+    return null;
+  } catch {
+    return getCachedPolicy();
   }
 }
 
@@ -75,47 +198,118 @@ export async function refreshLicenseCacheIfNeeded(): Promise<ValidationResult | 
   return validateDeviceSession();
 }
 
+/**
+ * Synchronous, LOCAL-ONLY transfer guard. Never performs any network call.
+ * Blocks based on the last cached server verdict + the server-controlled
+ * offline grace period.
+ */
 export function getTransferGuard(): TransferGuardResult {
   const cached = getCachedRaw();
-  if (!cached.data) return { allowed: false, reason: "unverified" };
-  if (getCacheAgeMs() > MAX_OFFLINE_GRACE_MS) return { allowed: false, reason: "offline_grace_expired" };
+  const policy = getCachedPolicy();
+  if (!cached.data) return { allowed: false, reason: "unverified", reasonCode: "unverified" };
+  if (getCacheAgeMs() > policy.offline_grace_ms) return { allowed: false, reason: "offline_grace_expired", reasonCode: "offline_grace_expired" };
 
-  if (cached.account_status === "suspended") {
-    return { allowed: false, reason: i18n.t("errors.accountSuspended") };
+  const expectedBinding = getStoredDeviceBinding();
+  if (expectedBinding && expectedBinding !== getDeviceBindingSignatureSync()) {
+    return { allowed: false, reason: i18n.t("errors.deviceMismatch"), reasonCode: "device_mismatch" };
   }
-  if (cached.account_status === "blocked") {
-    return { allowed: false, reason: i18n.t("errors.accountBlocked") };
+
+  const data = cached.data;
+  if (policy.revoked) {
+    return { allowed: false, reason: i18n.t("errors.licenseBlocked"), reasonCode: "revoked" };
   }
-  if (cached.license_status === "expired") {
-    return { allowed: false, reason: i18n.t("errors.licenseExpired") };
+  if (data.account_status === "suspended") {
+    return { allowed: false, reason: i18n.t("errors.accountSuspended"), reasonCode: "suspended" };
   }
-  if (cached.license_status === "rejected") {
-    return { allowed: false, reason: i18n.t("errors.activationRejected") };
+  if (data.account_status === "blocked") {
+    return { allowed: false, reason: i18n.t("errors.accountBlocked"), reasonCode: "blocked" };
   }
-  if (cached.license_status === "blocked") {
-    return { allowed: false, reason: i18n.t("errors.licenseBlocked") };
+  if (data.license_status === "expired") {
+    return { allowed: false, reason: i18n.t("errors.licenseExpired"), reasonCode: "expired" };
   }
-  if (cached.license_status === "trial" && cached.trial_end) {
-    const trialEnd = new Date(cached.trial_end);
+  if (data.license_status === "rejected") {
+    return { allowed: false, reason: i18n.t("errors.activationRejected"), reasonCode: "activation_rejected" };
+  }
+  if (data.license_status === "blocked") {
+    return { allowed: false, reason: i18n.t("errors.licenseBlocked"), reasonCode: "license_blocked" };
+  }
+  if (data.license_status === "revoked") {
+    return { allowed: false, reason: i18n.t("errors.licenseBlocked"), reasonCode: "revoked" };
+  }
+  if (data.license_status === "trial" && data.trial_end) {
+    const trialEnd = new Date(data.trial_end);
     if (trialEnd < new Date()) {
-      return { allowed: false, reason: i18n.t("errors.trialEnded") };
+      return { allowed: false, reason: i18n.t("errors.trialEnded"), reasonCode: "trial_ended" };
     }
   }
-  if (cached.license_status === "inactive" || cached.license_status === "pending") {
-    return { allowed: false, reason: i18n.t("errors.licenseInactive") };
+  if (data.license_status === "pending") {
+    return { allowed: false, reason: i18n.t("errors.licenseInactive"), reasonCode: "inactive" };
+  }
+  if (data.license_status === "inactive") {
+    return { allowed: false, reason: i18n.t("errors.licenseInactive"), reasonCode: "inactive" };
   }
 
-  if (cached.reason === "device_mismatch") {
-    return { allowed: false, reason: i18n.t("errors.deviceMismatch") };
+  if (data.reason === "device_mismatch") {
+    return { allowed: false, reason: i18n.t("errors.deviceMismatch"), reasonCode: "device_mismatch" };
   }
 
   return { allowed: true };
+}
+
+/**
+ * Transfer guard that re-validates against the server when the local cached
+ * verdict would block. A stale device_mismatch / unverified / expired-grace
+ * verdict must not permanently lock transfers: the account may have been
+ * rebound server-side (force takeover, admin device reset, WebView update)
+ * since the last check. Revalidating on a blocked attempt makes the guard
+ * self-heal instead of leaving the user stuck behind a stale cache.
+ */
+export async function ensureTransferAllowed(): Promise<TransferGuardResult> {
+  const local = getTransferGuard();
+  if (local.allowed) return local;
+  try {
+    await validateDeviceSession();
+  } catch {
+    // Offline / network failure — keep the local (blocking) verdict.
+  }
+  return getTransferGuard();
+}
+
+/**
+ * Friendly, NON-BLOCKING reminder shown only in the final window before
+ * expiration when the app is offline or validation is due. Never gates the UI.
+ */
+export function getValidationReminder(): ValidationReminder {
+  const cached = getCachedRaw();
+  const policy = getCachedPolicy();
+  if (!cached.data) return { show: false, blocked: false, days: null };
+
+  const age = getCacheAgeMs();
+  const graceMs = policy.offline_grace_ms;
+  if (age > graceMs) {
+    return { show: true, blocked: true, days: null };
+  }
+
+  const expiry = policy.license_expiration || cached.data.expiry_date || cached.data.trial_end || null;
+  let days: number | null = null;
+  if (expiry) {
+    days = Math.max(0, Math.floor((new Date(expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+  }
+  const expiringSoon = policy.validation_policy === "expiring_soon" || (days !== null && days <= 45);
+  if (!expiringSoon && !(policy.force_validation && needsRefresh())) {
+    return { show: false, blocked: false, days };
+  }
+
+  const offline = typeof navigator === "undefined" || !navigator.onLine;
+  if (offline || needsRefresh()) return { show: true, blocked: false, days };
+  return { show: false, blocked: false, days };
 }
 
 export function clearLicenseCache(): void {
   try {
     localStorage.removeItem(CACHE_KEY);
     localStorage.removeItem(CACHE_AGE_KEY);
+    localStorage.removeItem(POLICY_KEY);
   } catch {}
 }
 

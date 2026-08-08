@@ -13,7 +13,12 @@ serve(async (req) => {
     if (!authHeader) throw new Error("missing authorization");
     const token = authHeader.replace("Bearer ", "");
 
-    const body: { activation_id?: string; license_type?: string; duration_days?: number; permanent?: boolean; notes?: string } = await req.json().catch(() => ({}));
+    const body: {
+      activation_id?: string;
+      license_type?: string;
+      expiry_date?: string;
+      notes?: string;
+    } = await req.json().catch(() => ({}));
     if (!body.activation_id) throw new Error("activation_id_required");
 
     const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
@@ -38,21 +43,36 @@ serve(async (req) => {
 
     if (!activation) throw new Error("activation_not_found_or_already_processed");
 
-    const isPermanent = body.permanent === true;
+    const licenseType: string = body.license_type || "year_1";
+    const isLifetime = licenseType === "lifetime";
     let expiryDate: string | null = null;
-    let licenseType: string;
+    let dbLicenseStatus: string;
 
-    if (isPermanent) {
-      licenseType = "permanent";
+    if (isLifetime) {
+      expiryDate = null;
+      dbLicenseStatus = "permanent";
     } else {
-      const days = body.duration_days || 30;
-      const date = new Date();
-      date.setDate(date.getDate() + days);
-      expiryDate = date.toISOString().split("T")[0];
-      if (days <= 30) licenseType = "days_30";
-      else if (days <= 90) licenseType = "days_90";
-      else if (days <= 180) licenseType = "days_180";
-      else licenseType = "days_365";
+      if (licenseType === "year_1") {
+        const d = new Date();
+        d.setFullYear(d.getFullYear() + 1);
+        expiryDate = d.toISOString().split("T")[0];
+      } else if (licenseType === "year_2") {
+        const d = new Date();
+        d.setFullYear(d.getFullYear() + 2);
+        expiryDate = d.toISOString().split("T")[0];
+      } else if (licenseType === "year_3") {
+        const d = new Date();
+        d.setFullYear(d.getFullYear() + 3);
+        expiryDate = d.toISOString().split("T")[0];
+      } else if (licenseType === "custom_date" && body.expiry_date) {
+        expiryDate = body.expiry_date;
+      } else {
+        // Fallback: default to 1 year
+        const d = new Date();
+        d.setFullYear(d.getFullYear() + 1);
+        expiryDate = d.toISOString().split("T")[0];
+      }
+      dbLicenseStatus = "active";
     }
 
     const now = new Date().toISOString();
@@ -72,8 +92,8 @@ serve(async (req) => {
     await serviceClient
       .from("profiles")
       .update({
-        license_status: isPermanent ? "permanent" : "active",
-        license_type: isPermanent ? "permanent" : licenseType as any,
+        license_status: dbLicenseStatus,
+        license_type: licenseType,
         expiry_date: expiryDate,
         account_status: "active",
         updated_at: now,
@@ -92,12 +112,12 @@ serve(async (req) => {
           activation_id: body.activation_id,
           license_type: licenseType,
           expiry_date: expiryDate,
-          permanent: isPermanent,
+          lifetime: isLifetime,
           notes: body.notes,
         },
       });
 
-    return new Response(JSON.stringify({ success: true, license_type: licenseType, expiry_date: expiryDate, permanent: isPermanent }), {
+    return new Response(JSON.stringify({ success: true, license_type: licenseType, expiry_date: expiryDate, lifetime: isLifetime }), {
       status: 200,
       headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": origin },
     });

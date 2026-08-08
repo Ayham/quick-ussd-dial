@@ -80,7 +80,7 @@ const Balance = () => {
   }, []);
 
   const handleBalanceCheck = async (operator: Operator) => {
-    const credentials = getCredentials();
+    const credentials = await getCredentials();
     const simAssignment = getSimAssignment();
     const ussd = buildBalanceCode(operator, credentials);
     const simSlot = simAssignment[operator];

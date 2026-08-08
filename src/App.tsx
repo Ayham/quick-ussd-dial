@@ -3,11 +3,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, FutureConfig } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import Balance from "./pages/Balance";
+import TransferHistory from "./pages/TransferHistory";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import Updates from "./pages/Updates";
@@ -18,11 +19,14 @@ import LicenseLocked from "./pages/LicenseLocked";
 import { AuthSessionProvider, RequireAdmin, RequireAuth } from "@/lib/auth-session";
 import { NotificationsProvider } from "@/hooks/use-notifications";
 import OnboardingGate from "@/components/OnboardingGate";
+import LicenseReminder from "@/components/LicenseReminder";
+import DeviceMismatchDialog from "@/components/DeviceMismatchDialog";
+import { UpdateBanner } from "@/components/ForceUpdate";
 
 import "./lib/i18n";
 import { isWebBrowser } from "@/lib/platform";
 import { checkForUpdate, type UpdateInfo } from "@/lib/update-checker";
-import ForceUpdate from "@/components/ForceUpdate";
+import { startCloudServices } from "@/cloud";
 
 const queryClient = new QueryClient();
 const Reports = lazy(() => import("./pages/Reports"));
@@ -31,17 +35,19 @@ const Notifications = lazy(() => import("./pages/Notifications"));
 const AppContent = () => {
   const { t } = useTranslation();
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
-  const [checkingUpdate, setCheckingUpdate] = useState(false);
   const isWeb = isWebBrowser();
 
   const doUpdateCheck = async () => {
-    setCheckingUpdate(true);
     try {
       const info = await checkForUpdate();
       setUpdateInfo(info);
     } catch {}
-    setCheckingUpdate(false);
   };
+
+  // Cloud Module bootstrap — background, non-blocking, never awaited.
+  useEffect(() => {
+    startCloudServices();
+  }, []);
 
   useEffect(() => {
     if (!isWeb) {
@@ -49,25 +55,13 @@ const AppContent = () => {
     }
   }, []);
 
-  if (updateInfo?.maintenance) {
-    return (
-      <div className="min-h-dvh bg-background p-6 flex items-center justify-center safe-area-insets">
-        <div className="w-full max-w-sm border border-border bg-card p-6 text-center space-y-3">
-          <h1 className="text-xl font-bold">{t("common.maintenanceTitle")}</h1>
-          <p className="text-sm text-muted-foreground">{t("common.maintenanceDesc")}</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (updateInfo?.minimum_version) {
-    return <ForceUpdate minimumVersion={updateInfo.minimum_version} latestVersion={updateInfo.latest_version} />;
-  }
-
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthSessionProvider>
         <NotificationsProvider>
+          {updateInfo?.hasUpdate && (
+            <UpdateBanner updateInfo={updateInfo} onDismiss={() => setUpdateInfo(null)} />
+          )}
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/activation" element={<RequireAuth><Activation /></RequireAuth>} />
@@ -82,6 +76,7 @@ const AppContent = () => {
               </RequireAuth>
             } />
             <Route path="/balance" element={<RequireAuth><Balance /></RequireAuth>} />
+            <Route path="/transfer-history" element={<RequireAuth><TransferHistory /></RequireAuth>} />
             <Route path="/notifications" element={
               <RequireAuth>
                 <Suspense fallback={<div className="min-h-dvh grid place-items-center text-sm text-muted-foreground">{t("common.loading")}</div>}>
@@ -95,6 +90,8 @@ const AppContent = () => {
             <Route path="*" element={<RequireAuth><NotFound /></RequireAuth>} />
           </Routes>
           <OnboardingGate />
+          <LicenseReminder />
+          <DeviceMismatchDialog />
         </NotificationsProvider>
       </AuthSessionProvider>
     </BrowserRouter>

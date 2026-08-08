@@ -218,16 +218,25 @@ export function savePresets(presets: Record<Operator, AmountPreset[]>) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
 }
 
-// Credentials
-export function getCredentials(): OperatorCredentials {
+// Credentials (plain JSON)
+export async function getCredentials(): Promise<OperatorCredentials> {
   try {
     const stored = localStorage.getItem(CREDENTIALS_KEY);
-    if (stored) return JSON.parse(stored);
+    if (stored) {
+      const parsed = JSON.parse(stored) as Partial<OperatorCredentials>;
+      if (parsed && typeof parsed === "object") {
+        return {
+          mtnSecret: String(parsed.mtnSecret ?? ""),
+          syriatelSerial: String(parsed.syriatelSerial ?? ""),
+          syriatelDistributor: String(parsed.syriatelDistributor ?? ""),
+        };
+      }
+    }
   } catch {}
   return DEFAULT_CREDENTIALS;
 }
 
-export function saveCredentials(credentials: OperatorCredentials) {
+export async function saveCredentials(credentials: OperatorCredentials): Promise<void> {
   localStorage.setItem(CREDENTIALS_KEY, JSON.stringify(credentials));
 }
 

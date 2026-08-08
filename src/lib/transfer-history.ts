@@ -13,6 +13,7 @@ export interface TransferRecord {
 }
 
 const HISTORY_KEY = "transfer-history";
+const HISTORY_LIMIT = 1000;
 
 export function getHistory(): TransferRecord[] {
   try {
@@ -25,7 +26,7 @@ export function getHistory(): TransferRecord[] {
 export function addToHistory(record: TransferRecord) {
   const history = getHistory();
   history.unshift(record);
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 100)));
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, HISTORY_LIMIT)));
 }
 
 /**

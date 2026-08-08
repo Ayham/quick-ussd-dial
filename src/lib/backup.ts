@@ -93,55 +93,79 @@ function buildBackupData(): BackupData {
   };
 }
 
-export function createBackup(password?: string): string {
+export async function createBackup(password?: string): Promise<string> {
   const backup = buildBackupData();
   const json = JSON.stringify(backup, null, 2);
 
   if (password) {
-    return encryptBackup(json, password);
+    return await encryptBackup(json, password);
   }
 
   return json;
 }
 
-function encryptBackup(data: string, password: string): string {
-  let key = 0;
-  for (let i = 0; i < password.length; i++) {
-    key += password.charCodeAt(i);
-  }
-  const shift = (key % 94) + 1;
-  let encrypted = "";
-  const printableStart = 32;
-  const printableRange = 94;
-  for (let i = 0; i < data.length; i++) {
-    encrypted += String.fromCharCode(((data.charCodeAt(i) - printableStart + shift) % printableRange) + printableStart);
-  }
+async function getEncryptionKey(password: string): Promise<CryptoKey> {
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits", "deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: encoder.encode("raseed-backup-v1"),
+      iterations: 100000,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+async function encryptBackup(data: string, password: string): Promise<string> {
+  const key = await getEncryptionKey(password);
+  const encoder = new TextEncoder();
+  const plaintext = encoder.encode(data);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    plaintext
+  );
+  const combined = new Uint8Array(iv.length + encrypted.byteLength);
+  combined.set(iv);
+  combined.set(new Uint8Array(encrypted), iv.length);
+  const payload = btoa(String.fromCharCode(...combined));
   return JSON.stringify({
     _encrypted: true,
     _backup_version: BACKUP_VERSION,
     _created_at: new Date().toISOString(),
     _app_version: APP_VERSION,
-    payload: encrypted,
+    payload,
   });
 }
 
-function decryptBackup(encryptedData: string, password: string): string | null {
+async function decryptBackup(encryptedData: string, password: string): Promise<string | null> {
   try {
     const wrapper = JSON.parse(encryptedData);
     if (!wrapper._encrypted) return null;
 
-    let key = 0;
-    for (let i = 0; i < password.length; i++) {
-      key += password.charCodeAt(i);
-    }
-    const shift = (key % 94) + 1;
-    const printableStart = 32;
-    const printableRange = 94;
-    let decrypted = "";
-    for (let i = 0; i < wrapper.payload.length; i++) {
-      decrypted += String.fromCharCode(((wrapper.payload.charCodeAt(i) - printableStart - shift + printableRange) % printableRange) + printableStart);
-    }
-    return decrypted;
+    const key = await getEncryptionKey(password);
+    const combined = Uint8Array.from(atob(wrapper.payload), c => c.charCodeAt(0));
+    const iv = combined.slice(0, 12);
+    const data = combined.slice(12);
+    const decrypted = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv },
+      key,
+      data
+    );
+    const decoder = new TextDecoder();
+    return decoder.decode(decrypted);
   } catch {
     return null;
   }
@@ -239,7 +263,7 @@ export function getBackupPreview(data: unknown): BackupPreview | null {
   };
 }
 
-export function restoreBackup(data: unknown, password?: string): { success: boolean; error?: string; restored: string[] } {
+export async function restoreBackup(data: unknown, password?: string): Promise<{ success: boolean; error?: string; restored: string[] }> {
   let json: string;
 
   if (typeof data === "string") {
@@ -247,7 +271,7 @@ export function restoreBackup(data: unknown, password?: string): { success: bool
   } else if (typeof data === "object" && data !== null) {
     const obj = data as Record<string, unknown>;
     if (obj._encrypted && password) {
-      json = decryptBackup(JSON.stringify(obj), password);
+      json = await decryptBackup(JSON.stringify(obj), password);
       if (!json) return { success: false, error: i18n.t("errors.wrongPassword") };
     } else if (obj._encrypted && !password) {
       return { success: false, error: i18n.t("errors.encryptedDataPasswordRequired") };

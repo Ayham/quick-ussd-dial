@@ -3,6 +3,7 @@ import { isNativeApp } from "./platform";
 import i18n from "@/lib/i18n";
 
 let cachedDeviceId: string | null = null;
+const DEVICE_BINDING_KEY = "app_device_binding_v1";
 
 function generateDeviceId(): string {
   return "device_" + crypto.randomUUID();
@@ -19,6 +20,55 @@ export function getDeviceId(): string {
   }
   cachedDeviceId = deviceId;
   return deviceId;
+}
+
+/**
+ * Rotation-safe, user-preference-safe hardware binding signature.
+ * Intentionally EXCLUDES screen dimensions (rotation) and language/timezone
+ * (user preferences that the app lets the user change) so the signature is
+ * stable on the same device while still differing across distinct physical
+ * devices. Used to detect cold copies of the app data to another device.
+ * Synchronous so it can be used by getTransferGuard() at transfer time,
+ * and the stored binding must be produced by this exact function so the
+ * offline comparison matches.
+ */
+export function getDeviceBindingSignatureSync(): string {
+  const components = [
+    navigator.userAgent || "unknown",
+    navigator.platform || "unknown",
+    String(navigator.hardwareConcurrency || "unknown"),
+  ];
+  const raw = components.join("|||");
+  // Original simple hash (same as before) for consistency in test environments
+  let hash = 0;
+  for (let i = 0; i < raw.length; i++) {
+    const chr = raw.charCodeAt(i);
+    hash = ((hash << 5) - hash) + chr;
+    hash |= 0; // Convert to 32-bit signed integer
+  }
+  return "bind_" + Math.abs(hash).toString(36);
+}
+
+export function getStoredDeviceBinding(): string | null {
+  try {
+    return localStorage.getItem(DEVICE_BINDING_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function storeDeviceBinding(): string {
+  const sig = getDeviceBindingSignatureSync();
+  try {
+    localStorage.setItem(DEVICE_BINDING_KEY, sig);
+  } catch {}
+  return sig;
+}
+
+export function clearDeviceBinding(): void {
+  try {
+    localStorage.removeItem(DEVICE_BINDING_KEY);
+  } catch {}
 }
 
 export function getDeviceInfo() {
@@ -52,14 +102,44 @@ function getDeviceFingerprint(): string {
   return "fp_" + Math.abs(hash).toString(36);
 }
 
-export async function registerDeviceLogin(): Promise<boolean> {
-  if (!isNativeApp()) return true;
+export interface DeviceLoginResult {
+  success: boolean;
+  error?: string;
+  currentDevice?: string | null;
+}
+
+type DeviceMismatchListener = (info: { currentDevice: string | null }) => void;
+const mismatchListeners = new Set<DeviceMismatchListener>();
+
+export function onDeviceMismatch(listener: DeviceMismatchListener): () => void {
+  mismatchListeners.add(listener);
+  return () => {
+    mismatchListeners.delete(listener);
+  };
+}
+
+export function notifyDeviceMismatch(currentDevice: string | null): void {
+  for (const listener of mismatchListeners) listener({ currentDevice });
+}
+
+export async function registerDeviceLogin(force = false): Promise<DeviceLoginResult> {
+  if (!isNativeApp()) return { success: true };
   try {
     const info = getDeviceInfo();
-    const { data, error } = await supabase.functions.invoke("device-login", { body: info });
-    return !error && data?.success === true;
+    const { data: { session } } = await supabase.auth.getSession();
+    const { data, error } = await supabase.functions.invoke("device-login", {
+      body: { ...info, force, refresh_token: session?.refresh_token ?? null },
+    });
+    const payload = (data ?? {}) as { success?: boolean; error?: string; current_device?: string | null };
+    if (!error && payload?.success === true) return { success: true };
+    if (payload?.error === "device_mismatch") {
+      const currentDevice = payload.current_device ?? null;
+      notifyDeviceMismatch(currentDevice);
+      return { success: false, error: "device_mismatch", currentDevice };
+    }
+    return { success: false, error: payload?.error ?? (error?.message ?? "unknown") };
   } catch {
-    return false;
+    return { success: false, error: "unknown" };
   }
 }
 

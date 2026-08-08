@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getLicenseStatus, getTrialRemainingDays, type LicenseInfo, shouldShowTrialWarning } from "@/lib/license";
+import { getTrialRemainingDays } from "@/lib/license";
+import { getCachedValidation } from "@/lib/license-cache";
 import { cn } from "@/lib/utils";
 
 const TrialBanner = () => {
@@ -13,15 +14,36 @@ const TrialBanner = () => {
   const [warning, setWarning] = useState<{ show: boolean; days: number } | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
+  // Fully local — reads the cached license verdict, never performs a network call.
   useEffect(() => {
-    const check = async () => {
-      const lic = await getLicenseStatus();
-      const w = shouldShowTrialWarning(lic);
-      setWarning(w);
+    const check = () => {
+      const cached = getCachedValidation();
+      if (!cached) {
+        setWarning(null);
+        return;
+      }
+      if (cached.license_status !== "trial") {
+        setWarning(null);
+        return;
+      }
+      if (cached.account_status === "suspended" || cached.account_status === "blocked") {
+        setWarning(null);
+        return;
+      }
+      const days = getTrialRemainingDays(cached.trial_end ?? null);
+      if (days > 0 && days <= 3) {
+        setWarning({ show: true, days });
+      } else {
+        setWarning(null);
+      }
     };
     check();
-    const interval = setInterval(check, 60000);
-    return () => clearInterval(interval);
+    window.addEventListener("focus", check);
+    window.addEventListener("online", check);
+    return () => {
+      window.removeEventListener("focus", check);
+      window.removeEventListener("online", check);
+    };
   }, []);
 
   if (!warning || !warning.show || dismissed) return null;
