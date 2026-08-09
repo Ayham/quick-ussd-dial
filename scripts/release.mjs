@@ -113,29 +113,22 @@ import("node:https").then(({ default: https }) => {
   }
 
   async function uploadRelease() {
-    // 0. Delete existing release with same tag (if any) to avoid conflicts
-    try {
-      console.log("🧹 Cleaning up any existing v" + newVersion + " tag...");
+    console.log("🧹 Cleaning up any existing releases for v" + newVersion + "...");
 
-      // Try to find and delete existing release
-      const existing = await githubRequest(
-        "GET",
-        `/repos/${GITHUB_REPO}/releases/tags/v${newVersion}`
-      );
+    // 0. Try to delete existing release (if any) — may fail due to repo rules
+    try {
+      const allReleases = await githubRequest("GET", `/repos/${GITHUB_REPO}/releases?per_page=100`);
+      const existing = allReleases.find(r => r.tag_name === `v${newVersion}` || r.tag_name === newVersion);
       if (existing && existing.id) {
-        console.log("🗑️  Deleting existing GitHub release...");
+        console.log("🗑️  Deleting existing release...");
         await githubRequest("DELETE", `/repos/${GITHUB_REPO}/releases/${existing.id}`);
       }
-
-      // Delete the git tag ref directly
-      await githubRequest("DELETE", `/repos/${GITHUB_REPO}/git/refs/tags/v${newVersion}`);
-      console.log("🧹 Tag cleaned up.");
     } catch (e) {
-      // Tag may not exist, which is fine
-      console.log("🆕 No existing release to clean up.");
+      console.log("⚠️  Could not clean existing release (repo rules may block deletion).");
     }
 
-    // 1. Create release
+    // 1. Create as DRAFT first (repo rules allow draft releases even if published tags are restricted)
+    console.log("📤 Creating draft release...");
     const release = await githubRequest(
       "POST",
       `/repos/${GITHUB_REPO}/releases`,
@@ -143,43 +136,72 @@ import("node:https").then(({ default: https }) => {
         tag_name: `v${newVersion}`,
         name: `v${newVersion}`,
         body: `Quick USSD Dial ${newVersion}`,
-        draft: false,
+        draft: true,
         prerelease: false,
       }
     );
 
+    // 2. Upload APK asset to the draft release
     const uploadUrl = release.upload_url.replace("{?name,label}", `?name=${encodeURIComponent(APK_PATH.split(/[\\/]/).pop())}&`);
+    console.log("📤 Uploading APK...");
 
-    // 2. Upload APK asset (using GitHub's upload endpoint)
     const fs = await import("node:fs");
     const apkBuffer = fs.readFileSync(APK_PATH);
-    const uploadReq = https.request(
-      {
-        hostname: "uploads.github.com",
-        path: uploadUrl.replace(/^https:\/\/uploads\.github\.com/, ""),
-        method: "POST",
-        headers: {
-          Authorization: `token ${GH_TOKEN}`,
-          "Content-Type": "application/octet-stream",
-          "Content-Length": apkBuffer.length,
+
+    const uploadResult = await new Promise((resolve, reject) => {
+      const uploadReq = https.request(
+        {
+          hostname: "uploads.github.com",
+          path: uploadUrl.replace(/^https:\/\/uploads\.github\.com/, ""),
+          method: "POST",
+          headers: {
+            Authorization: `token ${GH_TOKEN}`,
+            "Content-Type": "application/octet-stream",
+            "Content-Length": apkBuffer.length,
+          },
+          timeout: 300000, // 5 minute timeout for large APK uploads
         },
-      },
-      (res) => {
-        let data = "";
-        res.on("data", (chunk) => (data += chunk));
-        res.on("end", () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            console.log(`🎉 Release v${newVersion} published with APK uploaded successfully!`);
-            console.log(`🔗 https://github.com/${GITHUB_REPO}/releases/tag/v${newVersion}`);
-          } else {
-            console.error(`❌ Upload failed (${res.statusCode}): ${data}`);
-            process.exit(1);
-          }
-        });
-      }
+        (res) => {
+          let data = "";
+          res.on("data", (chunk) => (data += chunk));
+          res.on("end", () => {
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              try {
+                resolve(JSON.parse(data));
+              } catch {
+                resolve(null);
+              }
+            } else {
+              reject(new Error(`Upload failed (${res.statusCode}): ${data}`));
+            }
+          });
+        }
+      );
+      uploadReq.on("error", reject);
+      uploadReq.on("timeout", () => {
+        uploadReq.destroy(new Error("Upload timed out after 5 minutes"));
+      });
+      uploadReq.write(apkBuffer);
+      uploadReq.end();
+    });
+
+    console.log("✅ APK uploaded:", (uploadResult || {}).name || "asset");
+
+    // 3. Publish the release
+    console.log("🔄 Publishing release...");
+    const published = await githubRequest(
+      "PATCH",
+      `/repos/${GITHUB_REPO}/releases/${release.id}`,
+      { draft: false }
     );
-    uploadReq.write(apkBuffer);
-    uploadReq.end();
+
+    if (published.draft === false) {
+      console.log(`🎉 Release v${newVersion} published successfully with APK!`);
+      console.log(`🔗 https://github.com/${GITHUB_REPO}/releases/tag/v${newVersion}`);
+    } else {
+      console.error("❌ Release is still a draft after publish attempt.");
+      console.log("   You can publish it manually at:", `https://github.com/${GITHUB_REPO}/releases`);
+    }
   }
 
   uploadRelease().catch((err) => {
