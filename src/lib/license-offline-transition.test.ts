@@ -76,13 +76,61 @@ describe("Offline -> Online license refresh (الترخيص يُحدَّث فو�
     expect(guard.allowed).toBe(true);
   });
 
-  it("offline past the server-controlled grace period blocks transfers", () => {
-    seedValidCache();
+  it("offline past the server-controlled fallback bound blocks undated licenses", () => {
+    // Undated license (server never communicated an expiry): the fallback
+    // refresh bound (offline_grace_ms) caps how long it stays valid offline.
+    const undated: ValidationResult = {
+      valid: true,
+      license_status: "active",
+      account_status: "active",
+    };
+    localStorage.setItem("app_license_cache", JSON.stringify(undated));
     const eightDaysAgo = Date.now() - 1000 * 60 * 60 * 24 * 8;
     localStorage.setItem("app_license_cache_age", String(eightDaysAgo));
     const guard = getTransferGuard();
     expect(guard.allowed).toBe(false);
     expect(guard.reasonCode).toBe("offline_grace_expired");
+  });
+
+  it("offline with a dated license stays usable past the refresh interval (strict expiration, no artificial grace)", () => {
+    // An active license with a real expiry is usable offline until that exact
+    // date — even if it has not revalidated recently. offline_grace_ms does
+    // NOT extend or shorten a dated license.
+    seedValidCache();
+    const eightDaysAgo = Date.now() - 1000 * 60 * 60 * 24 * 8;
+    localStorage.setItem("app_license_cache_age", String(eightDaysAgo));
+    const guard = getTransferGuard();
+    expect(guard.allowed).toBe(true);
+  });
+
+  it("offline after the actual expiration date blocks transfers immediately", () => {
+    const expired: ValidationResult = {
+      valid: false,
+      license_status: "active",
+      account_status: "active",
+      expiry_date: new Date(Date.now() - 86400000).toISOString(),
+    };
+    localStorage.setItem("app_license_cache", JSON.stringify(expired));
+    localStorage.setItem("app_license_cache_age", String(Date.now()));
+    localStorage.setItem("app_device_binding_v1", getDeviceBindingSignatureSync());
+    const guard = getTransferGuard();
+    expect(guard.allowed).toBe(false);
+    expect(guard.reasonCode).toBe("expired");
+  });
+
+  it("offline after the trial end blocks transfers immediately", () => {
+    const trialEnded: ValidationResult = {
+      valid: false,
+      license_status: "trial",
+      account_status: "active",
+      trial_end: new Date(Date.now() - 86400000).toISOString(),
+    };
+    localStorage.setItem("app_license_cache", JSON.stringify(trialEnded));
+    localStorage.setItem("app_license_cache_age", String(Date.now()));
+    localStorage.setItem("app_device_binding_v1", getDeviceBindingSignatureSync());
+    const guard = getTransferGuard();
+    expect(guard.allowed).toBe(false);
+    expect(guard.reasonCode).toBe("trial_ended");
   });
 
   it("reconnecting pulls the new verdict: revoked account becomes blocked immediately", async () => {

@@ -1,4 +1,4 @@
-import { refreshLicenseCacheIfNeeded, getCachedPolicy } from "@/lib/license-cache";
+import { refreshLicenseCacheIfNeeded, validateDeviceSession, getCachedPolicy } from "@/lib/license-cache";
 import { trackAppOpen } from "@/lib/cloud-sync";
 import { startSupabaseSync } from "@/lib/supabase-sync";
 import { flushPendingOps } from "@/lib/notifications/offline";
@@ -20,6 +20,21 @@ async function validateBackground(): Promise<void> {
   try {
     if (typeof navigator !== "undefined" && navigator.onLine) {
       await refreshLicenseCacheIfNeeded();
+    }
+  } catch {}
+}
+
+/**
+ * IMMEDIATE server validation, run the moment connectivity is restored.
+ * Revocation / blocking is server-authoritative and takes effect as soon as
+ * the device reconnects: we do NOT wait for the periodic scheduler interval.
+ * validateDeviceSession() refreshes the verdict AND the server policy and
+ * re-enforces the latest state in the local cache synchronously afterwards.
+ */
+async function validateImmediately(): Promise<void> {
+  try {
+    if (typeof navigator !== "undefined" && navigator.onLine) {
+      await validateDeviceSession();
     }
   } catch {}
 }
@@ -60,7 +75,7 @@ export function startCloudServices(): void {
 
   // Policy-driven validation loop: cadence comes from the server, not the client.
   window.addEventListener("online", () => {
-    void validateBackground();
+    void validateImmediately();
   });
   runLoop();
 }

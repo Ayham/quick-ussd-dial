@@ -31,7 +31,7 @@ const Updates = () => {
     setChecking(true);
     try {
       const [info, ghReleases] = await Promise.all([
-        checkForUpdate(),
+        checkForUpdate(true),
         fetchReleasesFromGitHub(),
       ]);
       setUpdateInfo(info);
@@ -41,6 +41,13 @@ const Updates = () => {
   };
 
   useEffect(() => { doCheck(); }, []);
+
+  // Re-check live when the app comes back online.
+  useEffect(() => {
+    const onOnline = () => doCheck();
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, []);
 
   return (
     <AppLayout title={t("updates.title")} titleIcon={<div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><Download className="w-4.5 h-4.5 text-white" /></div>}>
@@ -68,6 +75,21 @@ const Updates = () => {
               </div>
             </div>
 
+            {updateInfo?.forced && (
+              <div className="flex items-center justify-center gap-1.5 mb-3">
+                <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 text-destructive border border-destructive/20 px-3 py-1 text-[11px] font-semibold">
+                  <ArrowUpCircle className="w-3.5 h-3.5" />
+                  {t("updates.forcedUpdate")}
+                </span>
+              </div>
+            )}
+
+            {updateInfo?.notes && (
+              <div className="bg-muted/60 rounded-xl p-3 border border-border/50 mb-3">
+                <p className="text-xs text-foreground leading-relaxed">{updateInfo.notes}</p>
+              </div>
+            )}
+
             {updateInfo?.hasUpdate && !checking && (
               <div className="space-y-3">
                 <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-2">
@@ -75,6 +97,12 @@ const Updates = () => {
                     <span className="text-xs text-muted-foreground">{t("updates.newVersion")}</span>
                     <span className="font-mono font-bold text-primary text-sm">{updateInfo.latestVersion}</span>
                   </div>
+                  {updateInfo.minimumVersion && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">{t("updates.minimumRequired")}</span>
+                      <span className="font-mono font-bold text-destructive text-xs">{updateInfo.minimumVersion}</span>
+                    </div>
+                  )}
                   {updateInfo.releaseDate && (
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-muted-foreground">{t("updates.releaseDate")}</span>

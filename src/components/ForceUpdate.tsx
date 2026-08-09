@@ -1,11 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Download, RefreshCw, Sparkles, X, Loader2 } from "lucide-react";
+import { Download, RefreshCw, Sparkles, X, Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { UpdateInfo } from "@/lib/update-checker";
 import { downloadAndInstallApk, type DownloadProgress } from "@/lib/apk-downloader";
 import { toast } from "@/hooks/use-toast";
 import { APP_VERSION } from "@/config/version";
+
+export { isForcedDismissed, dismissForcedUpdate } from "@/lib/update-checker";
+export type { UpdateInfo };
 
 interface UpdateBannerProps {
   updateInfo: UpdateInfo;
@@ -155,8 +158,103 @@ export const UpdateDialog = ({ updateInfo, onRetry, onSkip, checking }: UpdateDi
   );
 };
 
-const REMIND_INTERVAL_MS = 24 * 60 * 60 * 1000; // Remind every 24 hours
-const DISMISS_KEY = 'app_update_dismissed_at';
+// -----------------------------------------------------------------------------
+// Forced-update helpers
+// -----------------------------------------------------------------------------
+export const REMIND_INTERVAL_MS = 24 * 60 * 60 * 1000; // Remind every 24 hours
+export const DISMISS_KEY = 'app_update_dismissed_at';
+
+interface ForcedUpdateGateProps {
+  updateInfo: UpdateInfo;
+  onRetry: () => void;
+  onDismiss?: () => void;
+  checking?: boolean;
+  /** When true, a "remind me later (24h)" button is shown. */
+  allowDismiss?: boolean;
+}
+
+/** Blocking full-screen gate shown when the server-required minimum version > installed. */
+export const ForcedUpdateGate = ({ updateInfo, onRetry, onDismiss, checking, allowDismiss }: ForcedUpdateGateProps) => {
+  const { t } = useTranslation();
+  const [dlProgress, setDlProgress] = useState<DownloadProgress>({ progress: 0, status: 'idle' });
+
+  const handleDownload = async () => {
+    if (!updateInfo.downloadUrl) return;
+    try {
+      await downloadAndInstallApk(updateInfo.downloadUrl, setDlProgress);
+    } catch (e: any) {
+      toast({ title: t("forceUpdate.downloadErrorTitle"), description: e.message, variant: "destructive" });
+    }
+  };
+
+  const isDownloading = dlProgress.status === 'downloading' || dlProgress.status === 'opening';
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-background p-6 flex items-center justify-center safe-area-insets" dir={document.documentElement.dir}>
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 text-center space-y-5">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
+          <ShieldAlert className="h-7 w-7" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-xl font-semibold">{t("forceUpdate.updateRequiredTitle")}</h1>
+          <p className="text-sm text-muted-foreground">
+            {t("forceUpdate.updateRequiredDesc", { version: updateInfo.minimumVersion || "required by the administrator" })}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-border bg-muted/40 p-3 space-y-2 text-sm text-muted-foreground">
+          <div className="flex items-center justify-between">
+            <span>{t("forceUpdate.currentVersionLabel")}</span>
+            <span className="font-medium text-foreground">{updateInfo.currentVersion}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>{t("forceUpdate.requiredVersionLabel")}</span>
+            <span className="font-medium text-foreground">{updateInfo.minimumVersion}</span>
+          </div>
+        </div>
+
+        {isDownloading && (
+          <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+            <div
+              className="bg-primary h-full rounded-full transition-all duration-300"
+              style={{ width: `${dlProgress.progress}%` }}
+            />
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {updateInfo.downloadUrl ? (
+            <Button
+              onClick={handleDownload}
+              className="w-full h-12 font-bold rounded-xl text-sm"
+              size="lg"
+              disabled={isDownloading}
+            >
+              {isDownloading
+                ? <><Loader2 className="w-5 h-5 ml-2 animate-spin" />{t("forceUpdate.downloadingButton")}</>
+                : <><Download className="w-5 h-5 ml-2" />{t("forceUpdate.updateButton")}</>
+              }
+            </Button>
+          ) : null}
+          <Button onClick={onRetry} variant="outline" className="w-full h-10 text-xs" disabled={checking || isDownloading}>
+            <RefreshCw className={`w-4 h-4 ml-1.5 ${checking ? 'animate-spin' : ''}`} />
+            {t("forceUpdate.checkButton")}
+          </Button>
+          {allowDismiss && onDismiss && (
+            <Button
+              onClick={onDismiss}
+              variant="ghost"
+              className="w-full h-10 text-muted-foreground text-xs"
+              disabled={isDownloading}
+            >
+              {t("forceUpdate.remindLater")}
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface ForceUpdateProps {
   minimumVersion?: string;

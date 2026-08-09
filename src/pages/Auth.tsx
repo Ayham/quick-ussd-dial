@@ -12,6 +12,7 @@ import {
   validatePasswordStrength, validatePasswordsMatch,
 } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { authTrace } from "@/lib/auth";
 import { Mail, Lock, User, Phone, Eye, EyeOff, Loader2, ArrowRight, LogOut, Shield, CheckCircle2, AlertCircle } from "lucide-react";
 import { useAuthSession } from "@/lib/auth-session";
 
@@ -52,6 +53,7 @@ const Auth = () => {
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       refreshUser();
       if (session?.user && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
+        authTrace("NAVIGATE_HOME", { event, next });
         nav(next, { replace: true });
       }
     });

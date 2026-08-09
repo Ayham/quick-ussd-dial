@@ -4,6 +4,41 @@ import { App } from "@capacitor/app";
 import { toast } from "sonner";
 import i18n from "@/lib/i18n";
 
+const TRACE_TAG = "RASEED_AUTH";
+
+// Temporary diagnostic instrumentation for the Android Google OAuth flow.
+// Logs only metadata (presence/length/short prefix), never tokens or secrets.
+export function authTrace(stage: string, detail?: Record<string, unknown> | string) {
+  const ts = new Date().toISOString();
+  const body = detail
+    ? typeof detail === "string"
+      ? detail
+      : Object.entries(detail)
+          .map(([k, v]) => `${k}=${String(v)}`)
+          .join(" ")
+    : "";
+  console.log(`[${TRACE_TAG}] ${ts} [${stage}]${body ? ` ${body}` : ""}`);
+}
+
+function shortenSecret(value: string | null | undefined): string {
+  if (!value) return "absent";
+  return `len=${value.length} head=${value.slice(0, 6)} tail=${value.slice(-4)}`;
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T | undefined> {
+  let timedOut = false;
+  const guard = new Promise<T | undefined>((resolve) => {
+    setTimeout(() => {
+      timedOut = true;
+      authTrace("AUTH_TIMEOUT", { label, ms });
+      resolve(undefined);
+    }, ms);
+  });
+  const result = await Promise.race([promise, guard]);
+  if (timedOut) return undefined;
+  return result;
+}
+
 function normalizePhoneValue(phone?: string | null): string | null {
   if (!phone) return null;
   let value = phone.replace(/[^\d+]/g, "");
@@ -14,6 +49,14 @@ function normalizePhoneValue(phone?: string | null): string | null {
 
 const CAPACITOR_SCHEME = "com.BlueOrbitTechnologies.Raseed";
 const OAUTH_REDIRECT_PATH = "/auth";
+
+// Matches the default supabase-js storage key: `sb-<project-ref>-auth-token`.
+const SUPABASE_PROJECT_REF = (() => {
+  const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  const match = url ? /^https:\/\/([^.]+)\./.exec(url) : null;
+  return match ? match[1] : "unknown";
+})();
+const VERIFIER_STORAGE_KEY = `sb-${SUPABASE_PROJECT_REF}-auth-token-code-verifier`;
 
 function getCapacitorRedirectUrl(): string {
   return `${CAPACITOR_SCHEME}://auth`;
@@ -93,31 +136,55 @@ let oauthBrowserOpen = false;
 export async function signInWithGoogle(next = "/") {
   const redirectTo = getRedirectUrl();
   const native = isCapacitorNativePlatform();
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo,
-      // Native: open the URL ourselves via the Custom Tab and never let the
-      // WebView navigate to it. On web, let supabase-js navigate the tab.
-      skipBrowserRedirect: native,
-      queryParams: {
-        access_type: "offline",
-        prompt: "consent",
+  authTrace("GOOGLE_START", { next, native, redirectTo });
+  const { data, error } = await withTimeout(
+    supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+        // Native: open the URL ourselves via the Custom Tab and never let the
+        // WebView navigate to it. On web, let supabase-js navigate the tab.
+        skipBrowserRedirect: native,
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+        },
       },
-    },
-  });
+    }),
+    20000,
+    "signInWithOAuth",
+  ) ?? { data: undefined, error: new Error("signInWithOAuth timed out") };
 
-  if (error) return { error };
+  if (error) {
+    authTrace("AUTH_ERROR", { stage: "signInWithOAuth", message: error.message });
+    return { error };
+  }
 
   const oauthUrl = data?.url;
   if (!oauthUrl) return { error: new Error(i18n.t("errors.noOAuthUrl")) };
 
+  try {
+    const parsed = new URL(oauthUrl);
+    authTrace("OAUTH_URL", {
+      scheme: parsed.protocol,
+      host: parsed.host,
+      hasCodeChallenge: parsed.searchParams.has("code_challenge"),
+      hasCodeChallengeMethod: parsed.searchParams.has("code_challenge_method"),
+      hasRedirectTo: parsed.searchParams.has("redirect_to"),
+      redirectToParam: parsed.searchParams.get("redirect_to")?.slice(0, 40) ?? "none",
+      length: oauthUrl.length,
+    });
+  } catch {
+    authTrace("OAUTH_URL", { unparsable: true, length: oauthUrl.length });
+  }
+
   if (native) {
     oauthBrowserOpen = true;
     try {
-      await Browser.open({ url: oauthUrl, windowName: "_system" });
+      await withTimeout(Browser.open({ url: oauthUrl, windowName: "_blank" }), 20000, "Browser.open");
     } catch {
       oauthBrowserOpen = false;
+      authTrace("AUTH_ERROR", { stage: "Browser.open", message: "Browser.open threw" });
     }
   }
 
@@ -127,11 +194,26 @@ export async function signInWithGoogle(next = "/") {
 const processedOAuthCodes = new Set<string>();
 
 export async function handleOAuthDeepLink(url: string) {
-  const urlObj = new URL(url);
+  authTrace("CALLBACK_PARAMS", { url: url.slice(0, 80) });
+  let urlObj: URL;
+  try {
+    urlObj = new URL(url);
+  } catch (err) {
+    authTrace("AUTH_ERROR", { stage: "parse", message: String(err) });
+    return { error: new Error(i18n.t("errors.noAuthCode")) };
+  }
+
+  const hasHashToken = Boolean(urlObj.hash && urlObj.hash.includes("access_token"));
+  const hasCode = urlObj.searchParams.has("code");
   const code = urlObj.searchParams.get("code");
+  const hasState = urlObj.searchParams.has("state");
+  authTrace("CALLBACK_HASH", { hashLength: urlObj.hash.length, hasHashToken });
+  authTrace("CALLBACK_CODE", { hasCode, state: hasState, ...(hasCode ? { code: shortenSecret(code) } : {}) });
+
   if (!code) {
     // Deep link without an auth code (e.g. plain email-confirmation mode) —
     // nothing to exchange; not an OAuth sign-in.
+    authTrace("AUTH_ERROR", { stage: "noCode", message: "No ?code= in callback URL" });
     return { error: new Error(i18n.t("errors.noAuthCode")) };
   }
 
@@ -143,35 +225,120 @@ export async function handleOAuthDeepLink(url: string) {
   }
 
   if (processedOAuthCodes.has(code)) {
+    authTrace("CALLBACK_CODE", { alreadyHandled: true });
     return { data: null, error: null, alreadyHandled: true };
   }
   processedOAuthCodes.add(code);
 
-  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+  let beforeSession: string | null = null;
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    beforeSession = sessionData?.session ? "present" : "absent";
+  } catch (err) {
+    beforeSession = `error:${String(err)}`;
+  }
+  authTrace("SESSION_BEFORE", { session: beforeSession });
+
+  let verifierState = "unknown";
+  try {
+    const v = window.localStorage.getItem(VERIFIER_STORAGE_KEY);
+    verifierState = v ? shortenSecret(v) : "absent";
+  } catch (err) {
+    verifierState = `error:${String(err)}`;
+  }
+  authTrace("SESSION_EXCHANGE", { verifierStorage: verifierState, storageKey: VERIFIER_STORAGE_KEY });
+
+  const { data, error } = await withTimeout(
+    supabase.auth.exchangeCodeForSession(code),
+    20000,
+    "exchangeCodeForSession",
+  ) ?? { data: null, error: new Error("exchangeCodeForSession timed out") };
+
   if (error) {
+    authTrace("AUTH_ERROR", { stage: "exchange", message: error.message });
     toast.error(error.message);
     return { error };
   }
+  authTrace("SESSION_AFTER", { user: data?.user?.id ? "present" : "absent", email: data?.user?.email ? "present" : "absent" });
+  authTrace("SIGNED_IN", { provider: data?.user?.app_metadata?.provider ?? "unknown" });
   toast.success(i18n.t("toast.signInSuccess"));
   return { data, error: null };
 }
 
 export async function listenForOAuthCallback(): Promise<() => void> {
-  const remove = await App.addListener("appUrlOpen", (event) => {
+  const removeAppUrlOpen = await App.addListener("appUrlOpen", (event) => {
     const url = event.url;
+    authTrace("APP_URL_OPEN", { url: url ? url.slice(0, 80) : "undefined" });
     if (url && url.startsWith(`${CAPACITOR_SCHEME}://`)) {
       handleOAuthDeepLink(url).then((result) => {
         if (result.error) {
+          authTrace("AUTH_ERROR", { stage: "appUrlOpen handler", message: result.error.message });
           console.error("OAuth callback error:", result.error.message);
         }
       });
+    } else {
+      authTrace("APP_URL_OPEN", { ignored: true });
     }
   });
-  return () => { remove.remove(); };
+
+  // Fallback for devices/browsers where the deep-link intent back into the app
+  // is not delivered while the OAuth browser is open. When the app regains
+  // focus after an OAuth session, close the Custom Tab and re-read the launch
+  // URL so a missed deep link still gets exchanged.
+  let resumePollTimer: number | undefined;
+  const removeAppState = await App.addListener("appStateChange", (state) => {
+    if (!state.isActive || !oauthBrowserOpen) return;
+    oauthBrowserOpen = false;
+    Browser.close().catch(() => {});
+    let attempts = 0;
+    const poll = async () => {
+      attempts += 1;
+      const url = await getInitialDeepLink();
+      if (url && url.startsWith(`${CAPACITOR_SCHEME}://`)) {
+        if (resumePollTimer !== undefined) {
+          window.clearInterval(resumePollTimer);
+          resumePollTimer = undefined;
+        }
+        handleOAuthDeepLink(url).then((result) => {
+          if (result.error) {
+            authTrace("AUTH_ERROR", { stage: "resume deep link", message: result.error.message });
+            console.error("OAuth resume error:", result.error.message);
+          }
+        });
+        return;
+      }
+      if (attempts >= 6) {
+        if (resumePollTimer !== undefined) {
+          window.clearInterval(resumePollTimer);
+          resumePollTimer = undefined;
+        }
+        authTrace("AUTH_ERROR", { stage: "resume no deep link", message: "No deep link after browser return" });
+        toast.error(i18n.t("auth.oauthReturnFailed"));
+      }
+    };
+    resumePollTimer = window.setInterval(poll, 400);
+    poll();
+  });
+
+  // The user manually closed the Custom Tab without a deep link arriving.
+  const removeBrowserFinished = await Browser.addListener("browserFinished", () => {
+    if (!oauthBrowserOpen) return;
+    oauthBrowserOpen = false;
+    authTrace("AUTH_ERROR", { stage: "browser closed manually", message: "No deep link received" });
+    toast.error(i18n.t("auth.oauthReturnFailed"));
+  });
+
+  return () => {
+    removeAppUrlOpen.remove();
+    removeAppState.remove();
+    removeBrowserFinished.remove();
+    if (resumePollTimer !== undefined) window.clearInterval(resumePollTimer);
+  };
 }
 
 export async function getInitialDeepLink(): Promise<string | null> {
   const { url } = await App.getLaunchUrl() ?? {};
+  authTrace("LAUNCH_URL", { url: url ? url.slice(0, 80) : "null" });
   return url ?? null;
 }
 

@@ -8,8 +8,9 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { Shield, ShieldOff, Search, AlertTriangle, RefreshCw, Eye, Trash2, ShieldCheck, Ban, CheckCircle2, MonitorSmartphone, History, Smartphone, Loader2, ChevronLeft, ChevronRight, Wrench, Wallet } from "lucide-react";
+import { Shield, ShieldOff, Search, AlertTriangle, RefreshCw, Eye, Trash2, ShieldCheck, Ban, CheckCircle2, MonitorSmartphone, History, Smartphone, Loader2, ChevronLeft, ChevronRight, Wrench, Wallet, MoreVertical } from "lucide-react";
 import { PaymentsDialog } from "@/components/admin/PaymentsDialog";
 
 interface UserInfo {
@@ -416,7 +417,7 @@ export function UsersRolesManager() {
                     <td className="p-3"><Skeleton className="h-5 w-16" /></td>
                     <td className="p-3"><Skeleton className="h-5 w-24" /></td>
                     <td className="p-3"><Skeleton className="h-5 w-24" /></td>
-                    <td className="p-3"><Skeleton className="h-8 w-64" /></td>
+                    <td className="p-3"><Skeleton className="h-8 w-10" /></td>
                   </tr>
                 ))
               ) : rows.length === 0 ? (
@@ -486,64 +487,105 @@ export function UsersRolesManager() {
                       <td className="p-3 text-xs text-muted-whitespace-nowrap">{u.last_login ? formatDate(u.last_login) : "-"}</td>
                       <td className="p-3 text-xs text-muted-whitespace-nowrap">{u.created_at ? formatDate(u.created_at) : "-"}</td>
                       <td className="p-3">
-                        <div className="flex items-center gap-1 flex-wrap">
-                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" title={t("adminUsers.makeAdmin")}
-                            onClick={() => toggleAdmin(u.user_id, !hasRole)}>
-                            {hasRole ? <ShieldOff className="w-3.5 h-3.5 me-1" /> : <Shield className="w-3.5 h-3.5 me-1" />}
-                            {hasRole ? t("adminUsers.revoke") : t("adminUsers.makeAdmin")}
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" title={t("adminUsers.viewDetails")}
-                            onClick={() => { setDetailsUser(u); setShowDetails(true); }}>
-                            <Eye className="w-3.5 h-3.5 me-1" />
-                            {t("adminUsers.viewDetails")}
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" title={t("adminUsers.suspend")}
-                            onClick={() => handleSuspend(u.user_id, "suspended")} disabled={busy === "suspend_" + u.user_id}>
-                            {busy === "suspend_" + u.user_id
-                              ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
-                              : <Ban className="w-3.5 h-3.5 me-1" />}
-                            {t("adminUsers.suspend")}
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-success" title={t("adminUsers.activate")}
-                            onClick={() => handleSuspend(u.user_id, "active")} disabled={busy === "suspend_" + u.user_id}>
-                            {busy === "suspend_" + u.user_id
-                              ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
-                              : <CheckCircle2 className="w-3.5 h-3.5 me-1" />}
-                            {t("adminUsers.activate")}
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-destructive" title={t("adminUsers.blockUser")}
-                            onClick={() => { setBlockTarget(u); setBlockAction("block"); }} disabled={busy === "block_" + u.user_id}>
-                            <ShieldOff className="w-3.5 h-3.5 me-1" />
-                            {t("adminUsers.blockUser")}
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-success" title={t("adminUsers.unblockUser")}
-                            onClick={() => { setBlockTarget(u); setBlockAction("unblock"); }}>
-                            <ShieldCheck className="w-3.5 h-3.5 me-1" />
-                            {t("adminUsers.unblockUser")}
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" title={t("adminUsers.viewDevices")}
-                            onClick={() => { setDevicesUser(u); setShowDevices(true); }}>
-                            <MonitorSmartphone className="w-3.5 h-3.5 me-1" />
-                            {t("adminUsers.viewDevices")}
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" title={t("adminUsers.history")}
-                            onClick={() => loadHistory(u.user_id)}>
-                            <History className="w-3.5 h-3.5 me-1" />
-                            {t("adminUsers.history")}
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" title={t("adminUsers.resetDevice")}
-                            onClick={() => setResetDeviceUser(u)} disabled={busy === "reset_" + u.user_id}>
-                            {busy === "reset_" + u.user_id
-                              ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
-                              : <Smartphone className="w-3.5 h-3.5 me-1" />}
-                            {t("adminUsers.resetDevice")}
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-destructive" title={t("adminUsers.deleteUser")}
-                            onClick={() => setDeleteUserTarget(u)} disabled={busy === "delete_" + u.user_id}>
-                            <Trash2 className="w-3.5 h-3.5 me-1" />
-                            {t("adminUsers.deleteUser")}
-                          </Button>
-                        </div>
+                        <DropdownMenu dir={isArabic ? "rtl" : "ltr"}>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" title={t("adminUsers.options")} aria-label={t("adminUsers.options")}>
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-56 rounded-xl">
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => toggleAdmin(u.user_id, !hasRole)}
+                              disabled={busy === "role_" + u.user_id}
+                            >
+                              {busy === "role_" + u.user_id
+                                ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
+                                : hasRole ? <ShieldOff className="w-3.5 h-3.5 me-1" /> : <Shield className="w-3.5 h-3.5 me-1" />}
+                              {hasRole ? t("adminUsers.revoke") : t("adminUsers.makeAdmin")}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => { setDetailsUser(u); setShowDetails(true); }}
+                            >
+                              <Eye className="w-3.5 h-3.5 me-1" />
+                              {t("adminUsers.viewDetails")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => { setDevicesUser(u); setShowDevices(true); }}
+                            >
+                              <MonitorSmartphone className="w-3.5 h-3.5 me-1" />
+                              {t("adminUsers.viewDevices")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => loadHistory(u.user_id)}
+                            >
+                              <History className="w-3.5 h-3.5 me-1" />
+                              {t("adminUsers.history")}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => handleSuspend(u.user_id, "suspended")}
+                              disabled={busy === "suspend_" + u.user_id}
+                            >
+                              {busy === "suspend_" + u.user_id
+                                ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
+                                : <Ban className="w-3.5 h-3.5 me-1" />}
+                              {t("adminUsers.suspend")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => handleSuspend(u.user_id, "active")}
+                              disabled={busy === "suspend_" + u.user_id}
+                            >
+                              {busy === "suspend_" + u.user_id
+                                ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
+                                : <CheckCircle2 className="w-3.5 h-3.5 me-1 text-success" />}
+                              {t("adminUsers.activate")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => { setBlockTarget(u); setBlockAction("block"); }}
+                              disabled={busy === "block_" + u.user_id}
+                            >
+                              <ShieldOff className="w-3.5 h-3.5 me-1 text-destructive" />
+                              {t("adminUsers.blockUser")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => { setBlockTarget(u); setBlockAction("unblock"); }}
+                            >
+                              <ShieldCheck className="w-3.5 h-3.5 me-1 text-success" />
+                              {t("adminUsers.unblockUser")}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => setResetDeviceUser(u)}
+                              disabled={busy === "reset_" + u.user_id}
+                            >
+                              {busy === "reset_" + u.user_id
+                                ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
+                                : <Smartphone className="w-3.5 h-3.5 me-1" />}
+                              {t("adminUsers.resetDevice")}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="cursor-pointer text-destructive focus:text-destructive"
+                              onClick={() => setDeleteUserTarget(u)}
+                              disabled={busy === "delete_" + u.user_id}
+                            >
+                              {busy === "delete_" + u.user_id
+                                ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
+                                : <Trash2 className="w-3.5 h-3.5 me-1" />}
+                              {t("adminUsers.deleteUser")}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </td>
                     </tr>
                   );

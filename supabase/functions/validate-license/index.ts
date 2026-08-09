@@ -37,9 +37,30 @@ function computeValidationPolicy(profile: {
     || (profile.license_status === "blocked" || profile.license_status === "revoked" || profile.license_status === "rejected");
   if (force) policy = "force";
 
+  // offline_grace_ms mirrors the ACTUAL remaining offline validity derived from
+  // the real expiration date — never a flat grace that extends a license:
+  //   • blocked/suspended/revoked/rejected/expired/pending/inactive → 0
+  //   • permanent → effectively indefinite
+  //   • active/trial with a date → remaining time until expiry_date/trial_end
+  //   • undated non-permanent (malformed/legacy) → fallback refresh bound
+  let offlineGraceMs: number;
+  const hardBlocked = profile.account_status === "suspended" || profile.account_status === "blocked"
+    || profile.license_status === "blocked" || profile.license_status === "revoked"
+    || profile.license_status === "rejected" || profile.license_status === "expired"
+    || profile.license_status === "pending" || profile.license_status === "inactive";
+  if (hardBlocked || (expiryMs !== null && expiryMs <= now)) {
+    offlineGraceMs = 0;
+  } else if (profile.license_status === "permanent") {
+    offlineGraceMs = 3650 * 86400000;
+  } else if (expiryMs === null) {
+    offlineGraceMs = 7 * 86400000;
+  } else {
+    offlineGraceMs = Math.max(0, expiryMs - now);
+  }
+
   return {
     minimum_validation_interval_ms: intervalHours * 3600000,
-    offline_grace_ms: 7 * 86400000,
+    offline_grace_ms: offlineGraceMs,
     next_required_validation: new Date(now + intervalHours * 3600000).toISOString(),
     force_validation: force,
     license_expiration: expiryMs === null ? null : new Date(expiryMs).toISOString(),

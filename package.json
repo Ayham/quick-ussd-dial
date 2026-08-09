@@ -9,6 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
+    "version:sync": "node scripts/sync-android-version.mjs",
     "test": "vitest run --pool=threads --maxWorkers=1",
     "test:watch": "vitest"
   },

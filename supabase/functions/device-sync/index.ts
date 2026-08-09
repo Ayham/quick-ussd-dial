@@ -55,13 +55,36 @@ Deno.serve(async (req) => {
             event: event.event,
             data,
             created_at: event.timestamp,
-          }, { onConflict: "client_id" });
+          }, { onConflict: "device_id,client_id" });
 
       if (result.error) {
         errors++;
         if (event.id) failedEventIds.push(event.id);
       } else {
         inserted++;
+      }
+    }
+
+    // Best-effort device health report for the Admin Sync Monitor. Runs AFTER
+    // the transfer/event sync above and is intentionally isolated: a monitoring
+    // write failure must never fail or block the actual data sync.
+    if (clientId) {
+      try {
+        const now = new Date().toISOString();
+        const deviceRow: Record<string, unknown> = {
+          device_id: clientId,
+          last_seen: now,
+          last_seen_at: now,
+          last_sync_at: now,
+          pending_sync_count: Number(body.pending_count ?? 0),
+          last_sync_error: errors > 0 ? `${errors} sync_failed` : null,
+        };
+        if (userId) deviceRow.user_id = userId;
+        if (body.app_version) deviceRow.app_version = String(body.app_version);
+        if (body.platform) deviceRow.platform = String(body.platform);
+        await sb.from("devices").upsert(deviceRow, { onConflict: "device_id" });
+      } catch {
+        // Monitoring is best-effort; never let it interfere with data sync.
       }
     }
 

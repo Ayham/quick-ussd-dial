@@ -21,7 +21,7 @@ import { NotificationsProvider } from "@/hooks/use-notifications";
 import OnboardingGate from "@/components/OnboardingGate";
 import LicenseReminder from "@/components/LicenseReminder";
 import DeviceMismatchDialog from "@/components/DeviceMismatchDialog";
-import { UpdateBanner } from "@/components/ForceUpdate";
+import { UpdateBanner, ForcedUpdateGate, isForcedDismissed, dismissForcedUpdate } from "@/components/ForceUpdate";
 
 import "./lib/i18n";
 import { isWebBrowser } from "@/lib/platform";
@@ -35,13 +35,16 @@ const Notifications = lazy(() => import("./pages/Notifications"));
 const AppContent = () => {
   const { t } = useTranslation();
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [checking, setChecking] = useState(false);
   const isWeb = isWebBrowser();
 
   const doUpdateCheck = async () => {
+    setChecking(true);
     try {
       const info = await checkForUpdate();
       setUpdateInfo(info);
     } catch {}
+    setChecking(false);
   };
 
   // Cloud Module bootstrap — background, non-blocking, never awaited.
@@ -55,11 +58,31 @@ const AppContent = () => {
     }
   }, []);
 
+  // Re-check when the app comes back online so a forced gate (or the banner)
+  // appears as soon as a policy can be fetched.
+  useEffect(() => {
+    if (isWeb) return;
+    const onOnline = () => doUpdateCheck();
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, []);
+
+  const showForcedGate = Boolean(updateInfo?.forced && !isForcedDismissed());
+
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthSessionProvider>
         <NotificationsProvider>
-          {updateInfo?.hasUpdate && (
+          {showForcedGate && updateInfo && (
+            <ForcedUpdateGate
+              updateInfo={updateInfo}
+              onRetry={doUpdateCheck}
+              onDismiss={() => dismissForcedUpdate()}
+              checking={checking}
+              allowDismiss
+            />
+          )}
+          {!showForcedGate && updateInfo?.hasUpdate && (
             <UpdateBanner updateInfo={updateInfo} onDismiss={() => setUpdateInfo(null)} />
           )}
           <Routes>

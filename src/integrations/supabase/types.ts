@@ -1485,6 +1485,10 @@ export type Database = {
         Args: { _request_id: string; _reason?: string }
         Returns: Json
       }
+      get_update_policy: {
+        Args: Record<string, never>
+        Returns: Json
+      }
       get_user_license_status: {
         Args: Record<string, never>
         Returns: Json

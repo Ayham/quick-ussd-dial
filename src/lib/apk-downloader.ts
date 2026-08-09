@@ -67,9 +67,21 @@ export async function downloadAndInstallApk(
     report({ status: 'opening', progress: 95 });
 
     // 4. Open the APK for installation
-    await FileOpener.openFile({
-      path: fileInfo.uri,
-    });
+    try {
+      await FileOpener.openFile({
+        path: fileInfo.uri,
+        mimeType: 'application/vnd.android.package-archive',
+      });
+    } catch (openErr: any) {
+      // Some Android builds block ACTION_VIEW on the APK (unknown sources /
+      // restricted installs). Fall back to opening without an explicit MIME
+      // before giving up with a user-friendly message.
+      try {
+        await FileOpener.openFile({ path: fileInfo.uri });
+      } catch {
+        throw new Error(i18n.t("errors.apkInstallBlocked"));
+      }
+    }
 
     report({ status: 'done', progress: 100 });
   } catch (error: any) {

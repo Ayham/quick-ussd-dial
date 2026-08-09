@@ -8,12 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { calculateExpiryDate, formatLicenseTypeLabel } from "@/lib/license";
-import { Search, ChevronLeft, ChevronRight, Shield, CheckCircle2, XCircle, Ban, Clock, UserCheck, History, ArrowUpDown, Wrench, RefreshCw, Smartphone, MonitorSmartphone, Loader2, Eye, Trash2, ShieldCheck, ShieldOff, Wallet } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Shield, CheckCircle2, XCircle, Ban, Clock, UserCheck, History, ArrowUpDown, Wrench, RefreshCw, Smartphone, MonitorSmartphone, Loader2, Eye, Trash2, ShieldCheck, ShieldOff, Wallet, MoreVertical } from "lucide-react";
 import { PaymentsDialog } from "@/components/admin/PaymentsDialog";
 
 interface UserLicense {
@@ -369,6 +370,7 @@ const LicenseManagement = () => {
             <SelectItem value="trial">{t("adminLicenses.trial")}</SelectItem>
             <SelectItem value="active">{t("admin.active")}</SelectItem>
             <SelectItem value="expired">{t("adminLicenses.expired")}</SelectItem>
+            <SelectItem value="expiring_soon">{t("adminLicenses.expiringSoon")}</SelectItem>
             <SelectItem value="pending">{t("admin.pending")}</SelectItem>
             <SelectItem value="permanent">{t("adminActivationRequests.permanent")}</SelectItem>
             <SelectItem value="suspended">{t("adminLicenses.suspended")}</SelectItem>
@@ -422,7 +424,7 @@ const LicenseManagement = () => {
                     <td className="p-3"><Skeleton className="h-5 w-20" /></td>
                     <td className="p-3"><Skeleton className="h-5 w-24" /></td>
                     <td className="p-3"><Skeleton className="h-5 w-24" /></td>
-                    <td className="p-3"><Skeleton className="h-8 w-32" /></td>
+                    <td className="p-3"><Skeleton className="h-8 w-10" /></td>
                   </tr>
                 ))
               ) : users.length === 0 ? (
@@ -457,84 +459,119 @@ const LicenseManagement = () => {
                     <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">{u.last_login ? formatDate(u.last_login) : "-"}</td>
                     <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">{u.created_at ? formatDate(u.created_at) : "-"}</td>
                     <td className="p-3">
-                      <div className="flex items-center gap-1 flex-wrap">
-                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" title={t("adminLicenses.viewDetails")}
-                          onClick={() => { setDetailsUser(u); setShowDetails(true); }}>
-                          <Eye className="w-3.5 h-3.5 me-1" />
-                          {t("adminLicenses.viewDetails")}
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs"
-                          title={t("adminLicenses.editLicense")}
-                          onClick={() => { setSelectedUser(u); setLicenseStatus(u.license_status); setLicenseType(u.license_type); setCustomExpiryDate(u.expiry_date || ""); setShowLicenseDialog(true); }}>
-                          <Shield className="w-3.5 h-3.5 me-1" />
-                          {t("adminLicenses.editShort")}
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-warning"
-                          title={t("adminLicenses.extendTrial")}
-                          onClick={() => handleExtendTrial(u.user_id, 7)} disabled={actionLoading === "extend_" + u.user_id}>
-                          {actionLoading === "extend_" + u.user_id
-                            ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
-                            : <Clock className="w-3.5 h-3.5 me-1" />}
-                          {t("adminLicenses.extendShort")}
-                        </Button>
-                        {u.account_status === "active" ? (
-                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-destructive" title={t("adminLicenses.suspend")}
-                            onClick={() => handleSuspend(u.user_id, "suspended")} disabled={actionLoading === "suspend_" + u.user_id}>
-                            {actionLoading === "suspend_" + u.user_id
+                      <DropdownMenu dir={isArabic ? "rtl" : "ltr"}>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" title={t("adminLicenses.options")} aria-label={t("adminLicenses.options")}>
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56 rounded-xl">
+                          <DropdownMenuItem
+                            className="cursor-pointer"
+                            onClick={() => { setDetailsUser(u); setShowDetails(true); }}
+                          >
+                            <Eye className="w-3.5 h-3.5 me-1" />
+                            {t("adminLicenses.viewDetails")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="cursor-pointer"
+                            onClick={() => { setSelectedUser(u); setLicenseStatus(u.license_status); setLicenseType(u.license_type); setCustomExpiryDate(u.expiry_date || ""); setShowLicenseDialog(true); }}
+                          >
+                            <Shield className="w-3.5 h-3.5 me-1" />
+                            {t("adminLicenses.editShort")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="cursor-pointer"
+                            onClick={() => handleExtendTrial(u.user_id, 7)} disabled={actionLoading === "extend_" + u.user_id}
+                          >
+                            {actionLoading === "extend_" + u.user_id
                               ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
-                              : <Ban className="w-3.5 h-3.5 me-1" />}
-                            {t("adminLicenses.suspend")}
-                          </Button>
-                        ) : (
-                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-success" title={t("adminLicenses.activate")}
-                            onClick={() => handleSuspend(u.user_id, "active")} disabled={actionLoading === "suspend_" + u.user_id}>
-                            {actionLoading === "suspend_" + u.user_id
+                              : <Clock className="w-3.5 h-3.5 me-1 text-warning" />}
+                            {t("adminLicenses.extendShort")}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {u.account_status === "active" ? (
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => handleSuspend(u.user_id, "suspended")} disabled={actionLoading === "suspend_" + u.user_id}
+                            >
+                              {actionLoading === "suspend_" + u.user_id
+                                ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
+                                : <Ban className="w-3.5 h-3.5 me-1" />}
+                              {t("adminLicenses.suspend")}
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => handleSuspend(u.user_id, "active")} disabled={actionLoading === "suspend_" + u.user_id}
+                            >
+                              {actionLoading === "suspend_" + u.user_id
+                                ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
+                                : <CheckCircle2 className="w-3.5 h-3.5 me-1 text-success" />}
+                              {t("adminLicenses.activate")}
+                            </DropdownMenuItem>
+                          )}
+                          {u.account_status === "blocked" ? (
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => { setBlockTarget(u); setBlockAction("unblock"); }}
+                            >
+                              <ShieldCheck className="w-3.5 h-3.5 me-1 text-success" />
+                              {t("adminLicenses.unblockUser")}
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => { setBlockTarget(u); setBlockAction("block"); }} disabled={actionLoading === "block_" + u.user_id}
+                            >
+                              <ShieldOff className="w-3.5 h-3.5 me-1 text-destructive" />
+                              {t("adminLicenses.blockUser")}
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="cursor-pointer"
+                            onClick={() => loadDevices(u)}
+                          >
+                            <MonitorSmartphone className="w-3.5 h-3.5 me-1" />
+                            {t("adminLicenses.viewDevices")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="cursor-pointer"
+                            onClick={() => loadHistory(u.user_id)}
+                          >
+                            <History className="w-3.5 h-3.5 me-1" />
+                            {t("adminLicenses.history")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="cursor-pointer"
+                            onClick={() => { setPaymentsUser(u); setShowPayments(true); }}
+                          >
+                            <Wallet className="w-3.5 h-3.5 me-1" />
+                            {t("adminPayments.title")}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="cursor-pointer"
+                            onClick={() => setResetDeviceUser(u)} disabled={actionLoading === "reset_" + u.user_id}
+                          >
+                            {actionLoading === "reset_" + u.user_id
                               ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
-                              : <CheckCircle2 className="w-3.5 h-3.5 me-1" />}
-                            {t("adminLicenses.activate")}
-                          </Button>
-                        )}
-                        {u.account_status === "blocked" ? (
-                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-success" title={t("adminLicenses.unblockUser")}
-                            onClick={() => { setBlockTarget(u); setBlockAction("unblock"); }}>
-                            <ShieldCheck className="w-3.5 h-3.5 me-1" />
-                            {t("adminLicenses.unblockUser")}
-                          </Button>
-                        ) : (
-                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-destructive" title={t("adminLicenses.blockUser")}
-                            onClick={() => { setBlockTarget(u); setBlockAction("block"); }} disabled={actionLoading === "block_" + u.user_id}>
-                            <ShieldOff className="w-3.5 h-3.5 me-1" />
-                            {t("adminLicenses.blockUser")}
-                          </Button>
-                        )}
-                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" title={t("adminLicenses.viewDevices")}
-                          onClick={() => loadDevices(u)}>
-                          <MonitorSmartphone className="w-3.5 h-3.5 me-1" />
-                          {t("adminLicenses.viewDevices")}
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" title={t("adminLicenses.history")}
-                          onClick={() => loadHistory(u.user_id)}>
-                          <History className="w-3.5 h-3.5 me-1" />
-                          {t("adminLicenses.history")}
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" title={t("adminPayments.title")}
-                          onClick={() => { setPaymentsUser(u); setShowPayments(true); }}>
-                          <Wallet className="w-3.5 h-3.5 me-1" />
-                          {t("adminPayments.title")}
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-warning" title={t("adminLicenses.resetDevice")}
-                          onClick={() => setResetDeviceUser(u)} disabled={actionLoading === "reset_" + u.user_id}>
-                          {actionLoading === "reset_" + u.user_id
-                            ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
-                            : <Smartphone className="w-3.5 h-3.5 me-1" />}
-                          {t("adminLicenses.resetDevice")}
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-destructive" title={t("adminLicenses.deleteUser")}
-                          onClick={() => setDeleteUserTarget(u)} disabled={actionLoading === "delete_" + u.user_id}>
-                          <Trash2 className="w-3.5 h-3.5 me-1" />
-                          {t("adminLicenses.deleteUser")}
-                        </Button>
-                      </div>
+                              : <Smartphone className="w-3.5 h-3.5 me-1 text-warning" />}
+                            {t("adminLicenses.resetDevice")}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="cursor-pointer text-destructive focus:text-destructive"
+                            onClick={() => setDeleteUserTarget(u)} disabled={actionLoading === "delete_" + u.user_id}
+                          >
+                            {actionLoading === "delete_" + u.user_id
+                              ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
+                              : <Trash2 className="w-3.5 h-3.5 me-1" />}
+                            {t("adminLicenses.deleteUser")}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </tr>
                 ))

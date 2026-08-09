@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Shield, LogOut, LayoutGrid, Users, Activity, FileText, Database, KeyRound, UserCheck, Bell, ChevronLeft, ChevronRight } from "lucide-react";
+import { Shield, LogOut, LayoutGrid, Users, Activity, FileText, Database, KeyRound, UserCheck, Bell, RefreshCw, ChevronLeft, ChevronRight, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { signOut } from "@/lib/auth";
@@ -12,6 +12,8 @@ import { UsersRolesManager } from "@/components/admin/UsersRolesManager";
 import LicenseManagement from "@/components/admin/LicenseManagement";
 import ActivationRequests from "@/components/admin/ActivationRequests";
 import { NotificationManagement } from "@/components/admin/NotificationManagement";
+import { SyncMonitor } from "@/components/admin/SyncMonitor";
+import AppUpdatesAdmin from "@/components/admin/AppUpdatesAdmin";
 import { cn } from "@/lib/utils";
 
 const tabs = [
@@ -21,6 +23,8 @@ const tabs = [
   { value: "licenses", labelKey: "admin.licenses", icon: KeyRound },
   { value: "activations", labelKey: "admin.activationRequests", icon: UserCheck },
   { value: "notifications", labelKey: "admin.notifications", icon: Bell },
+  { value: "sync", labelKey: "admin.sync", icon: RefreshCw },
+  { value: "updates", labelKey: "admin.appUpdates", icon: Smartphone },
   { value: "events", labelKey: "admin.events", icon: Database },
 ];
 
@@ -80,7 +84,11 @@ const Admin = () => {
         return <LicenseManagement />;
       case "notifications":
         return <NotificationManagement />;
-       case "activations":
+        case "sync":
+          return <SyncMonitor />;
+        case "updates":
+          return <AppUpdatesAdmin />;
+        case "activations":
          return <ActivationRequests />;
        default:
         return <DashboardOverview />;

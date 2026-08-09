@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getDeviceId, getStoredDeviceBinding, getDeviceBindingSignatureSync, storeDeviceBinding, notifyDeviceMismatch } from "./device";
+import { syncExpirationReminder } from "./expiration-reminder";
 import i18n from "@/lib/i18n";
 
 const CACHE_KEY = "app_license_cache";
@@ -8,6 +9,13 @@ const POLICY_KEY = "app_validation_policy";
 
 // Offline fallbacks — used ONLY until the first server policy is received.
 // After the first validation the SERVER controls these values.
+//
+// NOTE ON GRACE: the app does NOT grant an artificial offline grace period.
+// The authoritative offline boundary is the actual license expiration date
+// (expiry_date for paid licenses, trial_end for trials). offline_grace_ms is
+// only consulted for records that carry NO expiration boundary at all (a
+// malformed/legacy profile the server never dated) so their validity cannot
+// be stretched indefinitely offline.
 const DEFAULT_REFRESH_INTERVAL_MS = 1000 * 60 * 60 * 24;
 const DEFAULT_OFFLINE_GRACE_MS = 1000 * 60 * 60 * 24 * 7;
 const DEFAULT_FORCE_VALIDATION = false;
@@ -35,14 +43,20 @@ export interface TransferGuardResult {
  *
  * The SERVER decides:
  *  - minimum_validation_interval_ms: how often the client must silently validate
- *  - offline_grace_ms: max offline time before transfers are locked
+ *  - offline_grace_ms: remaining offline validity derived from the ACTUAL
+ *    expiration date (0 for revoked/blocked/expired, remaining time for
+ *    active/trial, effectively indefinite for permanent). It is NEVER a flat
+ *    grace period that extends a license beyond its expiration.
  *  - next_required_validation: when the next silent validation is due
  *  - force_validation: server demands a fresh validation before transfers
  *  - license_expiration: the real expiration (blocking applies when reached)
  *  - revoked: license revoked server-side
  *  - validation_policy: "normal" | "expiring_soon" | "force"
+ *  - remind_days_license / remind_days_trial: expiration reminder windows
  *
- * The client NEVER hardcodes any of these values.
+ * The client NEVER hardcodes any of these values. The license expiration date
+ * remains the authoritative offline boundary — the client never extends a
+ * license beyond the server-provided expiration date.
  */
 export interface ValidationPolicy {
   valid: boolean;
@@ -54,6 +68,8 @@ export interface ValidationPolicy {
   license_expiration: string | null;
   revoked: boolean;
   validation_policy: "normal" | "expiring_soon" | "force";
+  remind_days_license?: number | null;
+  remind_days_trial?: number | null;
 }
 
 export interface ValidationReminder {
@@ -106,8 +122,9 @@ export function getCachedPolicy(): ValidationPolicy {
         typeof parsed.minimum_validation_interval_ms === "number" && parsed.minimum_validation_interval_ms > 0
           ? parsed.minimum_validation_interval_ms
           : DEFAULT_REFRESH_INTERVAL_MS,
+      // A server-sent 0 (revoked/blocked/expired → no offline validity) is honored.
       offline_grace_ms:
-        typeof parsed.offline_grace_ms === "number" && parsed.offline_grace_ms > 0
+        typeof parsed.offline_grace_ms === "number" && parsed.offline_grace_ms >= 0
           ? parsed.offline_grace_ms
           : DEFAULT_OFFLINE_GRACE_MS,
     };
@@ -159,10 +176,17 @@ export async function validateDeviceSession(): Promise<ValidationResult> {
     if (result.reason === "device_mismatch") {
       notifyDeviceMismatch(result.current_device ?? null);
     }
+    // Fire-and-forget: schedule the deduplicated expiration reminder (if any).
+    // It never blocks validation and never extends the license.
+    syncExpirationReminder(result, getCachedPolicy()).catch(() => {});
     return result;
   } catch {
+    // Offline / network failure. Offline mode provides continuity, not license
+    // extension: keep the last known verdict (the local guard still enforces
+    // expiration, revocation and staleness for undated licenses). A user that
+    // was NEVER validated has no cached verdict → no_connection.
     const cached = getCachedRaw();
-    if (cached.data && cached.age <= getCachedPolicy().offline_grace_ms) return cached.data;
+    if (cached.data) return cached.data;
     return { valid: false, reason: "no_connection", error: i18n.t("errors.noConnection") };
   }
 }
@@ -200,21 +224,52 @@ export async function refreshLicenseCacheIfNeeded(): Promise<ValidationResult | 
 
 /**
  * Synchronous, LOCAL-ONLY transfer guard. Never performs any network call.
- * Blocks based on the last cached server verdict + the server-controlled
- * offline grace period.
+ *
+ * Business policy (enforced here and mirrored server-side):
+ *  - EXPIRATION is strict and locally enforceable: an active paid license is
+ *    usable offline until its exact expiry_date, a trial until trial_end, and
+ *    a permanent license stays valid per its permanent status. The client
+ *    NEVER extends a license beyond the server-provided expiration date.
+ *  - REVOCATION is server-authoritative: a revoked/blocked/suspended verdict is
+ *    enforced as soon as the client has it (fresh validation or reconnect).
+ *    While offline with a stale valid verdict, the license keeps working.
+ *  - No artificial offline grace: offline_grace_ms only bounds records that
+ *    have NO expiration boundary at all (malformed/legacy undated profiles).
  */
 export function getTransferGuard(): TransferGuardResult {
   const cached = getCachedRaw();
   const policy = getCachedPolicy();
   if (!cached.data) return { allowed: false, reason: "unverified", reasonCode: "unverified" };
-  if (getCacheAgeMs() > policy.offline_grace_ms) return { allowed: false, reason: "offline_grace_expired", reasonCode: "offline_grace_expired" };
+
+  const data = cached.data;
+  const isPermanent = data.license_status === "permanent";
+  const isTrial = data.license_status === "trial";
+  const trialEndMs = isTrial ? parseBoundaryMs(data.trial_end) : null;
+  const paidExpiryMs = !isPermanent && !isTrial ? parseBoundaryMs(data.expiry_date) : null;
+  const boundaryMs = trialEndMs ?? paidExpiryMs;
+
+  // 1. Strict local expiration. The actual expiration date is the offline
+  //    boundary — once reached, protected transfers are blocked immediately,
+  //    with or without a connection, regardless of cache age.
+  if (boundaryMs !== null && Date.now() >= boundaryMs) {
+    return trialEndMs !== null
+      ? { allowed: false, reason: i18n.t("errors.trialEnded"), reasonCode: "trial_ended" }
+      : { allowed: false, reason: i18n.t("errors.licenseExpired"), reasonCode: "expired" };
+  }
+
+  // 2. Staleness fallback ONLY for records with no expiration boundary and not
+  //    permanent (e.g. an undated active profile). This is not a license
+  //    extension: a license whose expiration the server never communicated
+  //    cannot be used offline indefinitely. Permanent licenses are exempt.
+  if (boundaryMs === null && !isPermanent && getCacheAgeMs() > policy.offline_grace_ms) {
+    return { allowed: false, reason: "offline_grace_expired", reasonCode: "offline_grace_expired" };
+  }
 
   const expectedBinding = getStoredDeviceBinding();
   if (expectedBinding && expectedBinding !== getDeviceBindingSignatureSync()) {
     return { allowed: false, reason: i18n.t("errors.deviceMismatch"), reasonCode: "device_mismatch" };
   }
 
-  const data = cached.data;
   if (policy.revoked) {
     return { allowed: false, reason: i18n.t("errors.licenseBlocked"), reasonCode: "revoked" };
   }
@@ -256,6 +311,12 @@ export function getTransferGuard(): TransferGuardResult {
   return { allowed: true };
 }
 
+function parseBoundaryMs(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const ms = new Date(value).getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
+
 /**
  * Transfer guard that re-validates against the server when the local cached
  * verdict would block. A stale device_mismatch / unverified / expired-grace
@@ -276,19 +337,18 @@ export async function ensureTransferAllowed(): Promise<TransferGuardResult> {
 }
 
 /**
- * Friendly, NON-BLOCKING reminder shown only in the final window before
+ * Friendly, NON-BLOCKING reminder shown in the final window before
  * expiration when the app is offline or validation is due. Never gates the UI.
+ * "blocked" mirrors the local transfer guard, so an expired/trial-ended
+ * license surfaces immediately.
  */
 export function getValidationReminder(): ValidationReminder {
   const cached = getCachedRaw();
-  const policy = getCachedPolicy();
   if (!cached.data) return { show: false, blocked: false, days: null };
 
-  const age = getCacheAgeMs();
-  const graceMs = policy.offline_grace_ms;
-  if (age > graceMs) {
-    return { show: true, blocked: true, days: null };
-  }
+  const policy = getCachedPolicy();
+  const guard = getTransferGuard();
+  const blocked = !guard.allowed;
 
   const expiry = policy.license_expiration || cached.data.expiry_date || cached.data.trial_end || null;
   let days: number | null = null;
@@ -296,11 +356,12 @@ export function getValidationReminder(): ValidationReminder {
     days = Math.max(0, Math.floor((new Date(expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
   }
   const expiringSoon = policy.validation_policy === "expiring_soon" || (days !== null && days <= 45);
-  if (!expiringSoon && !(policy.force_validation && needsRefresh())) {
+  if (!blocked && !expiringSoon && !(policy.force_validation && needsRefresh())) {
     return { show: false, blocked: false, days };
   }
 
   const offline = typeof navigator === "undefined" || !navigator.onLine;
+  if (blocked) return { show: true, blocked: true, days };
   if (offline || needsRefresh()) return { show: true, blocked: false, days };
   return { show: false, blocked: false, days };
 }
