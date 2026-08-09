@@ -1,7 +1,7 @@
 {
   "name": "vite_react_shadcn_ts",
   "private": true,
-  "version": "1.0.6",
+  "version": "1.0.7",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "version:sync": "node scripts/sync-android-version.mjs",
     "test": "vitest run --pool=threads --maxWorkers=1",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "release": "node scripts/release.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.1.0",

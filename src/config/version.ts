@@ -6,4 +6,4 @@
  * (see vite.config.ts -> __APP_VERSION__), so the two can never drift.
  */
 export const APP_VERSION: string =
-  typeof __APP_VERSION__ === "string" && __APP_VERSION__ ? __APP_VERSION__ : "1.0.0";
+  typeof __APP_VERSION__ === "string" && __APP_VERSION__ ? __APP_VERSION__ : "1.0.7";
