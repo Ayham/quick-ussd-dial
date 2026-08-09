@@ -32,7 +32,7 @@ export const UpdateBanner = ({ updateInfo, onDismiss }: UpdateBannerProps) => {
   };
 
   return (
-    <div className="bg-primary/10 border-b border-primary/20 px-4 py-2.5 flex items-center justify-between gap-2" dir={document.documentElement.dir}>
+    <div className="bg-primary/10 border-b border-primary/20 px-4 py-2.5 pt-safe flex items-center justify-between gap-2" dir={document.documentElement.dir}>
       <div className="flex items-center gap-2 flex-1 min-w-0">
         <Download className="w-4 h-4 text-primary shrink-0" />
         <span className="text-xs font-medium text-foreground truncate">

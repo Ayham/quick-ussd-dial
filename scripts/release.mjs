@@ -189,18 +189,24 @@ import("node:https").then(({ default: https }) => {
 
     // 3. Publish the release
     console.log("🔄 Publishing release...");
-    const published = await githubRequest(
-      "PATCH",
-      `/repos/${GITHUB_REPO}/releases/${release.id}`,
-      { draft: false }
-    );
+    try {
+      const published = await githubRequest(
+        "PATCH",
+        `/repos/${GITHUB_REPO}/releases/${release.id}`,
+        { draft: false }
+      );
 
-    if (published.draft === false) {
-      console.log(`🎉 Release v${newVersion} published successfully with APK!`);
-      console.log(`🔗 https://github.com/${GITHUB_REPO}/releases/tag/v${newVersion}`);
-    } else {
-      console.error("❌ Release is still a draft after publish attempt.");
-      console.log("   You can publish it manually at:", `https://github.com/${GITHUB_REPO}/releases`);
+      if (published.draft === false) {
+        console.log(`🎉 Release v${newVersion} published successfully with APK!`);
+        console.log(`🔗 https://github.com/${GITHUB_REPO}/releases/tag/v${newVersion}`);
+      } else {
+        throw new Error("Release is still a draft");
+      }
+    } catch (e) {
+      console.error("⚠️  Could not auto-publish due to repository tag-creation rules.");
+      console.log("   The draft release with the APK is ready. Please publish it manually:");
+      console.log(`   https://github.com/${GITHUB_REPO}/releases/tag/${release.tag_name}`);
+      console.log("   Or remove the 'tags' creation restriction in repo Settings → Rules.");
     }
   }
 
