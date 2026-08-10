@@ -6,7 +6,7 @@ import { isAdminUser } from "@/lib/auth";
 import { validateAndRefreshSession } from "@/lib/session-service";
 import { registerDeviceLogin } from "@/lib/device";
 import { refreshLicenseCacheIfNeeded } from "@/lib/license-cache";
-import { listenForOAuthCallback, getInitialDeepLink, handleOAuthDeepLink, authTrace } from "@/lib/auth";
+import { listenForOAuthCallback, getInitialDeepLink, handleOAuthDeepLink, authTrace, isRaseedDeepLink } from "@/lib/auth";
 
 type AuthState = {
   user: User | null;
@@ -147,7 +147,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     const setup = async () => {
       // Cold start: the app was launched by a deep link (email confirmation / OAuth)
       const initialUrl = await getInitialDeepLink();
-      if (initialUrl && initialUrl.startsWith("com.BlueOrbitTechnologies.Raseed://")) {
+      if (isRaseedDeepLink(initialUrl)) {
         const result = await handleOAuthDeepLink(initialUrl);
         if (result.error) {
           authTrace("AUTH_ERROR", { stage: "cold start handleOAuthDeepLink", message: result.error.message });

@@ -27,7 +27,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="com.BlueOrbitTechnologies.Raseed" android:host="auth" />
+                <data android:scheme="com.blueorbittechnologies.raseed" android:host="auth" />
             </intent-filter>
 
         </activity>

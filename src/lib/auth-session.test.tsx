@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   listenForOAuthCallback: vi.fn(),
   getInitialDeepLink: vi.fn(),
   handleOAuthDeepLink: vi.fn(),
+  isRaseedDeepLink: vi.fn(),
+  authTrace: vi.fn(),
   validateAndRefreshSession: vi.fn(),
   registerDeviceLogin: vi.fn(),
   refreshLicenseCacheIfNeeded: vi.fn(),
@@ -35,6 +37,8 @@ vi.mock("@/lib/auth", () => ({
   listenForOAuthCallback: mocks.listenForOAuthCallback,
   getInitialDeepLink: mocks.getInitialDeepLink,
   handleOAuthDeepLink: mocks.handleOAuthDeepLink,
+  isRaseedDeepLink: mocks.isRaseedDeepLink,
+  authTrace: mocks.authTrace,
 }));
 
 vi.mock("@/lib/session-service", () => ({
@@ -56,6 +60,7 @@ function setup(sessionUser: User | null) {
   mocks.onAuthStateChange.mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } });
   mocks.listenForOAuthCallback.mockResolvedValue(() => {});
   mocks.getInitialDeepLink.mockResolvedValue(null);
+  mocks.isRaseedDeepLink.mockReturnValue(false);
   mocks.validateAndRefreshSession.mockResolvedValue({ valid: true });
   mocks.registerDeviceLogin.mockResolvedValue({ success: true });
   mocks.refreshLicenseCacheIfNeeded.mockResolvedValue(null);

@@ -47,8 +47,20 @@ function normalizePhoneValue(phone?: string | null): string | null {
   return value.length >= 10 ? value : null;
 }
 
+// NOTE: This mixed-case form is what Supabase has allowlisted as a redirect
+// URL, so it MUST be sent to Supabase exactly as-is.
 const CAPACITOR_SCHEME = "com.BlueOrbitTechnologies.Raseed";
 const OAUTH_REDIRECT_PATH = "/auth";
+
+// Browsers/Android always normalize a URI scheme to lowercase, and Android
+// intent-filter <data android:scheme> matching is case-sensitive. The manifest
+// therefore declares the lowercase scheme, and incoming deep links must be
+// matched case-insensitively.
+const CAPACITOR_DEEPLINK_PREFIX = "com.blueorbittechnologies.raseed://";
+
+export function isRaseedDeepLink(url: string | null | undefined): boolean {
+  return !!url && url.toLowerCase().startsWith(CAPACITOR_DEEPLINK_PREFIX);
+}
 
 // Matches the default supabase-js storage key: `sb-<project-ref>-auth-token`.
 const SUPABASE_PROJECT_REF = (() => {
@@ -269,7 +281,7 @@ export async function listenForOAuthCallback(): Promise<() => void> {
   const removeAppUrlOpen = await App.addListener("appUrlOpen", (event) => {
     const url = event.url;
     authTrace("APP_URL_OPEN", { url: url ? url.slice(0, 80) : "undefined" });
-    if (url && url.startsWith(`${CAPACITOR_SCHEME}://`)) {
+    if (url && isRaseedDeepLink(url)) {
       handleOAuthDeepLink(url).then((result) => {
         if (result.error) {
           authTrace("AUTH_ERROR", { stage: "appUrlOpen handler", message: result.error.message });
@@ -294,7 +306,7 @@ export async function listenForOAuthCallback(): Promise<() => void> {
     const poll = async () => {
       attempts += 1;
       const url = await getInitialDeepLink();
-      if (url && url.startsWith(`${CAPACITOR_SCHEME}://`)) {
+      if (isRaseedDeepLink(url)) {
         if (resumePollTimer !== undefined) {
           window.clearInterval(resumePollTimer);
           resumePollTimer = undefined;
