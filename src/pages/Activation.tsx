@@ -221,11 +221,11 @@ function renderUserInfoCard(license: LicenseInfo, isArabic: boolean, t: any) {
       )}
 
       <div className="border-t border-border/60 pt-4 space-y-3">
-        <InfoRow label={t("auth.licenseType")} value={formatLicenseType(license.license_type, isArabic, t)} />
+        <InfoRow label={t("auth.licenseType")} value={formatLicenseType(displayLicenseType(license), isArabic, t)} />
         <InfoRow label={t("auth.accountStatus")} value={<AccountBadge status={license.account_status} isArabic={isArabic} t={t} />} />
-        {license.trial_start && <InfoRow label={t("activation.trialStart")} value={formatDate(license.trial_start)} />}
-        {license.trial_end && <InfoRow label={t("activation.trialEnd")} value={formatDate(license.trial_end)} />}
-        {license.expiry_date && <InfoRow label={t("auth.expiryDate")} value={formatDate(license.expiry_date)} />}
+        {license.license_status === "trial" && license.trial_start && <InfoRow label={t("activation.trialStart")} value={formatDate(license.trial_start)} />}
+        {license.license_status === "trial" && license.trial_end && <InfoRow label={t("activation.trialEnd")} value={formatDate(license.trial_end)} />}
+        {license.license_status !== "trial" && license.license_status !== "permanent" && license.expiry_date && <InfoRow label={t("auth.expiryDate")} value={formatDate(license.expiry_date)} />}
         {license.last_login && <InfoRow label={t("activation.lastLogin")} value={formatDateTime(license.last_login)} />}
       </div>
     </Card>
@@ -261,6 +261,14 @@ function AccountBadge({ status, isArabic, t }: { status: string; isArabic: boole
   if (status === "suspended") return <Badge variant="destructive" className="rounded-full px-3 py-0.5">{t("activation.suspendedBadge")}</Badge>;
   if (status === "blocked") return <Badge variant="destructive" className="rounded-full px-3 py-0.5">{t("activation.blockedBadge")}</Badge>;
   return <Badge variant="outline" className="rounded-full px-3 py-0.5">{status}</Badge>;
+}
+
+function displayLicenseType(license: LicenseInfo): string {
+  // The license_type column can never contradict license_status: permanent is
+  // always shown as lifetime, trial as trial, regardless of stored data.
+  if (license.license_status === "permanent") return "lifetime";
+  if (license.license_status === "trial") return "trial";
+  return license.license_type;
 }
 
 function formatLicenseType(type: string, isArabic: boolean, t: any): string {

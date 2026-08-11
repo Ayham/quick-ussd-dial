@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   Send, Wallet, BarChart3, Settings, Zap, Menu, ChevronLeft,
   Download, Shield, ChevronDown, Home, LogIn, LogOut, User,
-  X, ExternalLink, KeyRound, Bell, History
+  X, ExternalLink, KeyRound, Bell, History, Info
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -32,6 +32,7 @@ function useMenuItems() {
     { icon: Settings, label: t("nav.settings"), path: "/settings", description: t("nav.settingsDesc", "App settings") },
     { icon: Download, label: t("nav.updates"), path: "/updates", description: t("nav.updatesDesc", "Check for updates") },
     { icon: KeyRound, label: t("nav.activation", "التفعيل"), path: "/activation", description: t("nav.activationDesc", "License & activation") },
+    { icon: Info, label: t("nav.about", "حول التطبيق"), path: "/about", description: t("nav.aboutDesc", "App info & contact") },
   ];
 }
 

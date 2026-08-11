@@ -2,6 +2,7 @@ import { refreshLicenseCacheIfNeeded, validateDeviceSession, getCachedPolicy } f
 import { trackAppOpen } from "@/lib/cloud-sync";
 import { startSupabaseSync } from "@/lib/supabase-sync";
 import { flushPendingOps } from "@/lib/notifications/offline";
+import { refreshContactSettings } from "@/lib/contact-settings";
 
 const FALLBACK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const MIN_INTERVAL_MS = 60 * 1000;
@@ -68,6 +69,12 @@ export function startCloudServices(): void {
   } catch {}
   try {
     startSupabaseSync();
+  } catch {}
+
+  // Contact settings (About page) — refresh the local cache in the background
+  // when online. Offline: no network attempt, cache is used as-is.
+  try {
+    void refreshContactSettings();
   } catch {}
 
   // Opportunistic silent license validation (driven by the server policy).

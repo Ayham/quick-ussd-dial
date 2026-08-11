@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flush, pushEvent, getQueueSize, getLastSyncTime, isInBackoff } from "./supabase-sync";
+import { APP_VERSION } from "@/config/version";
 import { supabase } from "@/integrations/supabase/client";
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -54,7 +55,7 @@ describe("supabase sync", () => {
     const [name, opts] = invokeMock.mock.calls[0];
     expect(name).toBe("device-sync");
     expect(opts.body.client_id).toBeTruthy();
-    expect(opts.body.app_version).toBe("1.0.0");
+    expect(opts.body.app_version).toBe(APP_VERSION);
     expect(opts.body.events).toHaveLength(3);
     expect(opts.body.pending_count).toBe(0);
     expect(getLastSyncTime()).toBeTruthy();

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Shield, LogOut, LayoutGrid, Users, Activity, FileText, Database, KeyRound, UserCheck, Bell, RefreshCw, ChevronLeft, ChevronRight, Smartphone } from "lucide-react";
+import { Shield, LogOut, LayoutGrid, Users, Activity, FileText, Database, KeyRound, UserCheck, Bell, RefreshCw, ChevronLeft, ChevronRight, Smartphone, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { signOut } from "@/lib/auth";
@@ -14,6 +14,7 @@ import ActivationRequests from "@/components/admin/ActivationRequests";
 import { NotificationManagement } from "@/components/admin/NotificationManagement";
 import { SyncMonitor } from "@/components/admin/SyncMonitor";
 import AppUpdatesAdmin from "@/components/admin/AppUpdatesAdmin";
+import ContactSettingsAdmin from "@/components/admin/ContactSettingsAdmin";
 import { cn } from "@/lib/utils";
 
 const tabs = [
@@ -25,6 +26,7 @@ const tabs = [
   { value: "notifications", labelKey: "admin.notifications", icon: Bell },
   { value: "sync", labelKey: "admin.sync", icon: RefreshCw },
   { value: "updates", labelKey: "admin.appUpdates", icon: Smartphone },
+  { value: "contactSettings", labelKey: "admin.contactSettings", icon: MessageCircle },
   { value: "events", labelKey: "admin.events", icon: Database },
 ];
 
@@ -88,6 +90,8 @@ const Admin = () => {
           return <SyncMonitor />;
         case "updates":
           return <AppUpdatesAdmin />;
+        case "contactSettings":
+          return <ContactSettingsAdmin />;
         case "activations":
          return <ActivationRequests />;
        default:

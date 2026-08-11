@@ -377,7 +377,7 @@ const Index = () => {
 
         {/* Phone Input Card */}
         <div className="bg-white rounded-2xl p-4.5 shadow-sm border border-border/60 space-y-3.5 animate-slide-up">
-          <div className="relative" ref={contactsRef}>
+          <div className="relative z-50" ref={contactsRef}>
             <div className="absolute left-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
               <button
                 onClick={handlePickContact}
@@ -432,7 +432,7 @@ const Index = () => {
                   })}
                 </div>
               ) : phone.trim().length < 3 && recentNumbers.length > 0 ? (
-                <div className="absolute z-10 top-full mt-2 w-full bg-white border border-border rounded-xl shadow-elevated max-h-52 overflow-y-auto scrollbar-thin">
+                <div className="absolute z-10 top-full mt-2 w-full bg-white border border-border rounded-xl shadow-elevated overflow-y-auto scrollbar-thin pb-2">
                   <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1.5 px-3.5 pt-2.5 pb-1">
                     <Clock className="w-3 h-3" />
                     {t("index.recentNumbers")}

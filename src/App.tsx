@@ -16,6 +16,7 @@ import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import Activation from "./pages/Activation";
 import LicenseLocked from "./pages/LicenseLocked";
+import About from "./pages/About";
 import { AuthSessionProvider, RequireAdmin, RequireAuth } from "@/lib/auth-session";
 import { NotificationsProvider } from "@/hooks/use-notifications";
 import OnboardingGate from "@/components/OnboardingGate";
@@ -110,6 +111,7 @@ const AppContent = () => {
             <Route path="/sys-panel" element={<RequireAuth><RequireAdmin><Admin /></RequireAdmin></RequireAuth>} />
             <Route path="/updates" element={<RequireAuth><Updates /></RequireAuth>} />
             <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+            <Route path="/about" element={<RequireAuth><About /></RequireAuth>} />
             <Route path="*" element={<RequireAuth><NotFound /></RequireAuth>} />
           </Routes>
           <OnboardingGate />

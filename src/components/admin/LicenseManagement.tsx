@@ -177,14 +177,26 @@ const LicenseManagement = () => {
     if (!selectedUser) return;
     setActionLoading("set_" + selectedUser.user_id);
     try {
+      // Normalize the (status, type, expiry) triple so a contradictory combo
+      // (e.g. permanent + trial, or active + lifetime) can never be sent.
+      let effectiveStatus = licenseStatus;
+      let effectiveType = licenseType || null;
       let expiryDate: string | null = null;
-      if (licenseStatus === "active" && licenseType !== "lifetime" && licenseType !== "permanent") {
-        expiryDate = calculateExpiryDate(licenseType as any, customExpiryDate || undefined);
+      if (effectiveStatus === "active" && effectiveType === "lifetime") {
+        effectiveStatus = "permanent";
+      }
+      if (effectiveStatus === "permanent") {
+        effectiveType = "lifetime";
+      } else if (effectiveStatus === "trial") {
+        effectiveType = "trial";
+      } else if (effectiveStatus === "active") {
+        if (effectiveType === "trial") effectiveType = "year_1";
+        expiryDate = calculateExpiryDate(effectiveType as any, customExpiryDate || undefined);
       }
       const { error } = await supabase.rpc("admin_set_license", {
         _target_user_id: selectedUser.user_id,
-        _license_status: licenseStatus,
-        _license_type: licenseType || null,
+        _license_status: effectiveStatus,
+        _license_type: effectiveType,
         _expiry_date: expiryDate,
         _notes: licenseNotes || null,
       });

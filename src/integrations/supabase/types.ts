@@ -1489,6 +1489,22 @@ export type Database = {
         Args: Record<string, never>
         Returns: Json
       }
+      get_contact_settings: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      admin_update_contact_settings: {
+        Args: {
+          p_whatsapp_enabled?: boolean
+          p_whatsapp_number?: string
+          p_whatsapp_url?: string
+          p_email_enabled?: boolean
+          p_email_address?: string
+          p_facebook_enabled?: boolean
+          p_facebook_url?: string
+        }
+        Returns: Json
+      }
       get_user_license_status: {
         Args: Record<string, never>
         Returns: Json

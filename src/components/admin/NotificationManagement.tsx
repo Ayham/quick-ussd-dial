@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuthSession } from "@/lib/auth-session";
 import {
-  Archive, Bell, CalendarClock, Copy, Eye, Loader2, Pencil, Plus, RefreshCw,
-  Send, Trash2, Undo2, XCircle, Users,
+  Archive, Bell, CalendarClock, Check, ChevronsUpDown, Copy, Eye, Loader2, Pencil,
+  Plus, RefreshCw, Send, Trash2, Undo2, X, XCircle, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type {
   AdminNotification, AdminNotificationDetail, NotificationActionType, NotificationPriority,
-  NotificationSegment, NotificationStatus, NotificationType, NotificationStats,
+  NotificationSearchUser, NotificationSegment, NotificationStatus, NotificationType, NotificationStats,
 } from "@/lib/notifications/types";
 import { NOTIFICATION_ACTION_TYPES, NOTIFICATION_PRIORITIES, NOTIFICATION_STATUSES, NOTIFICATION_TYPES } from "@/lib/notifications/types";
 import {
@@ -34,8 +34,13 @@ import {
   adminGetNotificationStats,
   adminResendNotification,
   adminRestoreNotification,
+  adminSearchNotificationUsers,
   adminUpdateNotification,
 } from "@/lib/notifications/service";
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const STATUS_STYLES: Record<NotificationStatus, string> = {
   draft: "bg-slate-100 text-slate-700",
@@ -142,6 +147,8 @@ interface AudienceOption {
 
 function buildSendConfig(form: NotificationForm): Record<string, unknown> {
   const config: Record<string, unknown> = { audience: form.audience };
+  // user_id is a real UUID selected from admin_search_notification_users,
+  // never a client-typed value. The backend still re-validates it.
   if (form.audience === "single") config.user_id = form.user_id;
   if (form.audience === "role") config.role = form.role;
   return config;
@@ -168,11 +175,39 @@ function NotificationFormDialog({
   const [form, setForm] = useState<NotificationForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [segments, setSegments] = useState<NotificationSegment[]>([]);
+  const [selectedUser, setSelectedUser] = useState<NotificationSearchUser | null>(null);
+  const [userSearch, setUserSearch] = useState("");
+  const [userOptions, setUserOptions] = useState<NotificationSearchUser[]>([]);
+  const [userOptionsLoading, setUserOptionsLoading] = useState(false);
+  const prefillIdRef = useRef<string | null>(null);
+
+  const loadUserOptions = useCallback(async (query: string) => {
+    setUserOptionsLoading(true);
+    try {
+      const res = await adminSearchNotificationUsers({ search: query || null, pageSize: 50 });
+      setUserOptions(res.users);
+      if (prefillIdRef.current) {
+        const match = res.users.find((u) => u.user_id === prefillIdRef.current);
+        if (match) {
+          prefillIdRef.current = null;
+          setSelectedUser(match);
+          setForm((prev) => ({ ...prev, user_id: match.user_id }));
+        }
+      }
+    } catch {
+      setUserOptions([]);
+    } finally {
+      setUserOptionsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!open) return;
+    setSelectedUser(null);
+    setUserOptions([]);
     if (initial) {
       const sendConfig = (initial.send_config || {}) as Record<string, unknown>;
+      prefillIdRef.current = sendConfig.user_id ? String(sendConfig.user_id) : null;
       setForm({
         title_ar: initial.title_ar,
         title_en: initial.title_en,
@@ -184,7 +219,7 @@ function NotificationFormDialog({
         action_target: initial.action_target ?? "",
         audience: String(sendConfig.audience ?? "all"),
         role: String(sendConfig.role ?? "user"),
-        user_id: "",
+        user_id: sendConfig.user_id ? String(sendConfig.user_id) : "",
         scheduled_at: initial.status === "scheduled" ? toLocalDateTimeInput(initial.scheduled_at) : "",
         expires_at: toLocalDateTimeInput(initial.expires_at),
         is_pinned: initial.is_pinned,
@@ -193,15 +228,38 @@ function NotificationFormDialog({
         image_url: initial.image_url ?? "",
       });
     } else {
+      prefillIdRef.current = defaults?.user_id ? defaults.user_id : null;
       setForm({ ...EMPTY_FORM, ...defaults });
     }
+    setUserSearch("");
+    loadUserOptions("");
     adminGetNotificationSegments()
       .then(setSegments)
       .catch(() => setSegments([]));
-  }, [open, initial, defaults]);
+  }, [open, initial, defaults, loadUserOptions]);
+
+  useEffect(() => {
+    if (!open) return;
+    const timer = setTimeout(() => {
+      loadUserOptions(userSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [open, userSearch, loadUserOptions]);
 
   const set = <K extends keyof NotificationForm>(key: K, value: NotificationForm[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const selectUser = (user: NotificationSearchUser) => {
+    setSelectedUser(user);
+    set("user_id", user.user_id);
+    setUserSearch("");
+  };
+
+  const clearSelectedUser = () => {
+    setSelectedUser(null);
+    set("user_id", "");
+    setUserSearch("");
   };
 
   const audienceOptions: AudienceOption[] = useMemo(() => {
@@ -219,6 +277,10 @@ function NotificationFormDialog({
   }, [t]);
 
   const save = async () => {
+    if (!initial && form.audience === "single" && !selectedUser) {
+      toast.error(t("adminUsers.emailNotFound"));
+      return;
+    }
     setSaving(true);
     const scheduled_at = fromLocalDateTimeInput(form.scheduled_at);
     const base = {
@@ -356,9 +418,73 @@ function NotificationFormDialog({
               </Select>
             </div>
             {form.audience === "single" && (
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold">{t("adminNotifications.userId")}</label>
-                <Input value={form.user_id} onChange={(e) => set("user_id", e.target.value)} dir="ltr" placeholder="uuid" />
+              <div className="space-y-2">
+                <label className="text-xs font-semibold">{t("adminNotifications.recipientLabel")}</label>
+                {selectedUser ? (
+                  <div className="flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {selectedUser.display_name || selectedUser.shop_name || selectedUser.email || selectedUser.phone}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground truncate" dir="ltr">
+                        {[selectedUser.email, selectedUser.phone].filter(Boolean).join(" • ")}
+                      </p>
+                    </div>
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 shrink-0" onClick={clearSelectedUser} aria-label={t("adminNotifications.clearUser")}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" role="combobox" className="w-full justify-between font-normal" dir="ltr">
+                        <span className="truncate text-muted-foreground">{t("adminNotifications.selectUserPlaceholder")}</span>
+                        <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput
+                          placeholder={t("adminNotifications.searchUsersPlaceholder")}
+                          value={userSearch}
+                          onValueChange={setUserSearch}
+                        />
+                        <CommandList>
+                          {userOptionsLoading && userOptions.length === 0 ? (
+                            <div className="flex items-center justify-center py-6">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            </div>
+                          ) : userOptions.length === 0 ? (
+                            <CommandEmpty>{t("adminNotifications.noUsersFound")}</CommandEmpty>
+                          ) : (
+                            <CommandGroup>
+                              {userOptions.map((user) => (
+                                <CommandItem
+                                  key={user.user_id}
+                                  value={`${user.display_name || ""} ${user.email || ""} ${user.phone || ""} ${user.shop_name || ""}`}
+                                  onSelect={() => selectUser(user)}
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm">
+                                      {user.display_name || user.shop_name || user.email || user.phone || user.user_id}
+                                    </p>
+                                    <p className="truncate text-[11px] text-muted-foreground" dir="ltr">
+                                      {[user.email, user.phone].filter(Boolean).join(" • ")}
+                                    </p>
+                                  </div>
+                                  {selectedUser?.user_id === user.user_id && (
+                                    <Check className="ml-2 h-4 w-4 shrink-0" />
+                                  )}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          )}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                )}
+                <p className="text-[10px] text-muted-foreground">{t("adminNotifications.singleUserNote")}</p>
               </div>
             )}
             {form.audience === "list" && (
@@ -409,7 +535,7 @@ function NotificationFormDialog({
 
         <div className="flex items-center justify-end gap-2 pt-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>{t("common.cancel")}</Button>
-          <Button onClick={save} disabled={saving || (!form.title_ar && !form.title_en)}>
+          <Button onClick={save} disabled={saving || (!form.title_ar && !form.title_en) || (form.audience === "single" && !initial && !selectedUser)}>
             {saving && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />}
             {initial ? t("common.save") : t("adminNotifications.createAndSend")}
           </Button>
@@ -560,6 +686,7 @@ export function NotificationManagement() {
         action_target: detail.action_target ?? "",
         audience: String(sendConfig.audience ?? "all"),
         role: String(sendConfig.role ?? "user"),
+        user_id: sendConfig.user_id ? String(sendConfig.user_id) : "",
         is_pinned: detail.is_pinned,
         is_announcement: detail.is_announcement,
         requires_acknowledgement: detail.requires_acknowledgement,
