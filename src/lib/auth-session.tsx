@@ -8,6 +8,75 @@ import { registerDeviceLogin } from "@/lib/device";
 import { refreshLicenseCacheIfNeeded } from "@/lib/license-cache";
 import { listenForOAuthCallback, getInitialDeepLink, handleOAuthDeepLink, authTrace, isRaseedDeepLink } from "@/lib/auth";
 
+// A locally persisted session is only treated as authentication when it has
+// been confirmed by Supabase. The marker below records the last time the
+// session was actually validated, so offline-first continuity can NEVER
+// fabricate an authenticated state from an arbitrary stored blob (license
+// cache, profile cache, copied app data, etc.).
+export const AUTH_VALIDATED_AT_KEY = "app_auth_session_validated_at";
+
+// Mirrors the app-wide session policy used by session-service.ts.
+const SESSION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7;
+const AUTH_VALIDATION_TIMEOUT_MS = 10_000;
+
+function getLastAuthValidation(): number {
+  try {
+    return parseInt(localStorage.getItem(AUTH_VALIDATED_AT_KEY) || "0", 10) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function markAuthValidated(): void {
+  try {
+    localStorage.setItem(AUTH_VALIDATED_AT_KEY, String(Date.now()));
+  } catch {}
+}
+
+function clearAuthValidated(): void {
+  try {
+    localStorage.removeItem(AUTH_VALIDATED_AT_KEY);
+  } catch {}
+}
+
+// A session is eligible for offline continuity only if Supabase confirmed it
+// recently enough per the app's session policy.
+function hasAuthContinuity(): boolean {
+  const last = getLastAuthValidation();
+  return last > 0 && Date.now() - last < SESSION_MAX_AGE_MS;
+}
+
+// Genuine authentication failures (expired/invalid/revoked JWT, missing
+// session) are strictly distinct from transport failures (offline, DNS,
+// timeout) and transient server errors (e.g. 429 rate limit). Only genuine
+// auth failures may clear the local session — otherwise a valid user could be
+// force-logged-out by a momentary server hiccup.
+function isGenuineAuthError(error: unknown): boolean {
+  const err = error as { status?: number; name?: string; message?: string };
+  // Only the server's explicit 401/403 means the stored credential was
+  // rejected. Other 4xx (429 rate limit…) and 5xx are transient.
+  if (typeof err.status === "number" && (err.status === 401 || err.status === 403)) return true;
+  if (err.name === "AuthSessionMissingError") return true;
+  const msg = (err.message || "").toLowerCase();
+  return ["jwt", "sub claim", "token"].some((part) => msg.includes(part));
+}
+
+function withAuthTimeout<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
+  return new Promise<T | undefined>((resolve) => {
+    const timer = window.setTimeout(() => resolve(undefined), ms);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        window.clearTimeout(timer);
+        resolve(undefined);
+      },
+    );
+  });
+}
+
 type AuthState = {
   user: User | null;
   isAdmin: boolean;
@@ -26,35 +95,34 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const refresh = async () => {
     const { data, error } = await supabase.auth.getUser();
     if (error) {
-      // Offline mode must NEVER log the user out. If the network is down,
-      // the local authenticated session stays in place — only genuine auth
-      // errors (expired/invalid JWT, sub claim, replaced session) clear it.
-      if (typeof navigator !== "undefined" && !navigator.onLine) return;
-      const msg = (error.message || "").toLowerCase();
-      if (
-        msg.includes("jwt") ||
-        msg.includes("sub claim") ||
-        msg.includes("session") ||
-        msg.includes("token")
-      ) {
+      // Offline / transient failures must never clear an established session.
+      // Only genuine auth failures (expired/invalid/revoked JWT) do.
+      if (isGenuineAuthError(error)) {
         try { await supabase.auth.signOut({ scope: "local" }); } catch {}
+        clearAuthValidated();
+        setUser(null);
+        setIsAdmin(false);
       }
-      setUser(null);
-      setIsAdmin(false);
       return;
     }
     const sessionUser = data.user ?? null;
     userRef.current = sessionUser;
     setUser(sessionUser);
     if (sessionUser) {
+      markAuthValidated();
       setIsAdmin(await isAdminUser());
     } else {
       setIsAdmin(false);
+      clearAuthValidated();
     }
   };
 
   useEffect(() => {
     let alive = true;
+    // Cold start is settled once load() finishes. Until then, SIGNED_IN events
+    // are the auth-js storage-recovery replay (no server confirmation) and must
+    // not be treated as authentication.
+    let coldStartSettled = false;
 
     // Background network refreshes — never block render. Also re-runs when the
     // app regains focus so a device that was displaced by a login on another
@@ -74,38 +142,107 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       }, 0);
     };
 
-    // Local-first cold start: read the session straight from device storage so
-    // the UI renders instantly (<1s) without any network call.
+    // Local-first cold start: read the session straight from device storage,
+    // but NEVER treat a stored blob as authentication on its own. Access is
+    // granted only after the session is validated (or, while offline, only
+    // when Supabase previously confirmed this session).
     const load = async () => {
-      let sessionUser: User | null = null;
+      let storedSessionUser: User | null = null;
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        sessionUser = session?.user ?? null;
+        storedSessionUser = session?.user ?? null;
       } catch {}
       if (!alive) return;
-      userRef.current = sessionUser;
-      setUser(sessionUser);
-      setLoading(false);
 
-      if (!sessionUser) return;
-      runBackgroundChecks();
+      // No session at all → not authenticated. (Fresh install, logged out,
+      // cleared data, or an expired session Supabase already removed.)
+      if (!storedSessionUser) {
+        userRef.current = null;
+        setUser(null);
+        setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
+
+      // Offline + a session Supabase previously confirmed → offline continuity
+      // (never a fabricated authentication state).
+      const offline = typeof navigator === "undefined" || !navigator.onLine;
+      if (offline && hasAuthContinuity()) {
+        userRef.current = storedSessionUser;
+        setUser(storedSessionUser);
+        setLoading(false);
+        runBackgroundChecks();
+        return;
+      }
+
+      // Otherwise the stored session must be validated against Supabase before
+      // it grants access.
+      try {
+        const result = await withAuthTimeout(
+          supabase.auth.getUser(),
+          AUTH_VALIDATION_TIMEOUT_MS,
+        );
+        if (result?.data?.user) {
+          markAuthValidated();
+          userRef.current = result.data.user;
+          setUser(result.data.user);
+        } else if (result?.error && isGenuineAuthError(result.error)) {
+          // Expired / invalid / revoked session → clear it and require login.
+          try { await supabase.auth.signOut({ scope: "local" }); } catch {}
+          clearAuthValidated();
+          userRef.current = null;
+          setUser(null);
+          setIsAdmin(false);
+        } else if (hasAuthContinuity()) {
+          // Transport failure while a previously-validated session exists.
+          userRef.current = storedSessionUser;
+          setUser(storedSessionUser);
+        } else {
+          userRef.current = null;
+          setUser(null);
+          setIsAdmin(false);
+        }
+      } catch {
+        if (hasAuthContinuity()) {
+          userRef.current = storedSessionUser;
+          setUser(storedSessionUser);
+        } else {
+          userRef.current = null;
+          setUser(null);
+          setIsAdmin(false);
+        }
+      }
+      setLoading(false);
+      if (userRef.current) runBackgroundChecks();
     };
 
-    load();
+    load().finally(() => {
+      coldStartSettled = true;
+    });
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       const sessionUser = session?.user ?? null;
       authTrace("AUTH_STATE_CHANGE", { event: _event, user: sessionUser ? "present" : "absent" });
-      if (_event === "SIGNED_IN") {
-        authTrace("SIGNED_IN", { user: sessionUser?.id ? "present" : "absent" });
-      }
+
+      // @supabase/auth-js replays the session recovered from device storage at
+      // startup: INITIAL_SESSION always fires, and SIGNED_IN fires whenever the
+      // stored session is structurally valid. Neither is a server confirmation,
+      // so neither may open the app on its own. The load() flow decides cold
+      // start, and its offline-continuity marker is the only offline grant.
+      if (_event === "INITIAL_SESSION") return;
+      if (_event === "SIGNED_IN" && !coldStartSettled) return;
+
+      // Runtime events below are network-confirmed (real login, token refresh,
+      // user update) or explicit state changes (sign-out) — safe to apply.
       userRef.current = sessionUser;
       setUser(sessionUser);
       setLoading(false);
       if (!sessionUser) {
         setIsAdmin(false);
+        clearAuthValidated();
         return;
       }
+      markAuthValidated();
       window.setTimeout(async () => {
         try {
           setIsAdmin(await isAdminUser());

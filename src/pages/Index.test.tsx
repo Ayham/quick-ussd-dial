@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Toaster } from "sonner";
 
 import Index from "./Index";
-import { createAndroidContact, getContactByPhone, openAppSettings } from "@/lib/android-contacts";
+import { createAndroidContact, getContactByPhone, openAppSettings, updateAndroidContactName } from "@/lib/android-contacts";
 
 vi.mock("@/lib/cloud-sync", () => ({
   trackTransfer: vi.fn(),
@@ -34,6 +34,7 @@ vi.mock("@/lib/android-contacts", () => ({
   saveContactAfterTransfer: vi.fn().mockResolvedValue(undefined),
   getContactByPhone: vi.fn().mockResolvedValue(null),
   createAndroidContact: vi.fn().mockResolvedValue({ contactId: "1", created: true, updated: false }),
+  updateAndroidContactName: vi.fn().mockResolvedValue({ contactId: "1", updated: true }),
   openAppSettings: vi.fn().mockResolvedValue(undefined),
   pickContactFromDevice: vi.fn().mockResolvedValue(null),
   normalizePhone: vi.fn((p: string) => p.replace(/[^\d+]/g, '')),
@@ -182,5 +183,65 @@ describe("Transfer phone input", () => {
       await screen.findByText("صلاحية جهات الاتصال مرفوضة. امنح التطبيق الإذن من الإعدادات ثم أعد المحاولة"),
     ).toBeInTheDocument();
     expect(openSettingsMock).toHaveBeenCalled();
+  });
+
+  it("edits an existing contact name and reflects it in the UI", async () => {
+    vi.mocked(getContactByPhone).mockResolvedValue({ contactId: "9", displayName: "Auto Match", phone: "0991234567" });
+    const updateMock = vi.mocked(updateAndroidContactName);
+    updateMock.mockResolvedValue({ contactId: "9", updated: true });
+
+    render(
+      <MemoryRouter>
+        <Index />
+        <Toaster />
+      </MemoryRouter>,
+    );
+
+    const phoneInput = document.querySelector('input[type="tel"]');
+    fireEvent.change(phoneInput!, { target: { value: "0991234567" } });
+
+    expect(await screen.findByText("Auto Match")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("تعديل اسم جهة الاتصال"));
+
+    const nameInput = await screen.findByLabelText("الاسم");
+    fireEvent.change(nameInput, { target: { value: "أبو أحمد" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "حفظ" }));
+
+    expect(await screen.findByText("تم تعديل اسم جهة الاتصال")).toBeInTheDocument();
+    expect(updateMock).toHaveBeenCalledWith("0991234567", "أبو أحمد");
+    expect(screen.getByText("أبو أحمد")).toBeInTheDocument();
+  });
+
+  it("keeps the current contact name when the edit fails", async () => {
+    vi.mocked(getContactByPhone).mockResolvedValue({ contactId: "9", displayName: "Auto Match", phone: "0991234567" });
+    const updateMock = vi.mocked(updateAndroidContactName);
+    updateMock.mockRejectedValueOnce(
+      Object.assign(new Error("update failed"), { code: "UPDATE_FAILED" }),
+    );
+
+    render(
+      <MemoryRouter>
+        <Index />
+        <Toaster />
+      </MemoryRouter>,
+    );
+
+    const phoneInput = document.querySelector('input[type="tel"]');
+    fireEvent.change(phoneInput!, { target: { value: "0991234567" } });
+
+    expect(await screen.findByText("Auto Match")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("تعديل اسم جهة الاتصال"));
+
+    const nameInput = await screen.findByLabelText("الاسم");
+    fireEvent.change(nameInput, { target: { value: "أبو أحمد" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "حفظ" }));
+
+    expect(await screen.findByText("فشل تعديل اسم جهة الاتصال، حاول مرة أخرى")).toBeInTheDocument();
+    expect(screen.getByText("Auto Match")).toBeInTheDocument();
+    expect(screen.queryByText("أبو أحمد")).not.toBeInTheDocument();
   });
 });

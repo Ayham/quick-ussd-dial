@@ -243,19 +243,26 @@ export async function openAppSettings(): Promise<void> {
   }
 }
 
-export async function updateAndroidContactName(phone: string, name: string): Promise<boolean> {
+export interface UpdateContactNameResult {
+  contactId: string | null;
+  updated: boolean;
+}
+
+export async function updateAndroidContactName(phone: string, name: string): Promise<UpdateContactNameResult> {
   try {
     const hasPermission = await ensureContactsPermissions();
-    if (!hasPermission) return false;
+    if (!hasPermission) {
+      throw new ContactsError("Contacts permission denied", "PERMISSION_DENIED");
+    }
     const p = await getPlugin();
-    const result = await p.updateContactName({
+    return await p.updateContactName({
       phone: normalizePhone(phone),
       name,
     });
-    return result.updated;
   } catch (err) {
-    console.warn('[AndroidContacts] updateContactName error:', err);
-    return false;
+    const ce = toContactsError(err);
+    console.error('[AndroidContacts] updateContactName failure:', ce.code, ce.message, ce.data);
+    throw ce;
   }
 }
 

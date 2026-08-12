@@ -91,7 +91,7 @@ BEGIN
      OR (v_expiry IS NOT NULL AND v_expiry <= v_now) THEN
     v_offline_grace_ms := 0;
   ELSIF v_profile.license_status = 'permanent' THEN
-    v_offline_grace_ms := 3650 * 86400000; -- valid per permanent status
+    v_offline_grace_ms := 3650::bigint * 86400000; -- valid per permanent status
   ELSIF v_expiry IS NULL THEN
     v_offline_grace_ms := 7 * 86400000;    -- undated (malformed/legacy) fallback
   ELSE

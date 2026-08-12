@@ -86,6 +86,7 @@ const AppContent = () => {
           {!showForcedGate && updateInfo?.hasUpdate && (
             <UpdateBanner updateInfo={updateInfo} onDismiss={() => setUpdateInfo(null)} />
           )}
+          <LicenseReminder />
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/activation" element={<RequireAuth><Activation /></RequireAuth>} />
@@ -115,7 +116,6 @@ const AppContent = () => {
             <Route path="*" element={<RequireAuth><NotFound /></RequireAuth>} />
           </Routes>
           <OnboardingGate />
-          <LicenseReminder />
           <DeviceMismatchDialog />
         </NotificationsProvider>
       </AuthSessionProvider>

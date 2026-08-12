@@ -307,6 +307,9 @@ export function getTransferGuard(): TransferGuardResult {
   if (data.reason === "device_mismatch") {
     return { allowed: false, reason: i18n.t("errors.deviceMismatch"), reasonCode: "device_mismatch" };
   }
+  if (data.reason === "device_banned") {
+    return { allowed: false, reason: i18n.t("errors.deviceBanned"), reasonCode: "device_banned" };
+  }
 
   return { allowed: true };
 }
@@ -345,6 +348,9 @@ export async function ensureTransferAllowed(): Promise<TransferGuardResult> {
 export function getValidationReminder(): ValidationReminder {
   const cached = getCachedRaw();
   if (!cached.data) return { show: false, blocked: false, days: null };
+  // Permanent licenses can never expire — never surface a near-expiry reminder,
+  // even if a stale cache still carries old expiry/trial dates.
+  if (cached.data.license_status === "permanent") return { show: false, blocked: false, days: null };
 
   const policy = getCachedPolicy();
   const guard = getTransferGuard();

@@ -162,6 +162,34 @@ describe("License Cache & Offline Validation Policy", () => {
     expect(reminder.show).toBe(true);
     expect(reminder.blocked).toBe(false);
   });
+
+  it("never surfaces a near-expiry reminder for a permanent license even with stale cached dates", () => {
+    const permanentState: ValidationResult = {
+      valid: true,
+      license_status: "permanent",
+      account_status: "active",
+      // Stale dates that used to survive from a pre-fix profile.
+      expiry_date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 10).toISOString(),
+      trial_end: new Date(Date.now() + 1000 * 60 * 60 * 24 * 10).toISOString(),
+    };
+    localStorage.setItem("app_license_cache", JSON.stringify(permanentState));
+    localStorage.setItem("app_license_cache_age", String(Date.now()));
+
+    const stalePolicy: ValidationPolicy = {
+      valid: true,
+      minimum_validation_interval_ms: 1000 * 60 * 60 * 24,
+      offline_grace_ms: 1000 * 60 * 60 * 24 * 7,
+      next_required_validation: new Date(Date.now() - 1000 * 60 * 60).toISOString(), // due
+      force_validation: false,
+      license_expiration: new Date(Date.now() + 1000 * 60 * 60 * 24 * 10).toISOString(),
+      revoked: false,
+      validation_policy: "expiring_soon",
+    };
+    localStorage.setItem("app_validation_policy", JSON.stringify(stalePolicy));
+
+    const reminder = getValidationReminder();
+    expect(reminder.show).toBe(false);
+  });
 });
 
 describe("Commercial Offlice Security (attack scenarios)", () => {

@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Phone, Clock, CheckCircle, Loader2, Send, TrendingUp, BookUser, UserPlus, Search } from "lucide-react";
+import { Phone, Clock, CheckCircle, Loader2, Send, TrendingUp, BookUser, UserPlus, Search, Pencil } from "lucide-react";
 import {
   detectOperator,
   buildUssdCode,
@@ -27,6 +27,7 @@ import {
   openAppSettings,
   pickContactFromDevice,
   getContactByPhone,
+  updateAndroidContactName,
   normalizePhone,
   type AndroidContact,
 } from "@/lib/android-contacts";
@@ -56,6 +57,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type ContactMatch = {
   phone: string;
@@ -80,6 +89,9 @@ const Index = () => {
   const [secretOperator, setSecretOperator] = useState<Operator | null>(() => getLastSecretOperator());
   const [androidContacts, setAndroidContacts] = useState<ContactMatch[]>([]);
   const [contactsVersion, setContactsVersion] = useState(0);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editNameInput, setEditNameInput] = useState('');
+  const [savingContactName, setSavingContactName] = useState(false);
   const [amountDisplayStyle, setAmountDisplayStyle] = useState<AmountDisplayStyle>(() => getAmountDisplayStyle());
   const [businessName, setBusinessName] = useState(() => getBusinessName());
 
@@ -265,6 +277,49 @@ const Index = () => {
     },
     [],
   );
+
+  const openEditNameDialog = useCallback(() => {
+    setEditNameInput(contactName || '');
+    setEditDialogOpen(true);
+  }, [contactName]);
+
+  const handleSaveContactName = useCallback(async () => {
+    const newName = editNameInput.trim();
+    if (!newName) {
+      toast.error(t("index.contactNameRequired"));
+      return;
+    }
+    if (newName === contactName) {
+      setEditDialogOpen(false);
+      return;
+    }
+    const { Capacitor } = await import('@capacitor/core');
+    if (!Capacitor.isNativePlatform()) {
+      toast.error(t("index.androidOnly"));
+      return;
+    }
+    setSavingContactName(true);
+    try {
+      await updateAndroidContactName(phone.trim(), newName);
+      setContactName(newName);
+      setContactsVersion(v => v + 1);
+      setEditDialogOpen(false);
+      toast.success(t("index.contactUpdated"));
+    } catch (err) {
+      const e = err as { code?: string; message?: string };
+      if (e?.code === 'PERMISSION_DENIED') {
+        toast.error(t("index.contactPermissionDenied"));
+        await openAppSettings();
+      } else if (e?.code === 'NOT_FOUND') {
+        toast.error(t("index.contactNotFound"));
+      } else {
+        console.warn('[Transfer] edit contact name failed:', e?.code, e?.message);
+        toast.error(t("index.contactUpdateFailed"));
+      }
+    } finally {
+      setSavingContactName(false);
+    }
+  }, [editNameInput, contactName, phone, t]);
 
   const handleConfirmTransfer = useCallback(async () => {
     if (!transferOperator || !selectedAmount) return;
@@ -472,9 +527,20 @@ const Index = () => {
                 {operator === "mtn" ? t("operator.mtn") : t("operator.syriatel")}
               </span>
               {contactName ? (
-                <span className="text-sm text-foreground font-medium flex items-center gap-1.5">
-                  <BookUser className="w-4 h-4 text-primary" />
-                  {contactName}
+                <span className="flex items-center gap-1.5">
+                  <span className="text-sm text-foreground font-medium flex items-center gap-1.5">
+                    <BookUser className="w-4 h-4 text-primary" />
+                    <span dir="auto">{contactName}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={openEditNameDialog}
+                    className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all active:scale-90"
+                    aria-label={t("index.editContactNameAria")}
+                    title={t("index.editContactNameAria")}
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
                 </span>
               ) : !showSaveName ? (
                 <Button
@@ -696,6 +762,58 @@ const Index = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Edit contact name dialog */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent dir={i18n.dir()} className="max-w-sm rounded-2xl gap-5 p-5">
+            <DialogHeader className="text-start">
+              <DialogTitle className="text-lg flex items-center gap-2">
+                <span className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <BookUser className="w-4.5 h-4.5" />
+                </span>
+                {t("index.editContactName")}
+              </DialogTitle>
+              <DialogDescription>{t("index.editContactNameDesc")}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-muted-foreground" htmlFor="edit-contact-name">
+                {t("index.contactName")}
+              </label>
+              <Input
+                id="edit-contact-name"
+                value={editNameInput}
+                onChange={(e) => setEditNameInput(e.target.value)}
+                placeholder={t("index.namePlaceholder")}
+                dir="auto"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void handleSaveContactName();
+                  }
+                }}
+                className="rounded-xl h-11 text-sm shadow-sm"
+              />
+            </div>
+            <DialogFooter className="flex-row-reverse gap-2">
+              <Button
+                onClick={handleSaveContactName}
+                disabled={savingContactName}
+                className="rounded-xl flex-1 h-11 text-base font-bold shadow-sm"
+              >
+                {savingContactName && <Loader2 className="w-4 h-4 me-2 animate-spin" />}
+                {t("common.save")}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setEditDialogOpen(false)}
+                className="rounded-xl h-11 text-base"
+              >
+                {t("common.cancel")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Phone stats + history */}
         {phoneStats && (

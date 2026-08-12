@@ -122,6 +122,20 @@ export function notifyDeviceMismatch(currentDevice: string | null): void {
   for (const listener of mismatchListeners) listener({ currentDevice });
 }
 
+type DeviceBannedListener = () => void;
+const bannedListeners = new Set<DeviceBannedListener>();
+
+export function onDeviceBanned(listener: DeviceBannedListener): () => void {
+  bannedListeners.add(listener);
+  return () => {
+    bannedListeners.delete(listener);
+  };
+}
+
+export function notifyDeviceBanned(): void {
+  for (const listener of bannedListeners) listener();
+}
+
 export async function registerDeviceLogin(force = false): Promise<DeviceLoginResult> {
   if (!isNativeApp()) return { success: true };
   try {
@@ -136,6 +150,10 @@ export async function registerDeviceLogin(force = false): Promise<DeviceLoginRes
       const currentDevice = payload.current_device ?? null;
       notifyDeviceMismatch(currentDevice);
       return { success: false, error: "device_mismatch", currentDevice };
+    }
+    if (payload?.error === "device_banned") {
+      notifyDeviceBanned();
+      return { success: false, error: "device_banned", currentDevice: null };
     }
     return { success: false, error: payload?.error ?? (error?.message ?? "unknown") };
   } catch {

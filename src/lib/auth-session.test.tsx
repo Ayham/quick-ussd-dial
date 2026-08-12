@@ -1,9 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
+import { render, screen, waitFor, act } from "@testing-library/react";
+import { useEffect } from "react";
+import { MemoryRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { User } from "@supabase/supabase-js";
 
-import { AuthSessionProvider, RequireAuth } from "./auth-session";
+import { AuthSessionProvider, RequireAuth, AUTH_VALIDATED_AT_KEY, useAuthSession } from "./auth-session";
 
 const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
@@ -55,9 +56,18 @@ vi.mock("@/lib/license-cache", () => ({
 
 const testUser = { id: "u1", email: "a@b.com" } as User;
 
+// Mirrors @supabase/auth-js: onAuthStateChange registers a callback that the
+// library later invokes with the recovered session (INITIAL_SESSION at startup,
+// SIGNED_IN for real logins / storage recovery, TOKEN_REFRESHED, SIGNED_OUT…).
+// Tests capture that callback so they can emit the events auth-js would.
+let fireAuthState: ((event: string, session: { user: User | null } | null) => void) | null = null;
+
 function setup(sessionUser: User | null) {
   mocks.getSession.mockResolvedValue({ data: { session: sessionUser ? { user: sessionUser } : null }, error: null });
-  mocks.onAuthStateChange.mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } });
+  mocks.onAuthStateChange.mockImplementation((cb: (event: string, session: { user: User | null } | null) => void) => {
+    fireAuthState = cb;
+    return { data: { subscription: { unsubscribe: vi.fn() } } };
+  });
   mocks.listenForOAuthCallback.mockResolvedValue(() => {});
   mocks.getInitialDeepLink.mockResolvedValue(null);
   mocks.isRaseedDeepLink.mockReturnValue(false);
@@ -65,6 +75,17 @@ function setup(sessionUser: User | null) {
   mocks.registerDeviceLogin.mockResolvedValue({ success: true });
   mocks.refreshLicenseCacheIfNeeded.mockResolvedValue(null);
   mocks.isAdminUser.mockResolvedValue(false);
+}
+
+// Mirrors the real Auth page: once a user is authenticated it navigates to the
+// protected area (in the app this is done by Auth.tsx listening for SIGNED_IN).
+function AuthPage() {
+  const { user } = useAuthSession();
+  const nav = useNavigate();
+  useEffect(() => {
+    if (user) nav("/protected", { replace: true });
+  }, [user, nav]);
+  return <div>AUTH_PAGE</div>;
 }
 
 function renderProtected() {
@@ -80,7 +101,7 @@ function renderProtected() {
               </RequireAuth>
             }
           />
-          <Route path="/auth" element={<div>AUTH_PAGE</div>} />
+          <Route path="/auth" element={<AuthPage />} />
         </Routes>
       </AuthSessionProvider>
     </MemoryRouter>,
@@ -96,15 +117,61 @@ describe("authentication is independent of network/license state", () => {
 
   it("keeps an authenticated user logged in when the network is down", async () => {
     setup(testUser);
+    // The session was previously confirmed by Supabase (marker), so offline
+    // continuity is legitimate — this is NOT fabricated authentication.
+    localStorage.setItem(AUTH_VALIDATED_AT_KEY, String(Date.now()));
     // The background session refresh fails with a network error while offline.
     mocks.getUser.mockRejectedValue(new Error("NetworkError"));
     Object.defineProperty(navigator, "onLine", { configurable: true, get: () => false });
 
     renderProtected();
 
+    // auth-js still replays the stored session via INITIAL_SESSION — this must
+    // not disturb the offline continuity grant.
+    act(() => {
+      fireAuthState?.("INITIAL_SESSION", { user: testUser });
+    });
+
     expect(await screen.findByText("PROTECTED_CONTENT")).toBeInTheDocument();
     expect(screen.queryByText("AUTH_PAGE")).not.toBeInTheDocument();
     expect(mocks.signOut).not.toHaveBeenCalled();
+  });
+
+  it("NEVER opens the app from storage-recovery events alone (no fabricated auth)", async () => {
+    // The reported bypass: auth-js replays a stored session at startup via
+    // INITIAL_SESSION and SIGNED_IN with NO server confirmation. Offline and
+    // without a validation marker, the app must stay locked, even though these
+    // events carry a user object.
+    setup(testUser);
+    localStorage.removeItem(AUTH_VALIDATED_AT_KEY);
+    mocks.getUser.mockRejectedValue(new Error("NetworkError"));
+    Object.defineProperty(navigator, "onLine", { configurable: true, get: () => false });
+
+    renderProtected();
+
+    act(() => {
+      fireAuthState?.("INITIAL_SESSION", { user: testUser });
+      fireAuthState?.("SIGNED_IN", { user: testUser });
+    });
+
+    expect(await screen.findByText("AUTH_PAGE")).toBeInTheDocument();
+    expect(screen.queryByText("PROTECTED_CONTENT")).not.toBeInTheDocument();
+    expect(mocks.signOut).not.toHaveBeenCalled();
+  });
+
+  it("still accepts a real SIGNED_IN after the app is open (normal login works)", async () => {
+    setup(null);
+
+    renderProtected();
+
+    expect(await screen.findByText("AUTH_PAGE")).toBeInTheDocument();
+
+    // A genuine login while the app is running.
+    act(() => {
+      fireAuthState?.("SIGNED_IN", { user: testUser });
+    });
+
+    expect(await screen.findByText("PROTECTED_CONTENT")).toBeInTheDocument();
   });
 
   it("redirects unauthenticated users away from protected pages", async () => {
@@ -124,5 +191,50 @@ describe("authentication is independent of network/license state", () => {
     renderProtected();
 
     expect(await screen.findByText("PROTECTED_CONTENT")).toBeInTheDocument();
+  });
+
+  it("does NOT grant access offline to a stored session that was never validated", async () => {
+    setup(testUser);
+    // A session blob exists in storage but Supabase never confirmed it.
+    localStorage.removeItem(AUTH_VALIDATED_AT_KEY);
+    mocks.getUser.mockRejectedValue(new Error("NetworkError"));
+    Object.defineProperty(navigator, "onLine", { configurable: true, get: () => false });
+
+    renderProtected();
+
+    expect(await screen.findByText("AUTH_PAGE")).toBeInTheDocument();
+    expect(screen.queryByText("PROTECTED_CONTENT")).not.toBeInTheDocument();
+  });
+
+  it("clears a stored session that the server rejects (revoked/expired) and requires login", async () => {
+    setup(testUser);
+    localStorage.setItem(AUTH_VALIDATED_AT_KEY, String(Date.now()));
+    mocks.getUser.mockResolvedValue({
+      data: { user: null },
+      error: { status: 401, name: "AuthApiError", message: "invalid JWT: Token is expired" },
+    });
+    Object.defineProperty(navigator, "onLine", { configurable: true, get: () => true });
+
+    renderProtected();
+
+    expect(await screen.findByText("AUTH_PAGE")).toBeInTheDocument();
+    expect(screen.queryByText("PROTECTED_CONTENT")).not.toBeInTheDocument();
+    expect(mocks.signOut).toHaveBeenCalled();
+    expect(localStorage.getItem(AUTH_VALIDATED_AT_KEY)).toBeNull();
+  });
+
+  it("falls back to offline continuity when a validated session hits a transport failure online", async () => {
+    setup(testUser);
+    localStorage.setItem(AUTH_VALIDATED_AT_KEY, String(Date.now()));
+    mocks.getUser.mockResolvedValue({
+      data: { user: null },
+      error: { status: 0, name: "AuthRetryableFetchError", message: "fetch failed" },
+    });
+    Object.defineProperty(navigator, "onLine", { configurable: true, get: () => true });
+
+    renderProtected();
+
+    expect(await screen.findByText("PROTECTED_CONTENT")).toBeInTheDocument();
+    expect(mocks.signOut).not.toHaveBeenCalled();
   });
 });

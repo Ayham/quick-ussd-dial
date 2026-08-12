@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LogOut, Smartphone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { onDeviceMismatch, registerDeviceLogin } from "@/lib/device";
+import { onDeviceBanned, onDeviceMismatch, registerDeviceLogin } from "@/lib/device";
 import { validateDeviceSession } from "@/lib/license-cache";
 
 export default function DeviceMismatchDialog() {
@@ -13,11 +13,21 @@ export default function DeviceMismatchDialog() {
   const nav = useNavigate();
   const isArabic = i18n.language === "ar";
   const [show, setShow] = useState(false);
+  const [banned, setBanned] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     return onDeviceMismatch(() => {
+      setBanned(false);
+      setError(null);
+      setShow(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    return onDeviceBanned(() => {
+      setBanned(true);
       setError(null);
       setShow(true);
     });
@@ -61,17 +71,23 @@ export default function DeviceMismatchDialog() {
         </div>
 
         <div className="space-y-2">
-          <h1 className="text-xl font-bold">{t("deviceMismatch.title")}</h1>
-          <p className="text-sm text-muted-foreground leading-relaxed">{t("deviceMismatch.description")}</p>
+          <h1 className="text-xl font-bold">
+            {banned ? t("deviceBanned.title") : t("deviceMismatch.title")}
+          </h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {banned ? t("deviceBanned.description") : t("deviceMismatch.description")}
+          </p>
         </div>
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <div className="space-y-3 pt-2">
-          <Button onClick={handleForceLogin} disabled={resolving} className="w-full h-12 font-bold rounded-xl">
-            <LogOut className="w-4 h-4 mr-2" />
-            {t("deviceMismatch.logoutOther")}
-          </Button>
+          {!banned && (
+            <Button onClick={handleForceLogin} disabled={resolving} className="w-full h-12 font-bold rounded-xl">
+              <LogOut className="w-4 h-4 mr-2" />
+              {t("deviceMismatch.logoutOther")}
+            </Button>
+          )}
 
           <Button variant="ghost" className="w-full" onClick={handleCancel} disabled={resolving}>
             {t("common.cancel")}

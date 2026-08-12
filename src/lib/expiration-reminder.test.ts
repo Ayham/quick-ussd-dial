@@ -16,7 +16,9 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 const DAY = 1000 * 60 * 60 * 24;
-const NOW = Date.parse("2026-08-07T12:00:00Z");
+// Relative to the real clock so the suite never depends on a fixed date
+// (the reminder window compares against Date.now()).
+const NOW = Date.now();
 
 const config: ExpirationReminderConfig = {
   remindDaysLicense: 7,
