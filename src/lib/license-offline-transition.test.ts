@@ -9,141 +9,140 @@ import {
   type ValidationPolicy,
   type ValidationResult,
 } from "./license-cache";
+import { setSigningPublicKeyOverride } from "./signed-cache";
+import { __setTestMonotonicBaseline } from "./trusted-clock";
+import {
+  generateTestKeys,
+  seedSignedVerdict,
+  signedInvokeResponse,
+  testPolicy,
+  type TestKeys,
+} from "./signed-cache.test-utils";
 
 const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
+  invoke: vi.fn(),
   rpc: vi.fn(),
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     auth: { getUser: mocks.getUser },
+    functions: { invoke: mocks.invoke },
     rpc: mocks.rpc,
   },
 }));
 
-function serverPolicy(overrides: Partial<ValidationPolicy> = {}): ValidationPolicy {
+function validVerdict(overrides: Partial<ValidationResult> = {}): ValidationResult {
   return {
-    valid: true,
-    minimum_validation_interval_ms: 24 * 3600000,
-    offline_grace_ms: 7 * 86400000,
-    next_required_validation: new Date(Date.now() + 3600000).toISOString(),
-    force_validation: false,
-    license_expiration: null,
-    revoked: false,
-    validation_policy: "normal",
-    ...overrides,
-  };
-}
-
-function seedValidCache(): void {
-  const valid: ValidationResult = {
     valid: true,
     license_status: "active",
     account_status: "active",
     expiry_date: new Date(Date.now() + 86400000 * 30).toISOString(),
+    ...overrides,
   };
-  localStorage.setItem("app_license_cache", JSON.stringify(valid));
-  localStorage.setItem("app_license_cache_age", String(Date.now()));
-  localStorage.setItem("app_device_binding_v1", getDeviceBindingSignatureSync());
-}
-
-function mockOnline(verdict: ValidationResult, policyOverrides: Partial<ValidationPolicy> = {}): void {
-  mocks.getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
-  mocks.rpc.mockImplementation(async (fn: string) => {
-    if (fn === "validate_device_session") return { data: verdict, error: null };
-    if (fn === "get_validation_policy") return { data: serverPolicy(policyOverrides), error: null };
-    return { data: null, error: null };
-  });
-}
-
-function mockOffline(): void {
-  mocks.getUser.mockRejectedValue(new Error("network down"));
-  mocks.rpc.mockRejectedValue(new Error("network down"));
 }
 
 describe("Offline -> Online license refresh (الترخيص يُحدَّث فور توفر الإنترنت)", () => {
+  let keys: TestKeys;
+
+  beforeAll(async () => {
+    keys = await generateTestKeys();
+  });
+
   beforeEach(() => {
     localStorage.clear();
     clearLicenseCache();
+    setSigningPublicKeyOverride(keys.pub);
     localStorage.removeItem("app_device_binding_v1");
     vi.clearAllMocks();
   });
 
-  it("offline with a fresh cached license allows transfers (within server grace)", () => {
-    seedValidCache();
+  function seedValidCache(): Promise<void> {
+    return seedSignedVerdict(keys, validVerdict(), testPolicy(), { serverTimeMs: Date.now() });
+  }
+
+  function mockOnline(verdict: ValidationResult, policyOverrides: Partial<ValidationPolicy> = {}): void {
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+    mocks.invoke.mockImplementation(async (fn: string) => {
+      if (fn === "validate-license") {
+        return await signedInvokeResponse(keys, verdict, testPolicy(policyOverrides));
+      }
+      return { data: null, error: null };
+    });
+  }
+
+  function mockOffline(): void {
+    mocks.getUser.mockRejectedValue(new Error("network down"));
+    mocks.invoke.mockRejectedValue(new Error("network down"));
+    mocks.rpc.mockRejectedValue(new Error("network down"));
+  }
+
+  it("offline with a fresh cached license allows transfers (within server grace)", async () => {
+    await seedValidCache();
     const guard = getTransferGuard();
     expect(guard.allowed).toBe(true);
   });
 
-  it("offline past the server-controlled fallback bound blocks undated licenses", () => {
+  it("offline past the server-controlled fallback bound blocks undated licenses", async () => {
     // Undated license (server never communicated an expiry): the fallback
     // refresh bound (offline_grace_ms) caps how long it stays valid offline.
-    const undated: ValidationResult = {
-      valid: true,
-      license_status: "active",
-      account_status: "active",
-    };
-    localStorage.setItem("app_license_cache", JSON.stringify(undated));
-    const eightDaysAgo = Date.now() - 1000 * 60 * 60 * 24 * 8;
-    localStorage.setItem("app_license_cache_age", String(eightDaysAgo));
+    await seedSignedVerdict(
+      keys,
+      { valid: true, license_status: "active", account_status: "active" },
+      testPolicy(),
+      { serverTimeMs: Date.now() - 1000 * 60 * 60 * 24 * 8 },
+    );
+    __setTestMonotonicBaseline(1000 + 1000 * 60 * 60 * 24 * 8);
     const guard = getTransferGuard();
     expect(guard.allowed).toBe(false);
     expect(guard.reasonCode).toBe("offline_grace_expired");
   });
 
-  it("offline with a dated license stays usable past the refresh interval (strict expiration, no artificial grace)", () => {
-    // An active license with a real expiry is usable offline until that exact
-    // date — even if it has not revalidated recently. offline_grace_ms does
-    // NOT extend or shorten a dated license.
-    seedValidCache();
-    const eightDaysAgo = Date.now() - 1000 * 60 * 60 * 24 * 8;
-    localStorage.setItem("app_license_cache_age", String(eightDaysAgo));
+  it("offline with a dated license stays usable past the refresh interval (strict expiration, no artificial grace)", async () => {
+    await seedValidCache();
+    __setTestMonotonicBaseline(1000 + 1000 * 60 * 60 * 24 * 8);
     const guard = getTransferGuard();
     expect(guard.allowed).toBe(true);
   });
 
-  it("offline after the actual expiration date blocks transfers immediately", () => {
-    const expired: ValidationResult = {
-      valid: false,
-      license_status: "active",
-      account_status: "active",
-      expiry_date: new Date(Date.now() - 86400000).toISOString(),
-    };
-    localStorage.setItem("app_license_cache", JSON.stringify(expired));
-    localStorage.setItem("app_license_cache_age", String(Date.now()));
+  it("offline after the actual expiration date blocks transfers immediately", async () => {
+    await seedSignedVerdict(
+      keys,
+      { valid: false, license_status: "active", account_status: "active", expiry_date: new Date(Date.now() - 86400000).toISOString() },
+      testPolicy(),
+      { serverTimeMs: Date.now() },
+    );
     localStorage.setItem("app_device_binding_v1", getDeviceBindingSignatureSync());
     const guard = getTransferGuard();
     expect(guard.allowed).toBe(false);
     expect(guard.reasonCode).toBe("expired");
   });
 
-  it("offline after the trial end blocks transfers immediately", () => {
-    const trialEnded: ValidationResult = {
-      valid: false,
-      license_status: "trial",
-      account_status: "active",
-      trial_end: new Date(Date.now() - 86400000).toISOString(),
-    };
-    localStorage.setItem("app_license_cache", JSON.stringify(trialEnded));
-    localStorage.setItem("app_license_cache_age", String(Date.now()));
+  it("offline after the trial end blocks transfers immediately", async () => {
+    await seedSignedVerdict(
+      keys,
+      { valid: false, license_status: "trial", account_status: "active", trial_end: new Date(Date.now() - 86400000).toISOString() },
+      testPolicy(),
+      { serverTimeMs: Date.now() },
+    );
     localStorage.setItem("app_device_binding_v1", getDeviceBindingSignatureSync());
     const guard = getTransferGuard();
     expect(guard.allowed).toBe(false);
     expect(guard.reasonCode).toBe("trial_ended");
   });
 
-  it("reconnecting pulls the new verdict: revoked account becomes blocked immediately", async () => {
-    seedValidCache();
+  it("reconnecting pulls the new verdict: revoked license becomes transfer-blocked immediately", async () => {
+    await seedValidCache();
     expect(getTransferGuard().allowed).toBe(true);
 
     mockOnline(
-      { valid: false, license_status: "revoked", account_status: "active" },
+      { valid: true, license_status: "revoked", account_status: "active" },
       { revoked: true, force_validation: true },
     );
     const result = await validateDeviceSession();
 
-    expect(result.valid).toBe(false);
+    expect(result.valid).toBe(true);
     expect(getCachedValidation()?.license_status).toBe("revoked");
     const guard = getTransferGuard();
     expect(guard.allowed).toBe(false);
@@ -151,7 +150,7 @@ describe("Offline -> Online license refresh (الترخيص يُحدَّث فو�
   });
 
   it("reconnecting pulls the new verdict: blocked account becomes blocked immediately", async () => {
-    seedValidCache();
+    await seedValidCache();
     mockOnline({ valid: false, license_status: "active", account_status: "blocked" });
     await validateDeviceSession();
     const guard = getTransferGuard();
@@ -159,9 +158,9 @@ describe("Offline -> Online license refresh (الترخيص يُحدَّث فو�
     expect(guard.reasonCode).toBe("blocked");
   });
 
-  it("reconnecting pulls the new verdict: inactive license becomes blocked immediately", async () => {
-    seedValidCache();
-    mockOnline({ valid: false, license_status: "inactive", account_status: "active" });
+  it("reconnecting pulls the new verdict: inactive license becomes transfer-blocked immediately", async () => {
+    await seedValidCache();
+    mockOnline({ valid: true, license_status: "inactive", account_status: "active" });
     await validateDeviceSession();
     const guard = getTransferGuard();
     expect(guard.allowed).toBe(false);
@@ -169,20 +168,59 @@ describe("Offline -> Online license refresh (الترخيص يُحدَّث فو�
   });
 
   it("reconnecting with a still-valid verdict refreshes the cache and keeps access", async () => {
-    seedValidCache();
-    mockOnline({
-      valid: true,
-      license_status: "active",
-      account_status: "active",
-      expiry_date: new Date(Date.now() + 86400000 * 30).toISOString(),
-    });
+    await seedValidCache();
+    mockOnline(validVerdict());
     const result = await validateDeviceSession();
     expect(result.valid).toBe(true);
     expect(getTransferGuard().allowed).toBe(true);
   });
 
+  it("reconnecting with a device_banned verdict blocks transfers and keeps the session (no logout)", async () => {
+    await seedValidCache();
+    mockOnline({ valid: false, reason: "device_banned", license_status: "active", account_status: "active" });
+    await validateDeviceSession();
+    const guard = getTransferGuard();
+    expect(guard.allowed).toBe(false);
+    expect(guard.reasonCode).toBe("device_banned");
+  });
+
+  it("reconnecting with a device_mismatch verdict blocks transfers until the device is rebound", async () => {
+    await seedValidCache();
+    mockOnline({ valid: false, reason: "device_mismatch", license_status: "active", account_status: "active" });
+    await validateDeviceSession();
+    const guard = getTransferGuard();
+    expect(guard.allowed).toBe(false);
+    expect(guard.reasonCode).toBe("device_mismatch");
+  });
+
+  it("a suspended license verdict (license-level lock) blocks transfers without logout", async () => {
+    await seedValidCache();
+    mockOnline({ valid: false, reason: "suspended", license_status: "suspended", account_status: "active" });
+    await validateDeviceSession();
+    const guard = getTransferGuard();
+    expect(guard.allowed).toBe(false);
+    expect(guard.reasonCode).toBe("suspended");
+  });
+
+  it("an account-suspended verdict blocks transfers and reports the account lock", async () => {
+    await seedValidCache();
+    mockOnline({ valid: false, reason: "account_suspended", license_status: "active", account_status: "suspended" });
+    await validateDeviceSession();
+    const guard = getTransferGuard();
+    expect(guard.allowed).toBe(false);
+    expect(guard.reasonCode).toBe("suspended");
+  });
+
+  it("no_connection (never validated) reports a blocking offline failure without a cached verdict", async () => {
+    localStorage.clear();
+    mockOffline();
+    const guard = getTransferGuard();
+    expect(guard.allowed).toBe(false);
+    expect(guard.reasonCode).toBe("unverified");
+  });
+
   it("reconnecting stores the server policy (grace + cadence) used afterwards", async () => {
-    seedValidCache();
+    await seedValidCache();
     mockOnline(
       { valid: true, license_status: "active", account_status: "active" },
       {

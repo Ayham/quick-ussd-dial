@@ -1,9 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import i18n from "./i18n";
-import { getCachedPolicy } from "./license-cache";
+import { getCachedPolicy, consumeSignedPayload } from "./license-cache";
 
-export type LicenseStatus = "trial" | "active" | "expired" | "pending" | "rejected" | "permanent" | "suspended" | "blocked";
+export type LicenseStatus = "trial" | "active" | "expired" | "pending" | "rejected" | "permanent" | "suspended" | "blocked" | "revoked" | "inactive";
 export type LicenseType = "trial" | "year_1" | "year_2" | "year_3" | "custom_date" | "lifetime";
 export type AccountStatus = "active" | "suspended" | "blocked";
 
@@ -65,30 +65,11 @@ export async function checkPendingActivation(): Promise<{ has_pending: boolean; 
 export async function validateLicense(): Promise<{ valid: boolean; reason?: string; trial_remaining_days?: number | null }> {
   const { data, error } = await supabase.functions.invoke("validate-license", {});
   if (error || !data) return { valid: false, reason: "validation_failed" };
-  // Persist the server-controlled validation policy returned by the edge function.
-  const result = data as Record<string, unknown> & {
-    validation_policy?: Record<string, unknown> | null;
-  };
-  if (result.validation_policy && typeof result.validation_policy === "object") {
-    storeValidationPolicy(result.validation_policy as Record<string, unknown>);
-  }
-  return data as { valid: boolean; reason?: string; trial_remaining_days?: number | null };
-}
-
-// Store the validation policy obtained through the validate-license edge
-// function. Reuses license-cache storage so the rest of the client is policy-aware
-// even before the background scheduler has run a get_validation_policy() RPC.
-function storeValidationPolicy(policy: Record<string, unknown>): void {
-  try {
-    localStorage.setItem("app_validation_policy", JSON.stringify({
-      ...getCachedPolicy(),
-      ...policy,
-      minimum_validation_interval_ms:
-        typeof policy.minimum_validation_interval_ms === "number" ? policy.minimum_validation_interval_ms : getCachedPolicy().minimum_validation_interval_ms,
-      offline_grace_ms:
-        typeof policy.offline_grace_ms === "number" ? policy.offline_grace_ms : getCachedPolicy().offline_grace_ms,
-    }));
-  } catch {}
+  // The edge function returns a signed verdict/policy blob. Verify it and
+  // persist it for the offline guard (never trust an unsigned response).
+  const consumed = await consumeSignedPayload(data);
+  if (!consumed) return { valid: false, reason: "invalid_signature" };
+  return consumed;
 }
 
 export function getTrialRemainingDays(trialEnd: string | null): number {

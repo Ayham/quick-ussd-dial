@@ -2,7 +2,7 @@ import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { useTranslation } from "react-i18next";
 
-import i18n, { setLanguage, getLanguage } from "@/lib/i18n";
+import i18n, { setLanguage, getLanguage, en, ar } from "@/lib/i18n";
 
 const STORAGE_KEY = "app_lang_v1";
 
@@ -144,5 +144,33 @@ describe("i18n language switching", () => {
       if (INTENTIONALLY_IDENTICAL.has(key)) continue;
       expect(values.ar[key]).not.toBe(values.en[key]);
     }
+  });
+});
+
+function collectLeaves(obj: unknown, prefix = "", out: Set<string> = new Set()): Set<string> {
+  if (obj === null || typeof obj !== "object") {
+    out.add(prefix);
+    return out;
+  }
+  for (const [key, value] of Object.entries(obj)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      collectLeaves(value, path, out);
+    } else {
+      out.add(path);
+    }
+  }
+  return out;
+}
+
+describe("i18n ar/en key parity", () => {
+  it("has identical leaf-key sets in both locales (no missing or orphaned keys)", () => {
+    const strip = (keys: Set<string>) => new Set([...keys].map((k) => k.replace(/^translation\./, "")));
+    const arKeys = strip(collectLeaves(ar));
+    const enKeys = strip(collectLeaves(en));
+    const missingInEn = [...arKeys].filter((k) => !enKeys.has(k)).sort();
+    const missingInAr = [...enKeys].filter((k) => !arKeys.has(k)).sort();
+    expect(missingInEn, `keys present in ar but missing in en: ${missingInEn.join(", ")}`).toEqual([]);
+    expect(missingInAr, `keys present in en but missing in ar: ${missingInAr.join(", ")}`).toEqual([]);
   });
 });

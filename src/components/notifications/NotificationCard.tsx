@@ -13,21 +13,21 @@ interface NotificationCardProps {
   onAcknowledge?: (notificationId: string) => void;
 }
 
-function formatRelativeTime(value: string, isArabic: boolean): string {
+function formatRelativeTime(value: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   const diffMs = Date.now() - date.getTime();
   const minutes = Math.floor(diffMs / 60000);
-  if (minutes < 1) return isArabic ? "الآن" : "now";
-  if (minutes < 60) return isArabic ? `منذ ${minutes} د` : `${minutes}m ago`;
+  if (minutes < 1) return t("settings.now");
+  if (minutes < 60) return t("settings.timeSinceMinutes", { mins: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return isArabic ? `منذ ${hours} س` : `${hours}h ago`;
+  if (hours < 24) return t("settings.timeSinceHours", { hrs: hours });
   const days = Math.floor(hours / 24);
-  if (days < 7) return isArabic ? `منذ ${days} يوم` : `${days}d ago`;
+  if (days < 7) return t("settings.timeSinceDays", { days });
   const weeks = Math.floor(days / 7);
-  if (weeks < 5) return isArabic ? `منذ ${weeks} أسبوع` : `${weeks}w ago`;
+  if (weeks < 5) return t("settings.timeSinceWeeks", { weeks });
   const months = Math.floor(days / 30);
-  return isArabic ? `منذ ${months} شهر` : `${months}mo ago`;
+  return t("settings.timeSinceMonths", { months });
 }
 
 export function NotificationCard({
@@ -70,7 +70,7 @@ export function NotificationCard({
             </div>
             <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
               <span className={cn("w-1.5 h-1.5 rounded-full", priorityMeta.dot)} />
-              {formatRelativeTime(notification.sent_at || notification.created_at, isArabic)}
+              {formatRelativeTime(notification.sent_at || notification.created_at, t)}
             </span>
           </div>
 

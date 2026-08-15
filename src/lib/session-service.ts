@@ -1,6 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getLicenseStatus, type LicenseInfo } from "./license";
 import { getCachedPolicy } from "./license-cache";
+import { computeLicenseDecision } from "./license-decision";
+import { getTrustedNowMs } from "./trusted-clock";
 import i18n from "@/lib/i18n";
 
 const SESSION_CHECK_KEY = "app_session_last_check";
@@ -12,43 +14,44 @@ export interface SessionValidationResult {
   valid: boolean;
   license: LicenseInfo | null;
   reason?: string;
+  /**
+   * True only for account-level locks (suspended/blocked). The caller clears
+   * the local session so the user is forced back to the login screen. License
+   * level states (expired, revoked, trial-ended…) keep the session so the user
+   * sees the in-app banners / activation screen instead.
+   */
+  requiresLogout: boolean;
 }
 
 export async function validateSession(): Promise<SessionValidationResult> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { valid: false, license: null, reason: i18n.t("auth.notAuthenticated") };
+    if (!user) return { valid: false, license: null, reason: i18n.t("auth.notAuthenticated"), requiresLogout: false };
 
     const license = await getLicenseStatus();
-    if (!license) return { valid: false, license: null, reason: i18n.t("license.unavailable") };
+    if (!license) return { valid: false, license: null, reason: i18n.t("license.unavailable"), requiresLogout: false };
 
-    if (license.account_status === "suspended") return { valid: false, license, reason: i18n.t("license.accountSuspended") };
-    if (license.account_status === "blocked") return { valid: false, license, reason: i18n.t("license.accountBlocked") };
-    if (license.license_status === "expired") return { valid: false, license, reason: i18n.t("license.expired") };
-    if (license.license_status === "rejected") return { valid: false, license, reason: i18n.t("license.activationRejected") };
-    if (license.license_status === "blocked") return { valid: false, license, reason: i18n.t("license.blocked") };
-    if (license.license_status === "revoked") return { valid: false, license, reason: i18n.t("license.blocked") };
-
-    if (license.license_status === "trial" && license.trial_end) {
-      const trialEnd = new Date(license.trial_end);
-      if (trialEnd < new Date()) return { valid: false, license, reason: i18n.t("license.trialExpired") };
-    }
-
-    if (license.expiry_date && license.license_status !== "permanent") {
-      const expiry = new Date(license.expiry_date);
-      if (expiry < new Date()) return { valid: false, license, reason: i18n.t("license.expired") };
-    }
-
-    return { valid: true, license };
+    // Single source of truth: the license/account decision is computed by the
+    // same module the UI and the local transfer guard use.
+    const decision = computeLicenseDecision({ authenticated: true, userId: license.user_id }, license);
+    return {
+      valid: decision.canOpenApp,
+      license,
+      reason: decision.reason ?? undefined,
+      requiresLogout: decision.requiresLogout,
+    };
   } catch {
-    return { valid: false, license: null, reason: i18n.t("license.validationError") };
+    return { valid: false, license: null, reason: i18n.t("license.validationError"), requiresLogout: false };
   }
 }
 
 export function shouldRefreshSession(): boolean {
   const lastCheck = localStorage.getItem(SESSION_CHECK_KEY);
   if (!lastCheck) return true;
-  const elapsed = Date.now() - parseInt(lastCheck, 10);
+  // Prefer the trusted monotonic clock when available (fall back to Date.now()
+  // for this non-security cadence decision only).
+  const nowMs = getTrustedNowMs() ?? Date.now();
+  const elapsed = nowMs - parseInt(lastCheck, 10);
   const interval = getCachedPolicy().minimum_validation_interval_ms || DEFAULT_SESSION_CHECK_INTERVAL_MS;
   return elapsed > interval;
 }
@@ -60,7 +63,8 @@ export async function refreshSessionIfNeeded(): Promise<boolean> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return false;
 
-    const sessionAge = Date.now() - new Date(session.created_at).getTime();
+    const lastSignIn = session.user.last_sign_in_at ?? session.user.created_at;
+    const sessionAge = (getTrustedNowMs() ?? Date.now()) - new Date(lastSignIn).getTime();
     if (sessionAge > DEFAULT_SESSION_MAX_AGE_MS) {
       const { error } = await supabase.auth.refreshSession();
       if (error) return false;

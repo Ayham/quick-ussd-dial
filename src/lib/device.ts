@@ -4,22 +4,77 @@ import i18n from "@/lib/i18n";
 
 let cachedDeviceId: string | null = null;
 const DEVICE_BINDING_KEY = "app_device_binding_v1";
+const DEVICE_ID_KEY = "app_device_id_v2";
+let identityPromise: Promise<string> | null = null;
 
 function generateDeviceId(): string {
   return "device_" + crypto.randomUUID();
 }
 
+/**
+ * Native, reinstall-stable device identity (SB3 + SB5).
+ *
+ * Android: `Device.getId()` returns the SSAID-based identifier, which is
+ * stable per device + app-signing-key across reinstalls and app-data wipes.
+ * This both fixes lost bindings on legitimate reinstalls AND closes the
+ * trial-abuse "fresh id after reinstall" vector server-side (the fingerprint
+ * stays identical, so `fn_trial_abuse_check` can link the new account to the
+ * previous trial).
+ *
+ * Migration: an existing stored id is kept, so already-bound installs are
+ * unaffected. Fresh/wiped installs get the native stable id.
+ */
+export function initDeviceIdentity(): Promise<string> {
+  if (identityPromise) return identityPromise;
+  identityPromise = (async () => {
+    try {
+      const stored = localStorage.getItem(DEVICE_ID_KEY);
+      if (stored) {
+        cachedDeviceId = stored;
+        return stored;
+      }
+      const { Capacitor } = await import("@capacitor/core");
+      if (Capacitor.isNativePlatform()) {
+        const { Device } = await import("@capacitor/device");
+        const { identifier } = await Device.getId();
+        if (identifier) {
+          const id = "device_" + identifier;
+          cachedDeviceId = id;
+          try { localStorage.setItem(DEVICE_ID_KEY, id); } catch {}
+          return id;
+        }
+      }
+    } catch {}
+    // Fallback: random per-install id (web / preview / native without the plugin).
+    if (cachedDeviceId) return cachedDeviceId;
+    const stored = localStorage.getItem(DEVICE_ID_KEY);
+    if (stored) {
+      cachedDeviceId = stored;
+      return stored;
+    }
+    const id = generateDeviceId();
+    try { localStorage.setItem(DEVICE_ID_KEY, id); } catch {}
+    cachedDeviceId = id;
+    return id;
+  })();
+  return identityPromise;
+}
+
 export function getDeviceId(): string {
   if (cachedDeviceId) return cachedDeviceId;
-
-  const key = "app_device_id_v2";
-  let deviceId = localStorage.getItem(key);
-  if (!deviceId) {
-    deviceId = generateDeviceId();
-    localStorage.setItem(key, deviceId);
+  const stored = localStorage.getItem(DEVICE_ID_KEY);
+  if (stored) {
+    cachedDeviceId = stored;
+    return stored;
   }
-  cachedDeviceId = deviceId;
-  return deviceId;
+  // No persisted id yet (initDeviceIdentity still in flight or never called).
+  // Generate + persist a placeholder; initDeviceIdentity() will reconcile to
+  // the native stable id when it completes. Await initDeviceIdentity() before
+  // relying on the id (e.g. before server validation / device login).
+  const id = generateDeviceId();
+  try { localStorage.setItem(DEVICE_ID_KEY, id); } catch {}
+  cachedDeviceId = id;
+  return id;
 }
 
 /**
@@ -139,6 +194,7 @@ export function notifyDeviceBanned(): void {
 export async function registerDeviceLogin(force = false): Promise<DeviceLoginResult> {
   if (!isNativeApp()) return { success: true };
   try {
+    await initDeviceIdentity();
     const info = getDeviceInfo();
     const { data: { session } } = await supabase.auth.getSession();
     const { data, error } = await supabase.functions.invoke("device-login", {

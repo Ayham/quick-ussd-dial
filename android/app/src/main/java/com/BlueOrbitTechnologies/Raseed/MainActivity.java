@@ -9,6 +9,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(TrialPlugin.class);
         registerPlugin(AndroidContactsPlugin.class);
+        registerPlugin(SystemClockPlugin.class);
         super.onCreate(savedInstanceState);
     }
 

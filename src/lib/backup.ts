@@ -210,7 +210,7 @@ export function validateBackup(data: unknown): { valid: boolean; errors: string[
     backupVersion: String(obj.backup_version || "unknown"),
     createdAt: String(obj.created_at || ""),
     appVersion: String(obj.app_version || ""),
-    presetsCount: hasPresets ? Object.values(obj.presets as Record<string, unknown>).reduce(
+    presetsCount: hasPresets ? Object.values(obj.presets as Record<string, unknown>).reduce<number>(
       (sum, v) => sum + ((v as unknown[])?.length ?? 0), 0
     ) : 0,
     transferCount: hasHistory ? (obj.transferHistory as unknown[]).length : 0,
@@ -251,7 +251,7 @@ export function getBackupPreview(data: unknown): BackupPreview | null {
     backupVersion: String(obj.backup_version || "unknown"),
     createdAt: String(obj.created_at || ""),
     appVersion: String(obj.app_version || ""),
-    presetsCount: hasPresets ? Object.values(obj.presets as Record<string, unknown>).reduce(
+    presetsCount: hasPresets ? Object.values(obj.presets as Record<string, unknown>).reduce<number>(
       (sum, v) => sum + ((v as unknown[])?.length ?? 0), 0
     ) : 0,
     transferCount: hasHistory ? (obj.transferHistory as unknown[]).length : 0,
@@ -263,7 +263,7 @@ export function getBackupPreview(data: unknown): BackupPreview | null {
   };
 }
 
-export async function restoreBackup(data: unknown, password?: string): Promise<{ success: boolean; error?: string; restored: string[] }> {
+export async function restoreBackup(data: unknown, password?: string): Promise<{ success: boolean; error?: string; restored?: string[] }> {
   let json: string;
 
   if (typeof data === "string") {
@@ -357,14 +357,14 @@ export async function restoreBackup(data: unknown, password?: string): Promise<{
 
   if (obj.balanceTracking) {
     try {
-      localStorage.setItem(BALANCE_TRACKING_KEY, obj.balanceTracking);
+      localStorage.setItem(BALANCE_TRACKING_KEY, obj.balanceTracking as string);
       restored.push("balanceTracking");
     } catch { /* skip */ }
   }
 
   if (obj.lowBalanceThresholds) {
     try {
-      localStorage.setItem(LOW_BALANCE_THRESHOLD_KEY, obj.lowBalanceThresholds);
+      localStorage.setItem(LOW_BALANCE_THRESHOLD_KEY, obj.lowBalanceThresholds as string);
       saveLowBalanceThresholds(JSON.parse(obj.lowBalanceThresholds as string));
       restored.push("lowBalanceThresholds");
     } catch { /* skip */ }

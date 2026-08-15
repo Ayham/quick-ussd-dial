@@ -134,7 +134,6 @@ export function SyncMonitor() {
             "border p-4.5 min-h-28 shadow-sm rounded-2xl",
             tone === "good" && "border-success/25 bg-success/5",
             tone === "warn" && "border-amber-400/30 bg-amber-500/5",
-            tone === "bad" && "border-destructive/30 bg-destructive/5",
             tone === "neutral" && "border-border/60 bg-card"
           )}>
             <div className="flex items-start justify-between gap-2">

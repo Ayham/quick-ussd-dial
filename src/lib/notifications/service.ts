@@ -22,7 +22,7 @@ function isRpcOk(result: RpcResult | null | undefined): result is RpcResult & { 
 }
 
 async function callRpc<T extends RpcResult>(name: string, args?: Record<string, unknown>, retry = true): Promise<T> {
-  const { data, error } = await supabase.rpc(name, args as object);
+  const { data, error } = await supabase.rpc(name as Parameters<typeof supabase.rpc>[0], args as object);
   
   // If RPC returns 404 (function not found), try refreshing session and retry once
   if (error && error.code === 'PGRST202' && retry) {
@@ -327,6 +327,7 @@ export async function adminGetNotifications(params: GetAdminNotificationsParams 
       ack_count: Number(raw.ack_count ?? 0),
       failed_count: Number(raw.failed_count ?? 0),
       version: Number(raw.version ?? 1),
+      is_deleted: !!raw.is_deleted,
     };
   });
   return {

@@ -575,37 +575,82 @@ export type Database = {
       }
       notifications: {
         Row: {
-          body: string | null
+          action_target: string | null
+          action_type: Database["public"]["Enums"]["notification_action_type"]
+          body_ar: string
+          body_en: string
           created_at: string
+          created_by: string | null
+          expires_at: string | null
           id: string
-          is_admin_target: boolean
+          image_url: string | null
+          is_announcement: boolean
+          is_deleted: boolean
+          is_pinned: boolean
           metadata: Json
-          read_at: string | null
-          title: string
-          type: string
-          user_id: string | null
+          notification_type: Database["public"]["Enums"]["notification_type"]
+          priority: Database["public"]["Enums"]["notification_priority"]
+          requires_acknowledgement: boolean
+          scheduled_at: string | null
+          send_config: Json
+          sent_at: string | null
+          status: Database["public"]["Enums"]["notification_status"]
+          title_ar: string
+          title_en: string
+          updated_at: string
+          version: number
         }
         Insert: {
-          body?: string | null
+          action_target?: string | null
+          action_type?: Database["public"]["Enums"]["notification_action_type"]
+          body_ar?: string
+          body_en?: string
           created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
           id?: string
-          is_admin_target?: boolean
+          image_url?: string | null
+          is_announcement?: boolean
+          is_deleted?: boolean
+          is_pinned?: boolean
           metadata?: Json
-          read_at?: string | null
-          title: string
-          type: string
-          user_id?: string | null
+          notification_type?: Database["public"]["Enums"]["notification_type"]
+          priority?: Database["public"]["Enums"]["notification_priority"]
+          requires_acknowledgement?: boolean
+          scheduled_at?: string | null
+          send_config?: Json
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["notification_status"]
+          title_ar?: string
+          title_en?: string
+          updated_at?: string
+          version?: number
         }
         Update: {
-          body?: string | null
+          action_target?: string | null
+          action_type?: Database["public"]["Enums"]["notification_action_type"]
+          body_ar?: string
+          body_en?: string
           created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
           id?: string
-          is_admin_target?: boolean
+          image_url?: string | null
+          is_announcement?: boolean
+          is_deleted?: boolean
+          is_pinned?: boolean
           metadata?: Json
-          read_at?: string | null
-          title?: string
-          type?: string
-          user_id?: string | null
+          notification_type?: Database["public"]["Enums"]["notification_type"]
+          priority?: Database["public"]["Enums"]["notification_priority"]
+          requires_acknowledgement?: boolean
+          scheduled_at?: string | null
+          send_config?: Json
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["notification_status"]
+          title_ar?: string
+          title_en?: string
+          updated_at?: string
+          version?: number
         }
         Relationships: []
       }
@@ -670,32 +715,107 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_status: string
+          address: string | null
+          avatar_url: string | null
+          city: string | null
+          commission_max: number | null
+          commission_min: number | null
+          commission_type: string | null
+          commission_value: number | null
           created_at: string
+          credit_limit: number | null
+          current_device: string | null
+          customer_status: string | null
           display_name: string | null
           email: string | null
+          emergency_phone: string | null
+          expiry_date: string | null
+          full_name: string | null
           id: string
           language: string
+          last_login: string | null
+          last_sync: string | null
+          license_status: Database["public"]["Enums"]["license_status"]
+          license_type: Database["public"]["Enums"]["license_type"] | null
+          notes: string | null
+          permanent: boolean | null
           phone: string | null
+          role: string | null
+          service_type: string | null
+          shop_name: string | null
+          trial_end: string | null
+          trial_start: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          account_status?: string
+          address?: string | null
+          avatar_url?: string | null
+          city?: string | null
+          commission_max?: number | null
+          commission_min?: number | null
+          commission_type?: string | null
+          commission_value?: number | null
           created_at?: string
+          credit_limit?: number | null
+          current_device?: string | null
+          customer_status?: string | null
           display_name?: string | null
           email?: string | null
+          emergency_phone?: string | null
+          expiry_date?: string | null
+          full_name?: string | null
           id?: string
           language?: string
+          last_login?: string | null
+          last_sync?: string | null
+          license_status?: Database["public"]["Enums"]["license_status"]
+          license_type?: Database["public"]["Enums"]["license_type"] | null
+          notes?: string | null
+          permanent?: boolean | null
           phone?: string | null
+          role?: string | null
+          service_type?: string | null
+          shop_name?: string | null
+          trial_end?: string | null
+          trial_start?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          account_status?: string
+          address?: string | null
+          avatar_url?: string | null
+          city?: string | null
+          commission_max?: number | null
+          commission_min?: number | null
+          commission_type?: string | null
+          commission_value?: number | null
           created_at?: string
+          credit_limit?: number | null
+          current_device?: string | null
+          customer_status?: string | null
           display_name?: string | null
           email?: string | null
+          emergency_phone?: string | null
+          expiry_date?: string | null
+          full_name?: string | null
           id?: string
           language?: string
+          last_login?: string | null
+          last_sync?: string | null
+          license_status?: Database["public"]["Enums"]["license_status"]
+          license_type?: Database["public"]["Enums"]["license_type"] | null
+          notes?: string | null
+          permanent?: boolean | null
           phone?: string | null
+          role?: string | null
+          service_type?: string | null
+          shop_name?: string | null
+          trial_end?: string | null
+          trial_start?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1299,95 +1419,6 @@ export type Database = {
           },
         ]
       }
-      notifications: {
-        Row: {
-          action_target: string | null
-          action_type: Database["public"]["Enums"]["notification_action_type"]
-          body_ar: string
-          body_en: string
-          created_at: string
-          created_by: string | null
-          expires_at: string | null
-          id: string
-          image_url: string | null
-          is_announcement: boolean
-          is_deleted: boolean
-          is_pinned: boolean
-          metadata: Json
-          notification_type: Database["public"]["Enums"]["notification_type"]
-          priority: Database["public"]["Enums"]["notification_priority"]
-          requires_acknowledgement: boolean
-          scheduled_at: string | null
-          send_config: Json
-          sent_at: string | null
-          status: Database["public"]["Enums"]["notification_status"]
-          title_ar: string
-          title_en: string
-          updated_at: string
-          version: number
-        }
-        Insert: {
-          action_target?: string | null
-          action_type?: Database["public"]["Enums"]["notification_action_type"]
-          body_ar?: string
-          body_en?: string
-          created_at?: string
-          created_by?: string | null
-          expires_at?: string | null
-          id?: string
-          image_url?: string | null
-          is_announcement?: boolean
-          is_deleted?: boolean
-          is_pinned?: boolean
-          metadata?: Json
-          notification_type?: Database["public"]["Enums"]["notification_type"]
-          priority?: Database["public"]["Enums"]["notification_priority"]
-          requires_acknowledgement?: boolean
-          scheduled_at?: string | null
-          send_config?: Json
-          sent_at?: string | null
-          status?: Database["public"]["Enums"]["notification_status"]
-          title_ar?: string
-          title_en?: string
-          updated_at?: string
-          version?: number
-        }
-        Update: {
-          action_target?: string | null
-          action_type?: Database["public"]["Enums"]["notification_action_type"]
-          body_ar?: string
-          body_en?: string
-          created_at?: string
-          created_by?: string | null
-          expires_at?: string | null
-          id?: string
-          image_url?: string | null
-          is_announcement?: boolean
-          is_deleted?: boolean
-          is_pinned?: boolean
-          metadata?: Json
-          notification_type?: Database["public"]["Enums"]["notification_type"]
-          priority?: Database["public"]["Enums"]["notification_priority"]
-          requires_acknowledgement?: boolean
-          scheduled_at?: string | null
-          send_config?: Json
-          sent_at?: string | null
-          status?: Database["public"]["Enums"]["notification_status"]
-          title_ar?: string
-          title_en?: string
-          updated_at?: string
-          version?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notifications_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
@@ -1426,10 +1457,6 @@ export type Database = {
       admin_end_trial: { Args: { _device_id: string }; Returns: Json }
       admin_extend_license: {
         Args: { _license_id: string; _new_expiry: string }
-        Returns: Json
-      }
-      admin_extend_trial: {
-        Args: { _days: number; _device_id: string }
         Returns: Json
       }
       admin_set_license_status: {
@@ -1700,11 +1727,84 @@ export type Database = {
         Args: Record<string, never>
         Returns: Json
       }
+      admin_delete_user: {
+        Args: { _target_user_id: string }
+        Returns: Json
+      }
+      admin_get_user_devices: {
+        Args: { _user_id: string }
+        Returns: Json
+      }
+      admin_repair_self: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      admin_reset_user_device: {
+        Args: { _user_id: string }
+        Returns: Json
+      }
+      admin_get_user_payments: {
+        Args: { _user_id: string }
+        Returns: Json
+      }
+      admin_update_payment: {
+        Args: {
+          _amount: number
+          _currency: string
+          _payment_date: string
+          _payment_for?: string | null
+          _payment_id: string
+          _payment_method: string
+        }
+        Returns: Json
+      }
+      admin_add_payment: {
+        Args: {
+          _amount: number
+          _currency: string
+          _payment_date: string
+          _payment_for?: string | null
+          _payment_method: string
+          _user_id: string
+        }
+        Returns: Json
+      }
+      admin_delete_payment: {
+        Args: { _payment_id: string }
+        Returns: Json
+      }
+      admin_get_sync_monitor: {
+        Args: { _days?: number }
+        Returns: Json
+      }
+      admin_get_users_admin: {
+        Args: {
+          _account_status?: string
+          _activation_status?: string
+          _page?: number
+          _page_size?: number
+          _role?: string
+          _search?: string
+          _status?: string
+        }
+        Returns: Json
+      }
+      ensure_license_expiration_reminders: {
+        Args: {
+          p_remind_days_license?: number
+          p_remind_days_trial?: number
+        }
+        Returns: Json
+      }
+      get_validation_policy: {
+        Args: Record<string, never>
+        Returns: Json
+      }
     }
     Enums: {
       activation_status: "pending" | "approved" | "rejected"
        app_role: "admin" | "user"
-      license_status: "active" | "expired" | "revoked" | "pending" | "suspended" | "trial" | "rejected" | "permanent" | "blocked"
+      license_status: "active" | "expired" | "inactive" | "revoked" | "pending" | "suspended" | "trial" | "rejected" | "permanent" | "blocked"
       license_type: "trial" | "year_1" | "year_2" | "year_3" | "custom_date" | "lifetime"
       notification_action_type: "none" | "screen" | "url" | "custom"
       notification_priority: "low" | "normal" | "high" | "critical"
@@ -1840,7 +1940,7 @@ export const Constants = {
     Enums: {
       activation_status: ["pending", "approved", "rejected"],
        app_role: ["admin", "user"],
-      license_status: ["active", "expired", "revoked", "pending", "suspended", "trial", "rejected", "permanent", "blocked"],
+      license_status: ["active", "expired", "inactive", "revoked", "pending", "suspended", "trial", "rejected", "permanent", "blocked"],
       license_type: ["trial", "year_1", "year_2", "year_3", "custom_date", "lifetime"],
       notification_action_type: ["none", "screen", "url", "custom"],
       notification_priority: ["low", "normal", "high", "critical"],

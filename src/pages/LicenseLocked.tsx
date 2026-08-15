@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getLicenseStatus, type LicenseInfo } from "@/lib/license";
 import { formatDate } from "@/lib/format-date";
 import { Lock, AlertTriangle, LogOut, Shield, RefreshCw, Clock } from "lucide-react";
+import { computeLicenseDecision } from "@/lib/license-decision";
 
 interface LicenseLockedProps {
   reason?: string;
@@ -18,17 +19,17 @@ const LicenseLocked = ({ reason: initialReason, onUnlock }: LicenseLockedProps) 
   const nav = useNavigate();
   const isArabic = i18n.language === "ar";
   const [license, setLicense] = useState<LicenseInfo | null>(null);
-  const [reason, setReason] = useState(initialReason || "trial_expired");
+  const [decision, setDecision] = useState<ReturnType<typeof computeLicenseDecision> | null>(null);
   const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     getLicenseStatus().then((l) => {
-      if (l?.is_locked) setLicense(l);
-      if (l?.license_status === "trial" && l.trial_end && new Date(l.trial_end) < new Date()) setReason("trial_expired");
-      else if (l?.license_status === "expired") setReason("license_expired");
-      else if (l?.license_status === "rejected") setReason("activation_rejected");
-      else if (l?.license_status === "blocked" || l?.account_status === "blocked") setReason("blocked");
-      else if (l?.account_status === "suspended") setReason("suspended");
+      if (l) {
+        setLicense(l);
+        const authState = { authenticated: true, userId: l.user_id };
+        const decisionResult = computeLicenseDecision(authState, l);
+        setDecision(decisionResult);
+      }
     });
   }, []);
 
@@ -36,11 +37,15 @@ const LicenseLocked = ({ reason: initialReason, onUnlock }: LicenseLockedProps) 
     setChecking(true);
     try {
       const lic = await getLicenseStatus();
-      if (lic && !lic.is_locked) {
-        if (onUnlock) onUnlock();
-        nav("/", { replace: true });
-      } else {
+      if (lic) {
+        const authState = { authenticated: true, userId: lic.user_id };
+        const decisionResult = computeLicenseDecision(authState, lic);
+        setDecision(decisionResult);
         setLicense(lic);
+        if (decisionResult.canOpenApp && !decisionResult.requiresLogout) {
+          if (onUnlock) onUnlock();
+          nav("/", { replace: true });
+        }
       }
     } finally {
       setChecking(false);
@@ -53,41 +58,56 @@ const LicenseLocked = ({ reason: initialReason, onUnlock }: LicenseLockedProps) 
   };
 
   const getLockMessage = () => {
-    switch (reason) {
-      case "trial_expired":
+    const reasonCode = decision?.reasonCode || initialReason || "unknown";
+    switch (reasonCode) {
+      case "trial_ended":
         return {
-title: t("auth.trialExpired"),
-	           description: t("auth.trialExpiredDesc"),
+          title: t("auth.trialExpired"),
+          description: t("auth.trialExpiredDesc"),
           icon: <Clock className="w-12 h-12 text-destructive" />,
         };
-      case "license_expired":
+      case "expired":
         return {
-title: t("auth.licenseExpired"),
-	           description: t("auth.licenseExpiredDesc"),
+          title: t("auth.licenseExpired"),
+          description: t("auth.licenseExpiredDesc"),
           icon: <AlertTriangle className="w-12 h-12 text-destructive" />,
         };
       case "activation_rejected":
         return {
-title: t("auth.activationRejected"),
-	           description: t("auth.activationRejectedDesc"),
+          title: t("auth.activationRejected"),
+          description: t("auth.activationRejectedDesc"),
           icon: <Shield className="w-12 h-12 text-destructive" />,
         };
+      case "account_suspended":
       case "suspended":
         return {
-title: t("auth.accountSuspended"),
-	           description: t("auth.accountSuspendedDesc"),
+          title: t("auth.accountSuspended"),
+          description: t("auth.accountSuspendedDesc"),
           icon: <Lock className="w-12 h-12 text-destructive" />,
         };
+      case "account_blocked":
       case "blocked":
         return {
-title: t("auth.accountBlocked"),
-	           description: t("auth.accountBlockedDesc"),
+          title: t("auth.accountBlocked"),
+          description: t("auth.accountBlockedDesc"),
           icon: <Lock className="w-12 h-12 text-destructive" />,
+        };
+      case "revoked":
+        return {
+          title: t("auth.licenseRevoked"),
+          description: t("auth.licenseRevokedDesc"),
+          icon: <Shield className="w-12 h-12 text-destructive" />,
+        };
+      case "inactive":
+        return {
+          title: t("auth.licenseInactive"),
+          description: t("auth.licenseInactiveDesc"),
+          icon: <AlertTriangle className="w-12 h-12 text-destructive" />,
         };
       default:
         return {
-title: t("auth.appLocked"),
-	          description: t("auth.appLockedDesc"),
+          title: t("auth.appLocked"),
+          description: t("auth.appLockedDesc"),
           icon: <Lock className="w-12 h-12 text-destructive" />,
         };
     }
@@ -118,6 +138,18 @@ title: t("auth.appLocked"),
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">{t("licenseLocked.trialEnded")}</span>
                   <span className="font-medium">{formatDate(license.trial_end)}</span>
+                </div>
+              )}
+              {license.expiry_date && decision?.licenseStatus !== "trial" && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{t("auth.expiryDate")}</span>
+                  <span className="font-medium">{formatDate(license.expiry_date)}</span>
+                </div>
+              )}
+              {decision?.licenseStatus && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{t("auth.licenseStatus")}</span>
+                  <span className="font-medium">{decision.licenseStatus}</span>
                 </div>
               )}
             </div>

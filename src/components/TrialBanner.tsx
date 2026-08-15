@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getTrialRemainingDays } from "@/lib/license";
 import { getCachedValidation } from "@/lib/license-cache";
+import { computeLicenseDecision } from "@/lib/license-decision";
 import { cn } from "@/lib/utils";
 
 const TrialBanner = () => {
@@ -22,17 +22,19 @@ const TrialBanner = () => {
         setWarning(null);
         return;
       }
-      if (cached.license_status !== "trial") {
+      const authState = { authenticated: true, userId: cached.user_id || "unknown" };
+      const decision = computeLicenseDecision(authState, cached);
+      
+      if (decision.licenseStatus !== "trial") {
         setWarning(null);
         return;
       }
-      if (cached.account_status === "suspended" || cached.account_status === "blocked") {
+      if (decision.accountStatus === "suspended" || decision.accountStatus === "blocked") {
         setWarning(null);
         return;
       }
-      const days = getTrialRemainingDays(cached.trial_end ?? null);
-      if (days > 0 && days <= 3) {
-        setWarning({ show: true, days });
+      if (decision.daysRemaining !== null && decision.daysRemaining > 0 && decision.daysRemaining <= 3) {
+        setWarning({ show: true, days: decision.daysRemaining });
       } else {
         setWarning(null);
       }
@@ -84,7 +86,7 @@ const TrialBanner = () => {
           onClick={() => setDismissed(true)}
           className="p-1 rounded-lg hover:bg-background/50 transition-smooth"
         >
-          <X className="w-4 h-4" />
+          <X className="w-4 w-4" />
         </button>
       </div>
     </div>

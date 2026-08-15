@@ -1,11 +1,12 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { isAdminUser } from "@/lib/auth";
 import { validateAndRefreshSession } from "@/lib/session-service";
 import { registerDeviceLogin } from "@/lib/device";
 import { refreshLicenseCacheIfNeeded } from "@/lib/license-cache";
+import { useTranslation } from "react-i18next";
 import { listenForOAuthCallback, getInitialDeepLink, handleOAuthDeepLink, authTrace, isRaseedDeepLink } from "@/lib/auth";
 
 // A locally persisted session is only treated as authentication when it has
@@ -138,7 +139,17 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         try {
           await refreshLicenseCacheIfNeeded();
         } catch {}
-        validateAndRefreshSession().catch(() => {});
+        try {
+          const sessionResult = await validateAndRefreshSession();
+          // If session is invalid due to suspended/blocked account, logout and redirect
+          if (!sessionResult.valid && sessionResult.requiresLogout) {
+            try { await supabase.auth.signOut({ scope: "local" }); } catch {}
+            clearAuthValidated();
+            setUser(null);
+            setIsAdmin(false);
+            // Redirect will be handled by RequireAuth since user is now null
+          }
+        } catch {}
       }, 0);
     };
 
@@ -253,6 +264,16 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         try {
           await refreshLicenseCacheIfNeeded();
         } catch {}
+        // Check license state after login - if suspended/blocked, logout
+        try {
+          const sessionResult = await validateAndRefreshSession();
+          if (!sessionResult.valid && sessionResult.requiresLogout) {
+            try { await supabase.auth.signOut({ scope: "local" }); } catch {}
+            clearAuthValidated();
+            setUser(null);
+            setIsAdmin(false);
+          }
+        } catch {}
       }, 0);
     });
 
@@ -346,9 +367,10 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
 }
 
 function AuthLoading() {
+  const { t } = useTranslation();
   return (
     <div className="min-h-dvh bg-background flex items-center justify-center p-6">
-      <div className="text-sm text-muted-foreground">Loading...</div>
+      <div className="text-sm text-muted-foreground">{t("common.loading")}</div>
     </div>
   );
 }

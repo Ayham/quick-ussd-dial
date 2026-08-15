@@ -39,13 +39,16 @@ serve(async (req) => {
     const { data: rateOk } = await serviceClient.rpc("check_rate_limit", { _key: rateKey, _window_seconds: 60, _max_requests: 5 });
     if (!rateOk) throw new Error("rate_limited");
 
-    // Check account status
+    // Check account / license status. Per the unified matrix, login is blocked
+    // for suspended or blocked accounts AND for suspended licenses (the
+    // license-level lock that forces a local sign-out).
     const { data: profile } = await serviceClient
       .from("profiles")
       .select("account_status, license_status, current_device")
       .eq("user_id", user.id)
       .maybeSingle();
     if (profile?.account_status === "suspended" || profile?.account_status === "blocked") throw new Error("account_suspended");
+    if (profile?.license_status === "suspended") throw new Error("license_suspended");
 
     // Reject login from a device that has been banned or blocked by an admin.
     const { data: deviceRow } = await serviceClient
@@ -149,7 +152,28 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       }, { onConflict: "user_id,device_id" });
 
-    return new Response(JSON.stringify({ success: true, session_id: sessionId, device_id: deviceId }), {
+    // Trial anti-abuse (SB5): when this is a trial account, the server checks
+    // that the device fingerprint has not already run a trial on another
+    // account, and that the daily per-IP trial cap has not been exceeded. On
+    // abuse the profile is demoted to pending (activation required) — enforced
+    // server-side, so it cannot be bypassed by reinstalling the app.
+    const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0]?.trim() || null;
+    let trialDenied = false;
+    if (body.fingerprint || ip) {
+      try {
+        const { data: trialCheck } = await serviceClient
+          .rpc("fn_trial_abuse_check", {
+            p_user_id: user.id,
+            p_fingerprint: body.fingerprint ?? null,
+            p_ip: ip,
+          });
+        trialDenied = Boolean(trialCheck && (trialCheck as { allowed?: boolean }).allowed === false);
+      } catch {
+        trialDenied = false;
+      }
+    }
+
+    return new Response(JSON.stringify({ success: true, session_id: sessionId, device_id: deviceId, trial_denied: trialDenied }), {
       status: 200,
       headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": origin },
     });

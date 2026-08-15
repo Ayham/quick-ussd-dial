@@ -1,4 +1,6 @@
-import { refreshLicenseCacheIfNeeded, validateDeviceSession, getCachedPolicy } from "@/lib/license-cache";
+import { refreshLicenseCacheIfNeeded, validateDeviceSession, getCachedPolicy, initLicenseCache } from "@/lib/license-cache";
+import { initTrustedClock, startTrustedClockMonitor } from "@/lib/trusted-clock";
+import { initDeviceIdentity } from "@/lib/device";
 import { trackAppOpen } from "@/lib/cloud-sync";
 import { startSupabaseSync } from "@/lib/supabase-sync";
 import { flushPendingOps } from "@/lib/notifications/offline";
@@ -59,6 +61,22 @@ function runLoop(): void {
 export function startCloudServices(): void {
   if (started || typeof window === "undefined") return;
   started = true;
+
+  // Security bootstrap (SB1/SB2/SB3): trusted monotonic clock + signed license
+  // cache verification + stable native device identity. All fire-and-forget;
+  // they only upgrade the guard state, never block the offline core.
+  try {
+    void initDeviceIdentity();
+  } catch {}
+  try {
+    void initTrustedClock();
+  } catch {}
+  try {
+    startTrustedClockMonitor();
+  } catch {}
+  try {
+    void initLicenseCache();
+  } catch {}
 
   // One-shot background tasks.
   try {

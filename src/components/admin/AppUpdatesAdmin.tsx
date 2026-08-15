@@ -13,6 +13,7 @@ import { APP_VERSION } from "@/config/version";
 import { getLatestGitHubRelease } from "@/lib/github-releases";
 import { cn } from "@/lib/utils";
 import type { UpdatePolicy } from "@/lib/update-checker";
+import type { Json } from "@/integrations/supabase/types";
 
 const POLICY_KEY = "app_update_policy";
 
@@ -22,8 +23,8 @@ interface PolicyRow {
   description: string | null;
 }
 
-function valueToJsonb(value: Record<string, unknown> | null | undefined): unknown {
-  return value ?? {};
+function valueToJsonb(value: Record<string, unknown> | null | undefined): Json {
+  return (value ?? {}) as Json;
 }
 
 export const AppUpdatesAdmin = () => {
@@ -140,7 +141,7 @@ export const AppUpdatesAdmin = () => {
       </div>
 
       <div className="flex items-center gap-3 text-xs text-muted-foreground">
-        <span>App build version: <span className="font-mono font-bold text-foreground">{APP_VERSION}</span></span>
+        <span>{t("adminUpdates.appBuildVersion")}: <span className="font-mono font-bold text-foreground">{APP_VERSION}</span></span>
         <Separator orientation="vertical" className="h-4" />
         <span className={cn("inline-flex items-center gap-1", isForced(previewPolicy()) ? "text-destructive" : "text-success")}>
           <span className={cn("w-2 h-2 rounded-full", isForced(previewPolicy()) ? "bg-destructive" : "bg-success")} />

@@ -87,7 +87,7 @@ const LicenseReminder = () => {
       )}
       <button
         onClick={dismiss}
-        aria-label="dismiss"
+        aria-label={t("notifications.dismissAria")}
         className="p-1 rounded-lg hover:bg-background/50 transition-smooth"
       >
         <X className="w-3.5 h-3.5" />

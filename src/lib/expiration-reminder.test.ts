@@ -21,7 +21,7 @@ const DAY = 1000 * 60 * 60 * 24;
 const NOW = Date.now();
 
 const config: ExpirationReminderConfig = {
-  remindDaysLicense: 7,
+  remindDaysLicense: 3,
   remindDaysTrial: 3,
 };
 
@@ -59,13 +59,13 @@ describe("getExpirationReminderPlan", () => {
 
   it("plans a paid-license reminder inside the license window", () => {
     const plan = getExpirationReminderPlan(
-      data({ license_status: "active", expiry_date: new Date(NOW + 5 * DAY).toISOString() }),
+      data({ license_status: "active", expiry_date: new Date(NOW + 2 * DAY).toISOString() }),
       config,
       NOW,
     );
     expect(plan).not.toBeNull();
     expect(plan?.type).toBe("license_expiring");
-    expect(plan?.daysLeft).toBe(5);
+    expect(plan?.daysLeft).toBe(2);
     expect(plan?.dedupeKey).toMatch(/^license:/);
   });
 
@@ -131,7 +131,7 @@ describe("resolveReminderConfig", () => {
 
   it("falls back to defaults when the server provides none", () => {
     const cfg = resolveReminderConfig(policy());
-    expect(cfg.remindDaysLicense).toBe(7);
+    expect(cfg.remindDaysLicense).toBe(3);
     expect(cfg.remindDaysTrial).toBe(3);
   });
 });
@@ -145,7 +145,7 @@ describe("syncExpirationReminder", () => {
 
   it("calls the deduplicated server RPC exactly once per boundary", async () => {
     mocks.rpc.mockResolvedValue({ data: { ok: true }, error: null });
-    const d = data({ license_status: "active", expiry_date: new Date(NOW + 5 * DAY).toISOString() });
+    const d = data({ license_status: "active", expiry_date: new Date(NOW + 2 * DAY).toISOString() });
 
     await syncExpirationReminder(d, policy());
     await syncExpirationReminder(d, policy());
@@ -163,7 +163,7 @@ describe("syncExpirationReminder", () => {
   it("skips silently when offline", async () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
     await syncExpirationReminder(
-      data({ license_status: "active", expiry_date: new Date(NOW + 5 * DAY).toISOString() }),
+      data({ license_status: "active", expiry_date: new Date(NOW + 2 * DAY).toISOString() }),
       policy(),
     );
     expect(mocks.rpc).not.toHaveBeenCalled();

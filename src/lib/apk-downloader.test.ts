@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { downloadAndInstallApk, type ProgressCallback } from "./apk-downloader";
+import { downloadAndInstallApk, type DownloadProgress } from "./apk-downloader";
 
 vi.mock("@capacitor/filesystem", () => ({
   Filesystem: {
@@ -60,7 +60,7 @@ describe("downloadAndInstallApk (native)", () => {
   });
 
   it("downloads, resolves the URI, and opens the APK", async () => {
-    const progress: any[] = [];
+    const progress: DownloadProgress[] = [];
     openFile.mockResolvedValue(undefined);
     await downloadAndInstallApk("https://example.com/app.apk", (p) => progress.push(p));
     expect(deleteFile).toHaveBeenCalled();

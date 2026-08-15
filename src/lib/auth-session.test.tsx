@@ -237,4 +237,46 @@ describe("authentication is independent of network/license state", () => {
     expect(await screen.findByText("PROTECTED_CONTENT")).toBeInTheDocument();
     expect(mocks.signOut).not.toHaveBeenCalled();
   });
+
+  it("logs out locally when the license/account verdict demands it (suspended/blocked)", async () => {
+    setup(testUser);
+    localStorage.setItem(AUTH_VALIDATED_AT_KEY, String(Date.now()));
+    mocks.getUser.mockResolvedValue({ data: { user: testUser }, error: null });
+    Object.defineProperty(navigator, "onLine", { configurable: true, get: () => true });
+    // The account is suspended server-side → the session verdict demands logout.
+    mocks.validateAndRefreshSession.mockResolvedValue({
+      valid: false,
+      requiresLogout: true,
+      license: null,
+    });
+
+    renderProtected();
+
+    await waitFor(() => {
+      expect(mocks.signOut).toHaveBeenCalled();
+    });
+    // The user is redirected back to the auth page.
+    expect(await screen.findByText("AUTH_PAGE")).toBeInTheDocument();
+    expect(screen.queryByText("PROTECTED_CONTENT")).not.toBeInTheDocument();
+    expect(localStorage.getItem(AUTH_VALIDATED_AT_KEY)).toBeNull();
+  });
+
+  it("does NOT log out when a license-level verdict merely blocks transfers (expired/revoked)", async () => {
+    setup(testUser);
+    localStorage.setItem(AUTH_VALIDATED_AT_KEY, String(Date.now()));
+    mocks.getUser.mockResolvedValue({ data: { user: testUser }, error: null });
+    Object.defineProperty(navigator, "onLine", { configurable: true, get: () => true });
+    // Expired / revoked licenses keep the app usable (banners), no logout.
+    mocks.validateAndRefreshSession.mockResolvedValue({
+      valid: true,
+      requiresLogout: false,
+      license: null,
+    });
+
+    renderProtected();
+
+    expect(await screen.findByText("PROTECTED_CONTENT")).toBeInTheDocument();
+    expect(mocks.signOut).not.toHaveBeenCalled();
+    expect(localStorage.getItem(AUTH_VALIDATED_AT_KEY)).not.toBeNull();
+  });
 });

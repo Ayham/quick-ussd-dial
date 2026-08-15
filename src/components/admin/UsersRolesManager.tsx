@@ -29,6 +29,8 @@ interface UserInfo {
   language: string | null;
   updated_at: string | null;
   role: string | null;
+  roles: string | null;
+  is_admin: boolean;
   notes: string | null;
   customer_status: string | null;
   shop_name: string | null;
@@ -127,7 +129,6 @@ export function UsersRolesManager() {
   const [blockTarget, setBlockTarget] = useState<UserInfo | null>(null);
   const [blockAction, setBlockAction] = useState<"block" | "unblock">("block");
   const [resetDeviceUser, setResetDeviceUser] = useState<UserInfo | null>(null);
-  const [repairing, setRepairing] = useState(false);
   const [showPayments, setShowPayments] = useState(false);
   const [paymentsUser, setPaymentsUser] = useState<UserInfo | null>(null);
 
@@ -280,24 +281,11 @@ export function UsersRolesManager() {
     }
   };
 
-  const handleAdminRepair = async () => {
-    setRepairing(true);
-    try {
-      const { data, error } = await supabase.rpc("admin_repair_self");
-      if (error) throw error;
-      const result = data as unknown as { success: boolean; error?: string };
-      if (result.success) {
-        toast.success(t("adminLicenses.permissionsFixed"));
-        setLoadError(null);
-        load();
-      } else {
-        toast.error(result.error || t("adminLicenses.repairFailed"));
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("adminLicenses.repairFailed"));
-    } finally {
-      setRepairing(false);
-    }
+  const handleAdminRepair = () => {
+    // admin_repair_self was revoked from authenticated callers (security
+    // hardening): first-admin bootstrap is operator/service-role only, so the
+    // self-promotion path is intentionally dead.
+    toast.error(t("adminLicenses.repairUnavailable"));
   };
 
   const totalPages = Math.ceil(total / pageSize);
@@ -308,7 +296,7 @@ export function UsersRolesManager() {
         <div className="border border-destructive/20 bg-destructive/10 rounded-2xl p-3 flex items-center gap-2 text-sm text-destructive flex-wrap">
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span className="min-w-0 break-all" dir="ltr">{loadError}</span>
-          <Button variant="destructive" size="sm" className="ms-auto rounded-xl" onClick={handleAdminRepair} disabled={repairing}>
+          <Button variant="destructive" size="sm" className="ms-auto rounded-xl" onClick={handleAdminRepair}>
             <Wrench className="w-4 h-4 me-1" />{t("adminLicenses.fixPermissions")}
           </Button>
         </div>
@@ -433,7 +421,7 @@ export function UsersRolesManager() {
                   const paymentCount = (u.payments_summary || []).length;
                   const notificationCount = (u.notifications_summary || {}).total || 0;
                   const notificationUnread = (u.notifications_summary || {}).unread || 0;
-                  const activationCounts = (u.activations_summary || {});
+                  const activationCounts = u.activations_summary || { pending: 0, approved: 0, rejected: 0, latest_status: null, latest_at: null };
                   const hasRole = u.roles && u.roles.includes("admin");
                   return (
                     <tr key={u.user_id} className="border-b last:border-0 hover:bg-muted/30 transition-smooth">
@@ -468,9 +456,9 @@ export function UsersRolesManager() {
                           "bg-muted text-muted-foreground"
                         }`}>{u.license_status || "—"}</span>
                       </td>
-                      <td className="p-3 text-xs text-muted-foreground">{paymentCount} دفعة{paymentCount !== 1 ? "s" : ""}</td>
+                      <td className="p-3 text-xs text-muted-foreground">{t("adminUsers.paymentsCount", { count: paymentCount })}</td>
                       <td className="p-3 text-xs text-muted-foreground">
-                        {notificationUnread > 0 ? `${notificationCount} إشعارة${notificationCount > 1 ? "s" : ""} | ${notificationUnread} غير مقروءة` : notificationCount}
+                        {notificationUnread > 0 ? t("adminUsers.notificationsSummaryLine", { total: notificationCount, unread: notificationUnread }) : notificationCount}
                       </td>
                       <td className="p-3">
                         {activationCounts.latest_status ? (
@@ -629,8 +617,8 @@ export function UsersRolesManager() {
                 <Detail label={t("adminUsers.role")} value={detailsUser.role || "-"} />
                 <Detail label={t("adminUsers.accountStatus")} value={detailsUser.account_status || "-"} />
                 <Detail label={t("adminUsers.licenseStatus")} value={detailsUser.license_status || "-"} />
-                <Detail label={t("adminUsers.paymentsTotal")} value={`${(detailsUser.payments_summary || []).length} دفعة${(detailsUser.payments_summary || []).length !== 1 ? "s" : ""}`} />
-                <Detail label={t("adminUsers.notificationsSummary")} value={`${(detailsUser.notifications_summary || {}).total || 0} إشعارة | ${(detailsUser.notifications_summary || {}).unread || 0} غير مقروءة`} />
+                <Detail label={t("adminUsers.paymentsTotal")} value={t("adminUsers.paymentsCount", { count: (detailsUser.payments_summary || []).length })} />
+                <Detail label={t("adminUsers.notificationsSummary")} value={t("adminUsers.notificationsSummaryLine", { total: (detailsUser.notifications_summary || {}).total || 0, unread: (detailsUser.notifications_summary || {}).unread || 0 })} />
                 <Detail label={t("adminUsers.activationStatus")} value={detailsUser.activation_status || "-"} />
                 <Detail label={t("adminUsers.lastLogin")} value={detailsUser.last_login ? formatDateTime(detailsUser.last_login) : "-"} />
                 <Detail label={t("adminUsers.lastSignIn")} value={detailsUser.last_sign_in_at ? formatDateTime(detailsUser.last_sign_in_at) : "-"} />

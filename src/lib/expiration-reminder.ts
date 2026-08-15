@@ -3,7 +3,7 @@ import type { ValidationPolicy, ValidationResult } from "./license-cache";
 
 const DAY_MS = 1000 * 60 * 60 * 24;
 
-const DEFAULT_REMIND_DAYS_LICENSE = 7;
+const DEFAULT_REMIND_DAYS_LICENSE = 3;
 const DEFAULT_REMIND_DAYS_TRIAL = 3;
 
 const REMINDER_SENT_KEY = "app_expiration_reminder_sent";

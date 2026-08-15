@@ -38,6 +38,7 @@ export const DEFAULT_MTN_PRESETS: AmountPreset[] = [
   { amount: 40, price: 50 },
   { amount: 50, price: 60 },
   { amount: 70, price: 90 },
+  { amount: 85, price: 100 },
   { amount: 100, price: 120 },
   { amount: 150, price: 180 },
   { amount: 200, price: 250 },

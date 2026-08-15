@@ -9,6 +9,7 @@ import {
   type Operator,
 } from "@/lib/ussd-profiles";
 import { dialUssdDirect } from "@/lib/ussd-dialer";
+import { ensureTransferAllowed } from "@/lib/license-cache";
 import { getHistory } from "@/lib/transfer-history";
 import { getActualDeductedAmount } from "@/lib/amount-utils";
 import {
@@ -87,6 +88,14 @@ const Balance = () => {
 
     setCheckingOp(operator);
     try {
+      // Balance queries dial a USSD code, so the same license/device guard that
+      // protects transfers applies (SB4). Self-heals via the signed EF when the
+      // local verdict would block but the server state changed.
+      const guard = await ensureTransferAllowed();
+      if (!guard.allowed) {
+        toast.error(guard.reason || t("balance.checkNotAllowed"));
+        return;
+      }
       await dialUssdDirect(ussd, simSlot);
       toast.success(t("balance.querySent", { operator: operator === "mtn" ? t("operator.mtn") : t("operator.syriatel") }));
       setDialogOperator(operator);

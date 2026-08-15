@@ -6,22 +6,41 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { getLicenseStatus, requestActivation, checkPendingActivation, getTrialRemainingDays, type LicenseInfo } from "@/lib/license";
+import { getLicenseStatus, requestActivation, checkPendingActivation, getTrialRemainingDays, type LicenseInfo, type LicenseStatus, type AccountStatus } from "@/lib/license";
 import { getDeviceId } from "@/lib/device";
 import { formatDate, formatDateTime } from "@/lib/format-date";
 import { supabase } from "@/integrations/supabase/client";
-import { Shield, Clock, AlertTriangle, CheckCircle2, XCircle, Loader2, Phone, User, Info, ArrowLeftFromLine, RefreshCw } from "lucide-react";
+import { Shield, Clock, AlertTriangle, CheckCircle2, XCircle, Loader2, Phone, User, Info, ArrowLeftFromLine, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { computeLicenseDecision } from "@/lib/license-decision";
+import { getCachedValidation, type ValidationResult } from "@/lib/license-cache";
 
 const Activation = () => {
   const { t, i18n } = useTranslation();
   const nav = useNavigate();
   const isArabic = i18n.language === "ar";
   const [license, setLicense] = useState<LicenseInfo | null>(null);
+  const [decision, setDecision] = useState<ReturnType<typeof computeLicenseDecision> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requesting, setRequesting] = useState(false);
   const [hasPending, setHasPending] = useState(false);
+  const [offline, setOffline] = useState(false);
+
+  const applyLicense = (lic: LicenseInfo | null, pending: { has_pending: boolean }) => {
+    if (lic === null) {
+      setError(t("activation.loadError"));
+      setLicense(null);
+      setDecision(null);
+      setHasPending(false);
+      return;
+    }
+    setError(null);
+    setLicense(lic);
+    setHasPending(pending.has_pending);
+    const authState = { authenticated: true, userId: lic.user_id };
+    setDecision(computeLicenseDecision(authState, lic));
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -31,11 +50,21 @@ const Activation = () => {
         getLicenseStatus(),
         checkPendingActivation(),
       ]);
-      if (lic === null) {
-        setError(t("activation.loadError"));
+      if (lic !== null) {
+        setOffline(false);
+        applyLicense(lic, pending);
+        return;
       }
-      setLicense(lic);
-      setHasPending(pending.has_pending);
+      // Live status unavailable (offline or server error) — fall back to the
+      // last cached validation verdict so the page still renders a meaningful
+      // status instead of a dead screen. Same decision layer, offline rules.
+      const cached = getCachedValidation();
+      if (cached) {
+        setOffline(true);
+        applyLicense(cachedToLicenseInfo(cached), pending);
+        return;
+      }
+      applyLicense(null, pending);
     } catch (err) {
       setError(t("activation.loadDataError"));
     } finally {
@@ -82,13 +111,13 @@ const Activation = () => {
     );
   }
 
-  const remainingDays = license ? getTrialRemainingDays(license.trial_end) : 0;
-  const isTrialActive = license?.license_status === "trial" && (license.trial_end === null || remainingDays > 0);
-  const isTrialExpired = license?.license_status === "trial" && license.trial_end !== null && remainingDays === 0;
-  const isActive = license?.license_status === "active";
-  const isPermanent = license?.license_status === "permanent";
+  const remainingDays = license ? (decision?.daysRemaining ?? 0) : 0;
+  const isTrialActive = decision?.licenseStatus === "trial" && decision?.canTransfer;
+  const isTrialExpired = decision?.licenseStatus === "trial" && !decision?.canTransfer && decision?.reasonCode === "trial_ended";
+  const isActive = decision?.licenseStatus === "active" && decision?.canTransfer;
+  const isPermanent = decision?.licenseStatus === "permanent";
   const isLicensed = isActive || isPermanent;
-  const isLocked = license?.is_locked === true;
+  const isLocked = decision?.requiresLogout === true;
 
   return (
     <div className="min-h-dvh bg-background safe-area-insets" dir={isArabic ? "rtl" : "ltr"}>
@@ -104,7 +133,15 @@ const Activation = () => {
         </div>
 
         {/* Status Banners */}
-        {renderStatusBanner(license, remainingDays, isArabic, isTrialActive, isTrialExpired, isActive, isPermanent, t)}
+        {offline && (
+          <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-muted/50 p-4">
+            <WifiOff className="w-5 h-5 flex-shrink-0 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              {t("activation.offlineStatus")}
+            </p>
+          </div>
+        )}
+        {renderStatusBanner(decision, license, remainingDays, isArabic, t)}
 
         {/* User Info Card */}
         {license && renderUserInfoCard(license, isArabic, t)}
@@ -121,7 +158,7 @@ const Activation = () => {
 
         {!hasPending && !isLicensed && !error && (
           <div className="space-y-3">
-            <Button className="w-full h-12 font-bold rounded-xl shadow-sm" onClick={handleRequestActivation} disabled={requesting}>
+            <Button className="w-full h-12 font-bold rounded-xl shadow-sm" onClick={handleRequestActivation} disabled={requesting || offline}>
 {requesting ? <Loader2 className="w-4 h-4 animate-spin" /> : (
 	                <> {t("activation.requestNow")} </>
 	              )}
@@ -151,9 +188,16 @@ const Activation = () => {
   );
 };
 
-function renderStatusBanner(license: any, remainingDays: number, isArabic: boolean, isTrialActive: boolean, isTrialExpired: boolean, isActive: boolean, isPermanent: boolean, t: any) {
+function renderStatusBanner(decision: ReturnType<typeof computeLicenseDecision> | null, license: LicenseInfo | null, remainingDays: number, isArabic: boolean, t: any) {
+  if (!decision || !license) return null;
+
+  const isTrialActive = decision.licenseStatus === "trial" && decision.canTransfer;
+  const isTrialExpired = decision.licenseStatus === "trial" && !decision.canTransfer && decision.reasonCode === "trial_ended";
+  const isActive = decision.licenseStatus === "active" && decision.canTransfer;
+  const isPermanent = decision.licenseStatus === "permanent";
+
   if (isTrialActive) {
-    if (license?.trial_end === null) {
+    if (license.trial_end === null) {
       return <StatusBanner type="success" icon={CheckCircle2} title={t("activation.trialActive")} subtitle={t("activation.trialNoExpiry")} />;
     }
     const isUrgent = remainingDays <= 1;
@@ -168,19 +212,21 @@ function renderStatusBanner(license: any, remainingDays: number, isArabic: boole
           {remainingDays} <span className="text-lg">{t("activation.daysRemainingShort")}</span>
         </p>
 <p className="text-sm text-muted-foreground">
-	            {t("activation.trialRange", { start: formatDate(license!.trial_start!), end: formatDate(license!.trial_end!) })}
-	          </p>
+            {t("activation.trialRange", { start: formatDate(license.trial_start!), end: formatDate(license.trial_end!) })}
+          </p>
       </div>
     );
   }
   if (isTrialExpired) return <StatusBanner type="error" icon={AlertTriangle} title={t("auth.trialExpired")} subtitle={t("activation.trialExpiredDesc")} />;
-  if (isActive) return <StatusBanner type="success" icon={CheckCircle2} title={t("activation.activated")} subtitle={license?.expiry_date ? `${t("auth.expiryDate")} ${formatDate(license.expiry_date)}` : t("activation.licenseActive")} />;
+  if (isActive) return <StatusBanner type="success" icon={CheckCircle2} title={t("activation.activated")} subtitle={license.expiry_date ? `${t("auth.expiryDate")} ${formatDate(license.expiry_date)}` : t("activation.licenseActive")} />;
   if (isPermanent) return <StatusBanner type="success" icon={CheckCircle2} title={t("activation.permanent")} subtitle={t("activation.noExpiry")} />;
-  if (license?.license_status === "pending") return <StatusBanner type="warning" icon={Clock} title={t("activation.pendingReview")} subtitle={t("activation.pendingReviewDesc")} />;
-  if (license?.license_status === "rejected") return <StatusBanner type="error" icon={XCircle} title={t("activation.rejected")} subtitle={t("activation.rejectedDesc")} />;
-  if (license?.license_status === "suspended") return <StatusBanner type="error" icon={XCircle} title={t("activation.suspended")} />;
-  if (license?.license_status === "blocked") return <StatusBanner type="error" icon={XCircle} title={t("activation.blocked")} />;
-  if (license?.license_status === "expired") return <StatusBanner type="error" icon={AlertTriangle} title={t("activation.licenseExpired")} subtitle={t("activation.licenseExpiredDesc")} />;
+  if (decision.licenseStatus === "pending") return <StatusBanner type="warning" icon={Clock} title={t("activation.pendingReview")} subtitle={t("activation.pendingReviewDesc")} />;
+  if (decision.licenseStatus === "rejected") return <StatusBanner type="error" icon={XCircle} title={t("activation.rejected")} subtitle={t("activation.rejectedDesc")} />;
+  if (decision.licenseStatus === "suspended") return <StatusBanner type="error" icon={XCircle} title={t("activation.suspended")} />;
+  if (decision.licenseStatus === "blocked") return <StatusBanner type="error" icon={XCircle} title={t("activation.blocked")} />;
+  if (decision.licenseStatus === "expired") return <StatusBanner type="error" icon={AlertTriangle} title={t("activation.licenseExpired")} subtitle={t("activation.licenseExpiredDesc")} />;
+  if (decision.licenseStatus === "revoked") return <StatusBanner type="error" icon={XCircle} title={t("activation.revoked")} subtitle={t("activation.revokedDesc")} />;
+  if (decision.licenseStatus === "inactive") return <StatusBanner type="error" icon={AlertTriangle} title={t("activation.inactive")} subtitle={t("activation.inactiveDesc")} />;
   return null;
 }
 
@@ -197,6 +243,36 @@ function StatusBanner({ type, icon: Icon, title, subtitle }: { type: "success" |
       {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
     </div>
   );
+}
+
+/**
+ * Convert a cached validation verdict into a LicenseInfo for offline rendering.
+ * The cached record may lack identity details; those fall back to null and the
+ * user card simply omits them.
+ */
+function cachedToLicenseInfo(cached: ValidationResult): LicenseInfo {
+  const trialEnd = cached.trial_end ?? null;
+  const expiry = cached.expiry_date ?? null;
+  const licenseStatus = (cached.license_status as LicenseStatus) ?? "pending";
+  return {
+    user_id: cached.user_id ?? "",
+    email: null,
+    display_name: null,
+    phone: null,
+    trial_start: null,
+    trial_end: trialEnd,
+    license_status: licenseStatus,
+    // Derive the closest license_type so the offline card never mislabels the
+    // license type. displayLicenseType() re-maps permanent/trial anyway.
+    license_type: licenseStatus === "permanent" ? "lifetime" : licenseStatus === "trial" ? "trial" : "custom_date",
+    expiry_date: expiry,
+    current_device: cached.current_device ?? null,
+    last_login: null,
+    last_sync: null,
+    account_status: (cached.account_status as AccountStatus) ?? "active",
+    trial_remaining_days: trialEnd ? getTrialRemainingDays(trialEnd) : null,
+    is_locked: cached.is_locked ?? false,
+  };
 }
 
 function renderUserInfoCard(license: LicenseInfo, isArabic: boolean, t: any) {

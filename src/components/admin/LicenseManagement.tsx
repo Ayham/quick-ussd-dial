@@ -147,7 +147,6 @@ const LicenseManagement = () => {
   const [activationAction, setActivationAction] = useState<"approve" | "reject" | null>(null);
 
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [repairing, setRepairing] = useState(false);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -233,7 +232,7 @@ const LicenseManagement = () => {
       toast.success(t("adminLicenses.trialExtended"));
       loadUsers();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
+      toast.error(err instanceof Error ? err.message : t("adminLicenses.updateFailed"));
     } finally {
       setActionLoading(null);
     }
@@ -312,24 +311,11 @@ const LicenseManagement = () => {
     }
   };
 
-  const handleAdminRepair = async () => {
-    setRepairing(true);
-    try {
-      const { data, error } = await supabase.rpc("admin_repair_self");
-      if (error) throw error;
-      const result = data as unknown as { success: boolean; error?: string };
-      if (result.success) {
-        toast.success(t("adminLicenses.permissionsFixed"));
-        setLoadError(null);
-        loadUsers();
-      } else {
-        toast.error(result.error || t("adminLicenses.repairFailed"));
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("adminLicenses.repairFailed"));
-    } finally {
-      setRepairing(false);
-    }
+  const handleAdminRepair = () => {
+    // admin_repair_self was revoked from authenticated callers (security
+    // hardening): first-admin bootstrap is operator/service-role only, so the
+    // self-promotion path is intentionally dead.
+    toast.error(t("adminLicenses.repairUnavailable"));
   };
 
   const handleResetDevice = async () => {
@@ -391,7 +377,7 @@ const LicenseManagement = () => {
           </SelectContent>
         </Select>
         {loadError && (
-          <Button variant="destructive" size="sm" className="h-10 rounded-xl" onClick={handleAdminRepair} disabled={repairing}>
+          <Button variant="destructive" size="sm" className="h-10 rounded-xl" onClick={handleAdminRepair}>
             <Wrench className="w-4 h-4 me-1" />{t("adminLicenses.fixPermissions")}
           </Button>
         )}

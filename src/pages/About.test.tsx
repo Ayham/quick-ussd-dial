@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import About from "./About";
 import { CONTACT_SETTINGS_CACHE_KEY } from "@/lib/contact-settings";
 import { supabase } from "@/integrations/supabase/client";
+import { APP_VERSION } from "@/config/version";
 import "@/lib/i18n";
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -81,7 +82,7 @@ describe("About page", () => {
       </MemoryRouter>,
     );
     expect(screen.getByText("رصيد Raseed")).toBeInTheDocument();
-    expect(screen.getByText("v1.2.1")).toBeInTheDocument();
+    expect(screen.getByText(`v${APP_VERSION}`)).toBeInTheDocument();
     expect(screen.getByText("معلومات التطبيق")).toBeInTheDocument();
     expect(screen.getByText("حقوق النشر")).toBeInTheDocument();
   });

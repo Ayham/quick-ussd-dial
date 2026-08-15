@@ -428,7 +428,7 @@ const Index = () => {
 
   return (
     <AppLayout title={businessName || t("appName")} onTitleClick={handleTitleTap}>
-      <main className="flex-1 w-full max-w-lg mx-auto space-y-3.5 px-3 py-3 overflow-y-auto">
+      <main className="w-full max-w-lg mx-auto space-y-3.5 px-3 pt-3 pb-6">
 
         {/* Phone Input Card */}
         <div className="bg-white rounded-2xl p-4.5 shadow-sm border border-border/60 space-y-3.5 animate-slide-up">
@@ -479,7 +479,7 @@ const Index = () => {
                             "text-[10px] font-bold px-2.5 py-1 rounded-full",
                             op === "mtn" ? "bg-operator-mtn text-operator-mtn-foreground" : "bg-operator-syriatel text-white"
                           )}>
-                            {op === "mtn" ? "MTN" : "SYR"}
+                            {op === "mtn" ? t("operator.mtn") : t("operator.syriatel")}
                           </span>
                         )}
                       </button>
@@ -641,7 +641,7 @@ const Index = () => {
                   : "bg-muted/30 border-border hover:border-operator-syriatel/20"
               )}>
                 <RadioGroupItem value="syriatel" id="s-syr" className="text-operator-syriatel" />
-                <Label htmlFor="s-syr" className="text-sm font-bold cursor-pointer text-operator-syriatel">Syriatel</Label>
+                <Label htmlFor="s-syr" className="text-sm font-bold cursor-pointer text-operator-syriatel">{t("operator.syriatel")}</Label>
               </div>
             </RadioGroup>
           </div>
@@ -676,7 +676,7 @@ const Index = () => {
                 })}
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-2.5 max-h-[280px] overflow-y-auto scrollbar-thin pr-0.5">
+              <div className="grid grid-cols-3 gap-2.5 max-h-[190px] overflow-y-auto scrollbar-thin pr-0.5">
                 {currentPresets.map((preset, i) => {
                   const isSelected = selectedAmount?.amount === preset.amount;
                   const totalPresets = currentPresets.length;
@@ -750,7 +750,7 @@ const Index = () => {
                       "font-bold px-3 py-1 rounded-xl text-xs shadow-sm",
                       transferOperator === "mtn" ? "bg-operator-mtn text-operator-mtn-foreground" : "bg-operator-syriatel text-white"
                     )}>
-                      {transferOperator === "mtn" ? "MTN" : "Syriatel"}
+                      {transferOperator === "mtn" ? t("operator.mtn") : t("operator.syriatel")}
                     </span>
                   </div>
                 </div>

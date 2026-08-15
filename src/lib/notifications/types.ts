@@ -211,6 +211,7 @@ export interface AdminNotification {
   ack_count: number;
   failed_count: number;
   version: number;
+  is_deleted: boolean;
 }
 
 export interface AdminNotificationDetail extends AdminNotification {
@@ -249,7 +250,7 @@ export function resolveAction(input: {
   return { type, target: type === "url" ? null : target, url, custom };
 }
 
-export interface UserNotificationDto extends Omit<UserNotification, "action"> {
+export interface UserNotificationDto extends Omit<UserNotification, "action" | "metadata"> {
   action_type?: string | null;
   action_target?: string | null;
   metadata?: Record<string, unknown> | null;
@@ -258,6 +259,7 @@ export interface UserNotificationDto extends Omit<UserNotification, "action"> {
 export function mapNotification(dto: UserNotificationDto): UserNotification {
   return {
     ...dto,
+    metadata: dto.metadata ?? null,
     action: resolveAction({
       action_type: dto.action_type ?? "none",
       action_target: dto.action_target,
