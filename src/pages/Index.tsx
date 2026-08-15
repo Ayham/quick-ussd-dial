@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Phone, Clock, CheckCircle, Loader2, Send, TrendingUp, BookUser, UserPlus, Search, Pencil } from "lucide-react";
+import { Phone, Clock, CheckCircle, Loader2, Send, TrendingUp, BookUser, UserPlus, Search, Pencil, X } from "lucide-react";
 import {
   detectOperator,
   buildUssdCode,
@@ -431,8 +431,8 @@ const Index = () => {
       <main className="w-full max-w-lg mx-auto space-y-3.5 px-3 pt-3 pb-6">
 
         {/* Phone Input Card */}
-        <div className="bg-white rounded-2xl p-4.5 shadow-sm border border-border/60 space-y-3.5 animate-slide-up">
-          <div className="relative z-50" ref={contactsRef}>
+        <div className="bg-white rounded-2xl p-2.5 shadow-sm border border-border/60 space-y-3.5 animate-slide-up">
+          <div className="relative" ref={contactsRef}>
             <div className="absolute left-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
               <button
                 onClick={handlePickContact}
@@ -450,11 +450,21 @@ const Index = () => {
               value={phone}
               onChange={(e) => { setPhone(e.target.value); setContactName(''); setShowSaveName(false); setNameInput(''); setAndroidContacts([]); }}
               onFocus={() => setShowContacts(true)}
-              className="text-left text-lg h-13 tracking-wider rounded-xl border-2 border-border bg-background/50 focus:border-primary focus:bg-white transition-all pl-[4.25rem] font-mono shadow-sm"
+              className="text-left text-lg h-13 tracking-wider rounded-xl border-2 border-border bg-background/50 focus:border-primary focus:bg-white transition-all pl-[4.25rem] pr-12 font-mono shadow-sm"
               dir="ltr"
               inputMode="tel"
               aria-label={t("index.phoneAria")}
             />
+            {phone && (
+              <button
+                type="button"
+                onClick={() => { setPhone(''); setContactName(''); setShowSaveName(false); setNameInput(''); setAndroidContacts([]); setShowContacts(false); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all active:scale-90"
+                aria-label={t("index.clearPhoneAria")}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
 
             {showContacts && (
               androidContacts.length > 0 ? (

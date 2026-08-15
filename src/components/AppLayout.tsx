@@ -70,7 +70,7 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
   return (
     <div className="min-h-dvh bg-background flex flex-col">
       {/* Header */}
-      <header className="header-gradient px-5 pb-4 pt-[calc(var(--sat)+14px)] flex items-center justify-between z-header sticky top-0 shadow-[0_2px_20px_-4px_hsl(var(--primary)/0.35)]">
+      <header className="header-gradient px-5 pb-4 pt-[calc(var(--sat)+14px)] flex items-center justify-between z-header sticky top-0 isolate shadow-[0_2px_20px_-4px_hsl(var(--primary)/0.35)]">
         <div className="flex items-center gap-3 cursor-pointer active:scale-95 transition-transform" onClick={onTitleClick}>
           {titleIcon || (
             <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center backdrop-blur-sm shadow-inner">
