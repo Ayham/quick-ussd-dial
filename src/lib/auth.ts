@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { User } from "@supabase/supabase-js";
 import { Browser } from "@capacitor/browser";
 import { App } from "@capacitor/app";
 import { toast } from "sonner";
@@ -393,9 +394,54 @@ export async function sendPasswordReset(email: string) {
   });
 }
 
+// Same marker the auth-session provider writes after a Supabase confirmation.
+// Offline UI reads of the persisted session are only allowed when Supabase
+// confirmed this app's session at least once — an arbitrary stored blob never
+// reads back as a user on its own.
+const AUTH_VALIDATED_AT_KEY = "app_auth_session_validated_at";
+
+// Transport failures (offline, DNS, timeout, server/CF errors) must never look
+// like a rejected credential. Only the server's explicit 401/403, a missing
+// session, or a JWT/sub-claim/token rejection may do that.
+function isTransportFailure(error: unknown): boolean {
+  const err = error as { status?: number; name?: string; message?: string };
+  if (typeof err.status === "number" && (err.status === 401 || err.status === 403)) return false;
+  if (err.name === "AuthSessionMissingError") return false;
+  const msg = (err.message || "").toLowerCase();
+  if (["jwt", "sub claim", "token"].some((part) => msg.includes(part))) return false;
+  return true;
+}
+
+// Reads the user straight from the persisted Supabase session blob. auth-js
+// keeps the blob intact on network errors, so this is the last-known confirmed
+// user for UI purposes (nav drawer, profile) while offline.
+function readPersistedSessionUser(): User | null {
+  const key = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { user?: unknown } | null;
+    const maybeUser = parsed?.user as User | undefined;
+    return maybeUser != null && typeof maybeUser.id === "string" ? maybeUser : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getCurrentUser() {
-  const { data } = await supabase.auth.getUser();
-  return data.user;
+  const { data, error } = await supabase.auth.getUser();
+  if (data?.user) return data.user;
+  // A network failure must not evict the last-known user from the UI (that is
+  // what made the drawer and profile switch to "Login" while offline). Only a
+  // genuine auth rejection returns null, and the offline fallback is further
+  // gated on a prior Supabase confirmation.
+  if (error && !isTransportFailure(error)) return null;
+  try {
+    if (parseInt(localStorage.getItem(AUTH_VALIDATED_AT_KEY) || "0", 10) <= 0) return null;
+  } catch {
+    return null;
+  }
+  return readPersistedSessionUser();
 }
 
 function getAdminAllowlist(): Set<string> {

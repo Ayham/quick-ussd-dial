@@ -8,6 +8,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { getCurrentUser, signOut, isAdminUser } from "@/lib/auth";
+import { markExplicitLogout, clearAuthValidated, clearSupabaseLocalSession } from "@/lib/auth-session";
 import { getBusinessName } from "@/lib/onboarding";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -57,6 +58,9 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
   const location = useLocation();
 
   useEffect(() => {
+    // getCurrentUser() is offline-resilient: on a network failure it falls back
+    // to the persisted (previously confirmed) Supabase session instead of
+    // returning null, so the drawer never swaps the user for a "Login" button.
     getCurrentUser().then((u) => setUser(u ? { email: u.email } : null));
     isAdminUser().then(setIsAdmin).catch(() => setIsAdmin(false));
     setBrandTitle(getBusinessName() || t("appName"));
@@ -244,7 +248,15 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
           <div className="border-t border-border px-3 pt-3 pb-safe flex-shrink-0">
             {user ? (
               <button
-                onClick={async () => { await signOut(); setUser(null); toast.success(t("common.success")); setMenuOpen(false); }}
+                onClick={async () => {
+                  markExplicitLogout();
+                  clearAuthValidated();
+                  try { await signOut(); } catch {}
+                  clearSupabaseLocalSession();
+                  setUser(null);
+                  toast.success(t("common.success"));
+                  setMenuOpen(false);
+                }}
                 className="flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all w-full text-start text-foreground hover:bg-muted active:bg-muted/80"
               >
                 <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center bg-muted text-muted-foreground">

@@ -14,7 +14,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { authTrace } from "@/lib/auth";
 import { Mail, Lock, User, Phone, Eye, EyeOff, Loader2, ArrowRight, LogOut, Shield, CheckCircle2, AlertCircle } from "lucide-react";
-import { useAuthSession } from "@/lib/auth-session";
+import { useAuthSession, markExplicitLogout, clearAuthValidated, clearSupabaseLocalSession } from "@/lib/auth-session";
 
 type AuthMode = "signin" | "signup" | "forgot" | "reset" | "verify";
 
@@ -188,7 +188,17 @@ const Auth = () => {
   };
 
   const handleLogout = async () => {
-    await signOut();
+    // An explicit user logout must be the single source of truth for signing
+    // out: mark it FIRST so no offline-startup recovery can ever resurrect the
+    // old session, then clear the local auth-continuity marker.
+    markExplicitLogout();
+    clearAuthValidated();
+    try {
+      await signOut();
+    } catch {}
+    // auth-js keeps the local session blob when the revoke call cannot reach
+    // the server (offline); clear it so the old user can never come back.
+    clearSupabaseLocalSession();
     await refreshUser();
     await authSession.refresh();
     setMode("signin");

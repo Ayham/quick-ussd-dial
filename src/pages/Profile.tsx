@@ -7,6 +7,7 @@ import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getCurrentUser, getProfile, updateProfile, signOut, type UserProfile } from "@/lib/auth";
+import { markExplicitLogout, clearAuthValidated, clearSupabaseLocalSession } from "@/lib/auth-session";
 import { setLanguage, getLanguage } from "@/lib/i18n";
 import { getBusinessName, saveBusinessName } from "@/lib/onboarding";
 import { cn } from "@/lib/utils";
@@ -57,7 +58,10 @@ const Profile = () => {
   };
 
   const doSignOut = async () => {
-    await signOut();
+    markExplicitLogout();
+    clearAuthValidated();
+    try { await signOut(); } catch {}
+    clearSupabaseLocalSession();
     toast.success(t("profile.signedOut"));
     nav("/auth");
   };
