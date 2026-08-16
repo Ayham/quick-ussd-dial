@@ -235,4 +235,80 @@ describe("Offline -> Online license refresh (الترخيص يُحدَّث فو�
     expect(p.offline_grace_ms).toBe(14 * 86400000);
     expect(p.validation_policy).toBe("expiring_soon");
   });
+
+  it("a hanging validate-license request times out and keeps the cached expired verdict (fail-closed, no upgrade, no bypass)", async () => {
+    // A black-hole network: the request never resolves. The 10s bound must
+    // surface the SAME verdict the local guard already enforces — an expired
+    // license stays expired. Timeout must never resurrect/upgrade a license.
+    await seedSignedVerdict(
+      keys,
+      { valid: false, license_status: "active", account_status: "active", expiry_date: new Date(Date.now() - 86400000).toISOString() },
+      testPolicy(),
+      { serverTimeMs: Date.now() },
+    );
+    localStorage.setItem("app_device_binding_v1", getDeviceBindingSignatureSync());
+
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+    mocks.invoke.mockReturnValue(new Promise(() => {}));
+
+    vi.useFakeTimers();
+    try {
+      const pending = validateDeviceSession();
+      await vi.advanceTimersByTimeAsync(11_000);
+      const result = await pending;
+
+      // The timeout must keep the cached verdict as-is — never an upgrade.
+      expect(result.valid).toBe(false);
+      const guard = getTransferGuard();
+      expect(guard.allowed).toBe(false);
+      expect(guard.reasonCode).toBe("expired");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a hanging validate-license request with a revoked cached verdict stays revoked (timeout never un-blocks)", async () => {
+    await seedSignedVerdict(
+      keys,
+      { valid: true, license_status: "revoked", account_status: "active" },
+      testPolicy({ revoked: true, force_validation: true }),
+      { serverTimeMs: Date.now() },
+    );
+    localStorage.setItem("app_device_binding_v1", getDeviceBindingSignatureSync());
+    expect(getTransferGuard().allowed).toBe(false);
+
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+    mocks.invoke.mockReturnValue(new Promise(() => {}));
+
+    vi.useFakeTimers();
+    try {
+      const pending = validateDeviceSession();
+      await vi.advanceTimersByTimeAsync(11_000);
+      await pending;
+
+      const guard = getTransferGuard();
+      expect(guard.allowed).toBe(false);
+      expect(guard.reasonCode).toBe("revoked");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a hanging validate-license request with no cached verdict times out to no_connection (never fabricated)", async () => {
+    localStorage.clear();
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+    mocks.invoke.mockReturnValue(new Promise(() => {}));
+
+    vi.useFakeTimers();
+    try {
+      const pending = validateDeviceSession();
+      await vi.advanceTimersByTimeAsync(11_000);
+      const result = await pending;
+
+      expect(result.valid).toBe(false);
+      expect(result.reason).toBe("no_connection");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

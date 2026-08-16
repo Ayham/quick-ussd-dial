@@ -212,11 +212,15 @@ describe("computeLicenseDecision — priority & edge handling", () => {
   });
 
   it("reports daysRemaining for dated licenses, null for permanent", () => {
-    const d1 = computeLicenseDecision(AUTH, input({ license_status: "active", expiry_date: daysFromNow(3) }));
+    // Deterministic: anchor both the dates and the decision to the same fixed
+    // "now" so Date.now() advancing mid-test can never round a boundary down.
+    const nowMs = Date.now();
+    const dated = (days: number) => new Date(nowMs + days * 86400000).toISOString();
+    const d1 = computeLicenseDecision(AUTH, input({ license_status: "active", expiry_date: dated(3) }), { now: nowMs });
     expect(d1.daysRemaining).toBe(3);
-    const d2 = computeLicenseDecision(AUTH, input({ license_status: "permanent", expiry_date: null }));
+    const d2 = computeLicenseDecision(AUTH, input({ license_status: "permanent", expiry_date: null }), { now: nowMs });
     expect(d2.daysRemaining).toBeNull();
-    const d3 = computeLicenseDecision(AUTH, input({ license_status: "trial", trial_end: daysFromNow(2), expiry_date: null }));
+    const d3 = computeLicenseDecision(AUTH, input({ license_status: "trial", trial_end: dated(2), expiry_date: null }), { now: nowMs });
     expect(d3.daysRemaining).toBe(2);
   });
 });

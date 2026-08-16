@@ -21,6 +21,30 @@ const DEFAULT_REFRESH_INTERVAL_MS = 1000 * 60 * 60 * 24;
 const DEFAULT_OFFLINE_GRACE_MS = 1000 * 60 * 60 * 24 * 7;
 const DEFAULT_FORCE_VALIDATION = false;
 
+// Upper bound for a single validate-license round-trip. A black-hole / hanging
+// network must never leave the transfer flow (or the background validator)
+// awaiting forever. On timeout the request is abandoned and the existing
+// fail-closed offline behavior takes over — the cached verified verdict is
+// kept, nothing is upgraded, nothing is bypassed, and the user is never logged
+// out.
+const VALIDATE_LICENSE_TIMEOUT_MS = 10_000;
+
+function withInvokeTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("validate_license_timeout")), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 export interface ValidationResult {
   valid: boolean;
   reason?: string;
@@ -173,7 +197,10 @@ export async function validateDeviceSession(): Promise<ValidationResult> {
 
     await initDeviceIdentity();
     const deviceId = getDeviceId();
-    const { data, error } = await supabase.functions.invoke("validate-license", { body: { device_id: deviceId } });
+    const { data, error } = await withInvokeTimeout(
+      supabase.functions.invoke("validate-license", { body: { device_id: deviceId } }),
+      VALIDATE_LICENSE_TIMEOUT_MS,
+    );
     if (error) throw error;
     const consumed = await consumeSignedPayload(data);
     if (!consumed) throw new Error("missing_or_invalid_signature");
