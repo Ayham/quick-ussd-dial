@@ -253,6 +253,10 @@ export async function adminArchiveNotification(id: string): Promise<void> {
   await callRpc<RpcResult>("admin_archive_notification", { p_id: id });
 }
 
+export async function adminUnarchiveNotification(id: string): Promise<void> {
+  await callRpc<RpcResult>("admin_unarchive_notification", { p_id: id });
+}
+
 export async function adminCancelNotification(id: string): Promise<void> {
   await callRpc<RpcResult>("admin_cancel_notification", { p_id: id });
 }
@@ -378,6 +382,21 @@ export async function adminGetNotificationDetail(id: string): Promise<AdminNotif
     ack_count: Number(n.ack_count ?? 0),
     failed_count: Number(n.failed_count ?? 0),
     version: Number(n.version ?? 1),
+    recipients: (result.recipients || []).map((r) => ({
+      id: String(r.id),
+      notification_id: String(r.notification_id),
+      user_id: String(r.user_id),
+      status: String(r.status ?? "sent"),
+      delivered_at: String(r.delivered_at ?? ""),
+      read_at: r.read_at ? String(r.read_at) : null,
+      acknowledged_at: r.acknowledged_at ? String(r.acknowledged_at) : null,
+      is_read: !!r.is_read,
+      is_favorite: !!r.is_favorite,
+      is_deleted: !!r.is_deleted,
+      display_name: r.display_name ? String(r.display_name) : null,
+      email: r.email ? String(r.email) : null,
+      phone: r.phone ? String(r.phone) : null,
+    })),
     versions: (result.versions || []).map((v) => ({
       version: Number(v.version),
       title_ar: String(v.title_ar ?? ""),

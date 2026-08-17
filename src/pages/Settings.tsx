@@ -1089,12 +1089,17 @@ const handleDoRestore = async () => {
                     </SettingsCard>
                   )}
 
-                  {/* DISTRIBUTOR SECTION */}
+                  {/* DISTRIBUTOR SECTION — Customer self-link if never linked before */}
                   {section.id === "distributor" && (
                     <SettingsCard title={t("settings.distributor")} icon={<Truck className="w-4 h-4" />}>
                       <div className="space-y-3">
                         {distributorLoading ? (
                           <p className="text-xs text-muted-foreground">{t("common.loading")}</p>
+                        ) : distributorInfo?.assignment_status === "direct_locked" ? (
+                          <div className="bg-destructive/10 text-destructive rounded-xl p-3 text-sm flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                            {t("settings.directLockedDesc")}
+                          </div>
                         ) : distributorInfo?.linked ? (
                           <div className="space-y-2">
                             <div className="bg-green-50 text-green-700 rounded-xl p-3 text-sm flex items-center gap-2">
@@ -1136,7 +1141,17 @@ const handleDoRestore = async () => {
                                     });
                                     setDistributorCode("");
                                   } else {
-                                    toast.error(result.error === "distributor_not_found" ? t("settings.distributorNotFound") : t("settings.distributorLinkFailed"));
+                                     if (result.error === "admin_removed") {
+                                       toast.error(t("settings.distributorAdminRemoved"));
+                                     } else if (result.error === "direct_customer_locked") {
+                                       toast.error(t("settings.directLockedDesc"));
+                                     } else if (result.error === "distributor_not_found") {
+                                      toast.error(t("settings.distributorNotFound"));
+                                    } else if (result.error === "already_linked") {
+                                      toast.error(t("settings.distributorAlreadyLinked"));
+                                    } else {
+                                      toast.error(t("settings.distributorLinkFailed"));
+                                    }
                                   }
                                 } catch (err) {
                                   toast.error(err instanceof Error ? err.message : "Failed");

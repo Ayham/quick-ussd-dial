@@ -92,7 +92,7 @@ public class AndroidContactsPlugin extends Plugin {
                             JSObject ret = new JSObject();
                             ret.put("displayName", displayName != null ? displayName : "");
                             ret.put("phone", phoneNumber != null ? phoneNumber : "");
-                            Log.d(TAG, "Picked contact: " + displayName + " " + phoneNumber);
+                            Log.d(TAG, "Picked contact successfully");
                             call.resolve(ret);
                             return;
                         }
@@ -157,7 +157,7 @@ public class AndroidContactsPlugin extends Plugin {
                         result.put("contactId", contactId);
                         result.put("displayName", displayName != null ? displayName : "");
                         result.put("phone", foundPhone != null ? foundPhone : normalized);
-                        Log.d(TAG, "Found contact by phone: " + normalized + " -> " + displayName);
+                        Log.d(TAG, "Found contact by phone match");
                         call.resolve(result);
                         return;
                     }
@@ -172,7 +172,7 @@ public class AndroidContactsPlugin extends Plugin {
                 result.put("contactId", foundId);
                 result.put("displayName", lookupDisplayNameById(foundId));
                 result.put("phone", normalized);
-                Log.d(TAG, "Found contact via normalized scan: " + normalized + " -> " + foundId);
+                Log.d(TAG, "Found contact via normalized scan");
                 call.resolve(result);
                 return;
             }
@@ -562,7 +562,7 @@ public class AndroidContactsPlugin extends Plugin {
             cr.delete(RawContacts.CONTENT_URI,
                 RawContacts.CONTACT_ID + " = ?",
                 new String[]{contactId});
-            Log.d(TAG, "Deleted contact: " + phone);
+            Log.d(TAG, "Deleted contact successfully");
             call.resolve(new JSObject().put("deleted", true));
         } catch (SecurityException e) {
             Log.e(TAG, "Permission denied deleting contact", e);
@@ -842,7 +842,7 @@ public class AndroidContactsPlugin extends Plugin {
                     while (settingsCursor.moveToNext()) {
                         String type = settingsCursor.getString(0);
                         String name = settingsCursor.getString(1);
-                        Log.d(TAG, "resolveWriteAccount: Settings account type=" + type + " name=" + name);
+                        Log.d(TAG, "resolveWriteAccount: Settings account matched");
                         if (isUsableAccount(type, name)) return new String[]{type, name};
                     }
                 } finally {
@@ -855,8 +855,7 @@ public class AndroidContactsPlugin extends Plugin {
                 Account[] accounts = am.getAccounts();
                 if (accounts != null) {
                     for (Account acc : accounts) {
-                        Log.d(TAG, "resolveWriteAccount: AccountManager account type=" + acc.type
-                            + " name=" + acc.name);
+                        Log.d(TAG, "resolveWriteAccount: AccountManager account checked");
                         if (isUsableAccount(acc.type, acc.name)) {
                             return new String[]{acc.type, acc.name};
                         }
@@ -875,7 +874,7 @@ public class AndroidContactsPlugin extends Plugin {
                     while (rawCursor.moveToNext()) {
                         String type = rawCursor.getString(0);
                         String name = rawCursor.getString(1);
-                        Log.d(TAG, "resolveWriteAccount: RawContacts account type=" + type + " name=" + name);
+                        Log.d(TAG, "resolveWriteAccount: RawContacts account checked");
                         if (isUsableAccount(type, name)) return new String[]{type, name};
                     }
                 } finally {

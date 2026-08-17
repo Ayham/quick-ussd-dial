@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuthSession } from "@/lib/auth-session";
 import {
-  Archive, Bell, CalendarClock, Check, ChevronsUpDown, Copy, Eye, Loader2, Pencil,
+  Archive, Bell, CalendarClock, Check, ChevronsUpDown, Copy, Eye, Loader2, MoreVertical, Pencil,
   Plus, RefreshCw, Send, Trash2, Undo2, X, XCircle, Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -34,9 +34,13 @@ import {
   adminGetNotificationStats,
   adminResendNotification,
   adminRestoreNotification,
+  adminUnarchiveNotification,
   adminSearchNotificationUsers,
   adminUpdateNotification,
 } from "@/lib/notifications/service";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@/components/ui/command";
@@ -548,9 +552,11 @@ function NotificationFormDialog({
 // ---------------------------------------------------------------------------
 
 function DetailDialog({ id, onClose }: { id: string; onClose: () => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [detail, setDetail] = useState<AdminNotificationDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recipientSearch, setRecipientSearch] = useState("");
+  const isArabic = i18n.language === "ar";
 
   useEffect(() => {
     adminGetNotificationDetail(id)
@@ -559,34 +565,95 @@ function DetailDialog({ id, onClose }: { id: string; onClose: () => void }) {
       .finally(() => setLoading(false));
   }, [id, t]);
 
+  const filteredRecipients = useMemo(() => {
+    if (!detail?.recipients) return [];
+    if (!recipientSearch) return detail.recipients;
+    const q = recipientSearch.toLowerCase();
+    return detail.recipients.filter(
+      (r) =>
+        (r.email && r.email.toLowerCase().includes(q)) ||
+        (r.display_name && r.display_name.toLowerCase().includes(q)) ||
+        (r.phone && r.phone.toLowerCase().includes(q))
+    );
+  }, [detail?.recipients, recipientSearch]);
+
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("adminNotifications.detail")}</DialogTitle>
+          <DialogDescription>{t("adminNotifications.formDesc")}</DialogDescription>
         </DialogHeader>
         {loading || !detail ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 rounded-xl" />)}
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <p className="text-sm font-semibold">{detail.title_ar}</p>
-              <p className="text-sm font-semibold text-muted-foreground">{detail.title_en}</p>
-              <p className="text-xs text-muted-foreground whitespace-pre-line">{detail.body_ar}</p>
-              <p className="text-xs text-muted-foreground whitespace-pre-line">{detail.body_en}</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">{t(`notifications.type.${detail.notification_type}`)}</Badge>
-              <Badge variant="outline">{t(`notifications.priority.${detail.priority}`)}</Badge>
-              <Badge className={STATUS_STYLES[detail.status]}>{t(`adminNotifications.status.${detail.status}`)}</Badge>
-              <Badge variant="outline">{t("adminNotifications.recipientCount")}: {detail.recipient_count}</Badge>
-              <Badge variant="outline">{t("adminNotifications.readCount")}: {detail.read_count}</Badge>
-              <Badge variant="outline">{t("adminNotifications.ackCount")}: {detail.ack_count}</Badge>
-            </div>
-            <div>
-              <p className="text-xs font-bold mb-2 text-muted-foreground">{t("adminNotifications.versions")}</p>
+          <Tabs defaultValue="content" className="mt-2" dir={isArabic ? "rtl" : "ltr"}>
+            <TabsList>
+              <TabsTrigger value="content">{t("adminNotifications.tabContent")}</TabsTrigger>
+              <TabsTrigger value="recipients">
+                {t("adminNotifications.tabRecipients")} ({detail.recipients.length})
+              </TabsTrigger>
+              <TabsTrigger value="versions">{t("adminNotifications.tabVersions")}</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="content" className="space-y-4 pt-3">
+              <div className="space-y-2">
+                <p className="text-sm font-semibold">{detail.title_ar}</p>
+                <p className="text-sm font-semibold text-muted-foreground">{detail.title_en}</p>
+                <p className="text-xs text-muted-foreground whitespace-pre-line">{detail.body_ar}</p>
+                <p className="text-xs text-muted-foreground whitespace-pre-line">{detail.body_en}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline">{t(`notifications.type.${detail.notification_type}`)}</Badge>
+                <Badge variant="outline">{t(`notifications.priority.${detail.priority}`)}</Badge>
+                <Badge className={STATUS_STYLES[detail.status]}>{t(`adminNotifications.status.${detail.status}`)}</Badge>
+                <Badge variant="outline">{t("adminNotifications.recipientCount")}: {detail.recipient_count}</Badge>
+                <Badge variant="outline">{t("adminNotifications.readCount")}: {detail.read_count}</Badge>
+                <Badge variant="outline">{t("adminNotifications.ackCount")}: {detail.ack_count}</Badge>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="recipients" className="space-y-3 pt-3">
+              <Input
+                placeholder={t("adminNotifications.searchUsersPlaceholder")}
+                value={recipientSearch}
+                onChange={(e) => setRecipientSearch(e.target.value)}
+                className="h-9 rounded-xl"
+              />
+              {filteredRecipients.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-8 text-center">{t("adminNotifications.noRecipients")}</p>
+              ) : (
+                <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+                  {filteredRecipients.map((r) => (
+                    <div key={r.id} className="rounded-xl border border-border/60 bg-white p-3 flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">
+                          {r.display_name || r.email || r.phone || r.user_id}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground truncate" dir="ltr">
+                          {[r.email, r.phone].filter(Boolean).join(" • ")}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {r.is_read ? (
+                          <Badge variant="outline" className="bg-success/10 text-success text-[10px]">
+                            {t("adminNotifications.readStatus")} {r.read_at ? `(${new Date(r.read_at).toLocaleString()})` : ""}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-slate-100 text-slate-600 text-[10px]">
+                            {t("adminNotifications.unreadStatus")}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="versions" className="space-y-3 pt-3">
               {detail.versions.length === 0 ? (
                 <p className="text-xs text-muted-foreground">{t("adminNotifications.noVersions")}</p>
               ) : (
@@ -599,8 +666,8 @@ function DetailDialog({ id, onClose }: { id: string; onClose: () => void }) {
                   ))}
                 </div>
               )}
-            </div>
-          </div>
+            </TabsContent>
+          </Tabs>
         )}
       </DialogContent>
     </Dialog>
@@ -610,7 +677,7 @@ function DetailDialog({ id, onClose }: { id: string; onClose: () => void }) {
 // ---------------------------------------------------------------------------
 
 export function NotificationManagement() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [items, setItems] = useState<AdminNotification[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -802,46 +869,65 @@ export function NotificationManagement() {
                     {item.ack_count > 0 && <span>✓{item.ack_count}</span>}
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setDetailId(item.id)} aria-label={t("adminNotifications.view")}>
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0" disabled={busyDetail === item.id} onClick={() => duplicate(item)} aria-label={t("adminNotifications.duplicate")}>
-                      {busyDetail === item.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
-                    </Button>
-                    {item.status !== "archived" && item.status !== "cancelled" && (
-                      <Button
-                        size="sm" variant="ghost" className="h-8 w-8 p-0"
-                        disabled={busyDetail === item.id}
-                        onClick={() => openEdit(item)}
-                        aria-label={t("adminNotifications.edit")}
-                      >
-                        {busyDetail === item.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />}
-                      </Button>
-                    )}
-                    {item.status === "scheduled" && (
-                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" disabled={busy === item.id} onClick={() => { setBusy(item.id); runAction(adminCancelNotification(item.id), "adminNotifications.cancelled").finally(() => setBusy(null)); }} aria-label={t("adminNotifications.cancel")}>
-                        {busy === item.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-                      </Button>
-                    )}
-                    {item.status === "sent" && (
-                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0" disabled={busy === item.id} onClick={() => { setBusy(item.id); runAction(adminResendNotification(item.id), "adminNotifications.resent").finally(() => setBusy(null)); }} aria-label={t("adminNotifications.resend")}>
-                        {busy === item.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                      </Button>
-                    )}
-                    {item.status === "sent" && (
-                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0" disabled={busy === item.id} onClick={() => { setBusy(item.id); runAction(adminArchiveNotification(item.id), "adminNotifications.archived").finally(() => setBusy(null)); }} aria-label={t("adminNotifications.archive")}>
-                        <Archive className="w-4 h-4" />
-                      </Button>
-                    )}
-                    {!item.is_deleted ? (
-                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" disabled={busy === item.id} onClick={() => { setBusy(item.id); runAction(adminDeleteNotification(item.id), "adminNotifications.deleted").finally(() => setBusy(null)); }} aria-label={t("adminNotifications.delete")}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    ) : (
-                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-success" disabled={busy === item.id} onClick={() => { setBusy(item.id); runAction(adminRestoreNotification(item.id), "adminNotifications.restored").finally(() => setBusy(null)); }} aria-label={t("adminNotifications.restore")}>
-                        <Undo2 className="w-4 h-4" />
-                      </Button>
-                    )}
+                    <DropdownMenu dir={i18n.language === "ar" ? "rtl" : "ltr"}>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" aria-label={t("adminNotifications.options")}>
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48 rounded-xl">
+                        <DropdownMenuItem className="cursor-pointer" onClick={() => setDetailId(item.id)}>
+                          <Eye className="w-4 h-4 me-2" />
+                          {t("adminNotifications.view")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer" disabled={busyDetail === item.id} onClick={() => duplicate(item)}>
+                          {busyDetail === item.id ? <Loader2 className="w-4 h-4 me-2 animate-spin" /> : <Copy className="w-4 h-4 me-2" />}
+                          {t("adminNotifications.duplicate")}
+                        </DropdownMenuItem>
+                        {item.status !== "archived" && item.status !== "cancelled" && (
+                          <DropdownMenuItem className="cursor-pointer" disabled={busyDetail === item.id} onClick={() => openEdit(item)}>
+                            {busyDetail === item.id ? <Loader2 className="w-4 h-4 me-2 animate-spin" /> : <Pencil className="w-4 h-4 me-2" />}
+                            {t("adminNotifications.edit")}
+                          </DropdownMenuItem>
+                        )}
+                        {item.status === "scheduled" && (
+                          <DropdownMenuItem className="cursor-pointer text-destructive" disabled={busy === item.id} onClick={() => { setBusy(item.id); runAction(adminCancelNotification(item.id), "adminNotifications.cancelled").finally(() => setBusy(null)); }}>
+                            {busy === item.id ? <Loader2 className="w-4 h-4 me-2 animate-spin" /> : <XCircle className="w-4 h-4 me-2" />}
+                            {t("adminNotifications.cancel")}
+                          </DropdownMenuItem>
+                        )}
+                        {item.status === "sent" && (
+                          <DropdownMenuItem className="cursor-pointer" disabled={busy === item.id} onClick={() => { setBusy(item.id); runAction(adminResendNotification(item.id), "adminNotifications.resent").finally(() => setBusy(null)); }}>
+                            {busy === item.id ? <Loader2 className="w-4 h-4 me-2 animate-spin" /> : <Send className="w-4 h-4 me-2" />}
+                            {t("adminNotifications.resend")}
+                          </DropdownMenuItem>
+                        )}
+                        {item.status === "sent" && (
+                          <DropdownMenuItem className="cursor-pointer" disabled={busy === item.id} onClick={() => { setBusy(item.id); runAction(adminArchiveNotification(item.id), "adminNotifications.archived").finally(() => setBusy(null)); }}>
+                            <Archive className="w-4 h-4 me-2" />
+                            {t("adminNotifications.archive")}
+                          </DropdownMenuItem>
+                        )}
+                        {item.status === "archived" && (
+                          <DropdownMenuItem className="cursor-pointer" disabled={busy === item.id} onClick={() => { setBusy(item.id); runAction(adminUnarchiveNotification(item.id), "adminNotifications.unarchived").finally(() => setBusy(null)); }}>
+                            <Archive className="w-4 h-4 me-2" />
+                            {t("adminNotifications.unarchive")}
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        {!item.is_deleted ? (
+                          <DropdownMenuItem className="cursor-pointer text-destructive" disabled={busy === item.id} onClick={() => { setBusy(item.id); runAction(adminDeleteNotification(item.id), "adminNotifications.deleted").finally(() => setBusy(null)); }}>
+                            <Trash2 className="w-4 h-4 me-2" />
+                            {t("adminNotifications.delete")}
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem className="cursor-pointer text-success" disabled={busy === item.id} onClick={() => { setBusy(item.id); runAction(adminRestoreNotification(item.id), "adminNotifications.restored").finally(() => setBusy(null)); }}>
+                            <Undo2 className="w-4 h-4 me-2" />
+                            {t("adminNotifications.restore")}
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               ))}

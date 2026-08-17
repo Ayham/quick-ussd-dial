@@ -849,6 +849,7 @@ export type Database = {
           current_device: string | null
           customer_status: string | null
           display_name: string | null
+          distributor_assignment_status: Database["public"]["Enums"]["distributor_assignment_status"]
           distributor_id: string | null
           email: string | null
           emergency_phone: string | null
@@ -885,6 +886,7 @@ export type Database = {
           current_device?: string | null
           customer_status?: string | null
           display_name?: string | null
+          distributor_assignment_status?: Database["public"]["Enums"]["distributor_assignment_status"]
           distributor_id?: string | null
           email?: string | null
           emergency_phone?: string | null
@@ -921,6 +923,7 @@ export type Database = {
           current_device?: string | null
           customer_status?: string | null
           display_name?: string | null
+          distributor_assignment_status?: Database["public"]["Enums"]["distributor_assignment_status"]
           distributor_id?: string | null
           email?: string | null
           emergency_phone?: string | null
@@ -2004,10 +2007,11 @@ export type Database = {
         Returns: Json
       }
     }
-    Enums: {
-      activation_status: "pending" | "approved" | "rejected"
-       app_role: "admin" | "user" | "distributor"
-      license_status: "active" | "expired" | "inactive" | "revoked" | "pending" | "suspended" | "trial" | "rejected" | "permanent" | "blocked"
+     Enums: {
+       activation_status: "pending" | "approved" | "rejected"
+        app_role: "admin" | "user" | "distributor"
+       distributor_assignment_status: "unassigned" | "assigned" | "direct_locked"
+       license_status: "active" | "expired" | "inactive" | "revoked" | "pending" | "suspended" | "trial" | "rejected" | "permanent" | "blocked"
       license_type: "trial" | "year_1" | "year_2" | "year_3" | "custom_date" | "lifetime"
       notification_action_type: "none" | "screen" | "url" | "custom"
       notification_priority: "low" | "normal" | "high" | "critical"

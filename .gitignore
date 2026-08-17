@@ -27,3 +27,13 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+
+# Sensitive files - never commit
+Other files/Privitekey.txt
+Other files/Password@5@164.txt
+Other files/*.backup
+
+# Build outputs
+android/app/build/
+android/build/
+android/capacitor-*/build/

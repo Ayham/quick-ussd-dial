@@ -34,6 +34,7 @@ vi.mock("@/hooks/use-notifications", () => ({
 vi.mock("@/lib/auth", () => ({
   getCurrentUser: vi.fn().mockResolvedValue(null),
   isAdminUser: vi.fn().mockResolvedValue(false),
+  isDistributorUser: vi.fn().mockResolvedValue(false),
   signOut: vi.fn(),
 }));
 

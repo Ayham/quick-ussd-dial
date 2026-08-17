@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { Shield, ShieldOff, Search, AlertTriangle, RefreshCw, Eye, Trash2, ShieldCheck, Ban, CheckCircle2, MonitorSmartphone, History, Smartphone, Loader2, ChevronLeft, ChevronRight, Wrench, Wallet, MoreVertical } from "lucide-react";
+import { Shield, ShieldOff, Search, AlertTriangle, RefreshCw, Eye, Trash2, ShieldCheck, Ban, CheckCircle2, MonitorSmartphone, History, Smartphone, Loader2, ChevronLeft, ChevronRight, Wrench, Wallet, MoreVertical, Users } from "lucide-react";
 import { PaymentsDialog } from "@/components/admin/PaymentsDialog";
 
 interface UserInfo {
@@ -54,6 +54,11 @@ interface UserInfo {
   payments_summary: Array<{ currency: string; total: number; count: number }> | null;
   notifications_summary: { total: number; delivered: number; failed: number; pending: number; unread: number } | null;
   activations_summary: { pending: number; approved: number; rejected: number; latest_status: string; latest_at: string } | null;
+  // Distributor assignment fields
+  distributor_id: string | null;
+  distributor_code: string | null;
+  distributor_name: string | null;
+  distributor_assignment_status: string | null;
 }
 
 interface DeviceInfo {
@@ -131,6 +136,11 @@ export function UsersRolesManager() {
   const [resetDeviceUser, setResetDeviceUser] = useState<UserInfo | null>(null);
   const [showPayments, setShowPayments] = useState(false);
   const [paymentsUser, setPaymentsUser] = useState<UserInfo | null>(null);
+  const [showAssignDistributor, setShowAssignDistributor] = useState(false);
+  const [assignDistributorUser, setAssignDistributorUser] = useState<UserInfo | null>(null);
+  const [assignDistributorLoading, setAssignDistributorLoading] = useState(false);
+  const [availableDistributors, setAvailableDistributors] = useState<Array<{id: string; user_id: string; code: string; display_name: string | null; commission_rate: number}>>([]);
+  const [selectedDistributorId, setSelectedDistributorId] = useState<string>("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -159,6 +169,97 @@ export function UsersRolesManager() {
   }, [q, statusFilter, page, roleFilter, accountStatusFilter, activationStatusFilter]);
 
   useEffect(() => { load(); }, [load]);
+
+  const loadDistributors = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.rpc("admin_get_distributors", {
+        _search: null,
+        _status: "active",
+        _page: 1,
+        _page_size: 100,
+      });
+      if (error) throw error;
+      const result = data as { distributors: Array<{id: string; user_id: string; code: string; display_name: string | null; commission_rate: number}>; total: number };
+      setAvailableDistributors(result.distributors || []);
+    } catch {
+      setAvailableDistributors([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showAssignDistributor) loadDistributors();
+  }, [showAssignDistributor, loadDistributors]);
+
+  const handleAssignDistributor = async () => {
+    if (!assignDistributorUser || !selectedDistributorId) return;
+    setBusy("assignDist_" + assignDistributorUser.user_id);
+    setAssignDistributorLoading(true);
+    try {
+      let error, data;
+      if (selectedDistributorId === "__direct_locked__") {
+        const res = await supabase.rpc("admin_set_customer_assignment_status", {
+          _customer_id: assignDistributorUser.user_id,
+          _assignment_status: "direct_locked",
+          _distributor_user_id: null,
+        });
+        data = res.data;
+        error = res.error;
+      } else if (selectedDistributorId === "__unassigned__") {
+        const res = await supabase.rpc("admin_set_customer_assignment_status", {
+          _customer_id: assignDistributorUser.user_id,
+          _assignment_status: "unassigned",
+          _distributor_user_id: null,
+        });
+        data = res.data;
+        error = res.error;
+      } else {
+        const res = await supabase.rpc("admin_assign_customer_to_distributor", {
+          _customer_id: assignDistributorUser.user_id,
+          _distributor_user_id: selectedDistributorId,
+        });
+        data = res.data;
+        error = res.error;
+      }
+
+      if (error) throw error;
+      const result = data as { ok: boolean; error?: string };
+      if (result?.ok) {
+        toast.success(t("adminUsers.distributorAssigned"));
+        setShowAssignDistributor(false);
+        setAssignDistributorUser(null);
+        setSelectedDistributorId("");
+        load();
+      } else {
+        toast.error(result?.error || t("admin.failed"));
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("admin.failed"));
+    } finally {
+      setBusy(null);
+      setAssignDistributorLoading(false);
+    }
+  };
+
+  const handleRemoveDistributor = async (userId: string) => {
+    setBusy("removeDist_" + userId);
+    try {
+      const { data, error } = await supabase.rpc("admin_remove_customer_from_distributor", {
+        _customer_id: userId,
+      });
+      if (error) throw error;
+      const result = data as { ok: boolean; error?: string };
+      if (result.ok) {
+        toast.success(t("adminUsers.distributorRemoved"));
+        load();
+      } else {
+        toast.error(result.error || t("admin.failed"));
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("admin.failed"));
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const toggleAdmin = async (userId: string, grant: boolean) => {
     setBusy("role_" + userId);
@@ -343,6 +444,7 @@ export function UsersRolesManager() {
           <SelectContent>
             <SelectItem value="all">{t("adminUsers.allRoles")}</SelectItem>
             <SelectItem value="admin">{t("adminUsers.adminRole")}</SelectItem>
+            <SelectItem value="distributor">{t("adminUsers.role_distributor")}</SelectItem>
             <SelectItem value="user">{t("adminUsers.userRole")}</SelectItem>
           </SelectContent>
         </Select>
@@ -377,14 +479,13 @@ export function UsersRolesManager() {
             <thead>
               <tr className="border-b bg-muted/50">
                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminActivationRequests.user")}</th>
-                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminActivationRequests.email")}</th>
-                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminActivationRequests.phone")}</th>
                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminUsers.role")}</th>
                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminUsers.accountStatus")}</th>
                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminUsers.licenseStatus")}</th>
                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminUsers.paymentsTotal")}</th>
                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminUsers.notificationsSummary")}</th>
                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminUsers.activationStatus")}</th>
+                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminUsers.distributor")}</th>
                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminUsers.lastLogin")}</th>
                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminUsers.created")}</th>
                 <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminActivationRequests.actions")}</th>
@@ -394,11 +495,19 @@ export function UsersRolesManager() {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b last:border-0">
-                    <td className="p-3"><Skeleton className="h-5 w-32" /></td>
-                    <td className="p-3"><Skeleton className="h-5 w-40" /></td>
-                    <td className="p-3"><Skeleton className="h-5 w-28" /></td>
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-7 w-7 rounded-full" />
+                        <div className="space-y-1">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-3 w-36" />
+                          <Skeleton className="h-3 w-24" />
+                        </div>
+                      </div>
+                    </td>
                     <td className="p-3"><Skeleton className="h-5 w-16" /></td>
                     <td className="p-3"><Skeleton className="h-5 w-20" /></td>
+                    <td className="p-3"><Skeleton className="h-5 w-16" /></td>
                     <td className="p-3"><Skeleton className="h-5 w-16" /></td>
                     <td className="p-3"><Skeleton className="h-5 w-24" /></td>
                     <td className="p-3"><Skeleton className="h-5 w-16" /></td>
@@ -408,36 +517,44 @@ export function UsersRolesManager() {
                     <td className="p-3"><Skeleton className="h-8 w-10" /></td>
                   </tr>
                 ))
-              ) : rows.length === 0 ? (
-                <tr>
-                  <td colSpan={13} className="p-8 text-center text-sm text-muted-foreground">
-                    {t("adminUsers.noUsers")}
-                  </td>
-                </tr>
-              ) : (
-                rows.map((u) => {
-                  const role = u.role || "user";
-                  const isAdmin = role === "admin";
-                  const paymentCount = (u.payments_summary || []).length;
-                  const notificationCount = (u.notifications_summary || {}).total || 0;
-                  const notificationUnread = (u.notifications_summary || {}).unread || 0;
-                  const activationCounts = u.activations_summary || { pending: 0, approved: 0, rejected: 0, latest_status: null, latest_at: null };
-                  const hasRole = u.roles && u.roles.includes("admin");
-                  return (
-                    <tr key={u.user_id} className="border-b last:border-0 hover:bg-muted/30 transition-smooth">
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
-                            {(u.display_name || u.email || "?")[0].toUpperCase()}
+               ) : rows.length === 0 ? (
+                 <tr>
+                   <td colSpan={11} className="p-8 text-center text-sm text-muted-foreground">
+                     {t("adminUsers.noUsers")}
+                   </td>
+                 </tr>
+               ) : (
+                 rows.map((u) => {
+                   const role = u.role || "user";
+                   const isAdmin = role === "admin";
+                   const paymentCount = (u.payments_summary || []).length;
+                   const notificationCount = (u.notifications_summary || {}).total || 0;
+                   const notificationUnread = (u.notifications_summary || {}).unread || 0;
+                   const activationCounts = u.activations_summary || { pending: 0, approved: 0, rejected: 0, latest_status: null, latest_at: null };
+                   const hasRole = u.roles && u.roles.includes("admin");
+                   return (
+                     <tr key={u.user_id} className="border-b last:border-0 hover:bg-muted/30 transition-smooth">
+                       <td className="p-3">
+                         <div className="flex items-start gap-2">
+                           <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0 mt-0.5">
+                             {(u.display_name || u.email || "?")[0].toUpperCase()}
+                           </div>
+                           <div className="flex flex-col min-w-0">
+                             <span className="font-medium text-sm break-all">{u.display_name || u.email}</span>
+                             <span className="text-xs text-muted-foreground break-all" dir="ltr">{u.email}</span>
+                             <span className="text-xs text-muted-foreground break-all" dir="ltr">{u.phone || "—"}</span>
+                           </div>
+                         </div>
+                       </td>
+                        <td className="p-3">
+                          <div className="flex flex-wrap gap-1">
+                            {(u.roles || "user").split(",").map((r) => r.trim()).filter(Boolean).map((r) => (
+                              <span key={r} className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold whitespace-nowrap">
+                                {t(`adminUsers.role_${r}`) || r}
+                              </span>
+                            ))}
                           </div>
-                          <span className="font-medium text-sm break-all min-w-0">{u.display_name || u.email}</span>
-                        </div>
-                      </td>
-                      <td className="p-3 text-xs text-muted-foreground break-all" dir="ltr">{u.email}</td>
-                      <td className="p-3 text-xs text-muted-foreground break-all" dir="ltr">{u.phone || "-"}</td>
-                      <td className="p-3">
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold whitespace-nowrap">{role}</span>
-                      </td>
+                        </td>
                       <td className="p-3">
                         <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
                           u.account_status === "active" ? "bg-green-500/10 text-green-600" :
@@ -472,6 +589,35 @@ export function UsersRolesManager() {
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </td>
+                      <td className="p-3">
+                        <div className="flex flex-col gap-1">
+                          {u.distributor_assignment_status === "direct_locked" ? (
+                            <>
+                              <span className="text-xs font-medium">{t("adminUsers.directCustomerLockedText")}</span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full w-fit bg-red-500/10 text-red-600 font-medium">
+                                {t("adminUsers.directCustomerLockedText")}
+                              </span>
+                            </>
+                          ) : u.distributor_name ? (
+                            <>
+                              <div className="text-xs">
+                                <span className="font-medium">{u.distributor_name}</span>
+                                <span className="text-muted-foreground ml-1">({u.distributor_code})</span>
+                              </div>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full w-fit bg-green-500/10 text-green-600 font-medium">
+                                {t("adminUsers.assignmentStatus_assigned")}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-xs text-muted-foreground">{t("adminUsers.noDistributor")}</span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full w-fit bg-muted text-muted-foreground font-medium">
+                                {t("adminUsers.assignmentStatus_unassigned")}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </td>
                       <td className="p-3 text-xs text-muted-whitespace-nowrap">{u.last_login ? formatDate(u.last_login) : "-"}</td>
                       <td className="p-3 text-xs text-muted-whitespace-nowrap">{u.created_at ? formatDate(u.created_at) : "-"}</td>
                       <td className="p-3">
@@ -502,7 +648,7 @@ export function UsersRolesManager() {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="cursor-pointer"
-                              onClick={() => { setDevicesUser(u); setShowDevices(true); }}
+                              onClick={() => loadDevices(u)}
                             >
                               <MonitorSmartphone className="w-3.5 h-3.5 me-1" />
                               {t("adminUsers.viewDevices")}
@@ -514,6 +660,26 @@ export function UsersRolesManager() {
                               <History className="w-3.5 h-3.5 me-1" />
                               {t("adminUsers.history")}
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => { setAssignDistributorUser(u); setShowAssignDistributor(true); }}
+                              disabled={busy === "assignDist_" + u.user_id}
+                            >
+                              <Users className="w-3.5 h-3.5 me-1" />
+                              {t("adminUsers.assignDistributor")}
+                            </DropdownMenuItem>
+                            {u.distributor_id && (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-destructive focus:text-destructive"
+                                onClick={() => handleRemoveDistributor(u.user_id)}
+                                disabled={busy === "removeDist_" + u.user_id}
+                              >
+                                {busy === "removeDist_" + u.user_id
+                                  ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
+                                  : <Trash2 className="w-3.5 h-3.5 me-1" />}
+                                {t("adminUsers.removeDistributor")}
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="cursor-pointer"
@@ -777,6 +943,56 @@ export function UsersRolesManager() {
           userName={paymentsUser.display_name || paymentsUser.email || ""}
         />
       )}
+
+      {/* Assign Distributor Dialog */}
+      <Dialog open={showAssignDistributor} onOpenChange={setShowAssignDistributor}>
+        <DialogContent className="rounded-2xl max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("adminUsers.assignDistributor")}</DialogTitle>
+            <DialogDescription>{assignDistributorUser?.display_name || assignDistributorUser?.email}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {assignDistributorUser?.distributor_name ? (
+              <div className="bg-amber-50 text-amber-700 rounded-xl p-3 text-sm flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                <span>{t("adminUsers.currentlyAssigned", { name: assignDistributorUser.distributor_name, code: assignDistributorUser.distributor_code })}</span>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t("adminUsers.noDistributorAssigned")}</p>
+            )}
+            <div>
+              <label className="text-sm font-medium">{t("adminUsers.selectDistributor")} *</label>
+              <Select value={selectedDistributorId} onValueChange={setSelectedDistributorId}>
+                <SelectTrigger className="mt-1 w-full">
+                  <SelectValue placeholder={t("adminUsers.selectDistributorPlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__unassigned__">
+                    {t("adminUsers.unassignedNormal")}
+                  </SelectItem>
+                  <SelectItem value="__direct_locked__" className="text-destructive font-medium">
+                    {t("adminUsers.unassignedDirectLocked")}
+                  </SelectItem>
+                  {availableDistributors.map((d) => (
+                    <SelectItem key={d.id} value={d.user_id}>
+                      {d.code} — {d.display_name || d.user_id} ({d.commission_rate}%)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => { setShowAssignDistributor(false); setAssignDistributorUser(null); setSelectedDistributorId(""); }} disabled={assignDistributorLoading}>
+                {t("common.cancel")}
+              </Button>
+               <Button onClick={handleAssignDistributor} disabled={assignDistributorLoading || !selectedDistributorId}>
+                 {assignDistributorLoading && <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />}
+                 {t("adminUsers.assignDistributor")}
+               </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

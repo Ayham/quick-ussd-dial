@@ -214,6 +214,22 @@ export interface AdminNotification {
   is_deleted: boolean;
 }
 
+export interface NotificationRecipientDetail {
+  id: string;
+  notification_id: string;
+  user_id: string;
+  status: string;
+  delivered_at: string;
+  read_at: string | null;
+  acknowledged_at: string | null;
+  is_read: boolean;
+  is_favorite: boolean;
+  is_deleted: boolean;
+  display_name: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
 export interface AdminNotificationDetail extends AdminNotification {
   body_ar: string;
   body_en: string;
@@ -225,6 +241,7 @@ export interface AdminNotificationDetail extends AdminNotification {
   metadata: Record<string, unknown> | null;
   is_deleted: boolean;
   created_by_name: string | null;
+  recipients: NotificationRecipientDetail[];
   versions: {
     version: number;
     title_ar: string;
