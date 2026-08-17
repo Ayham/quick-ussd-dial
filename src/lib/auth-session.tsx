@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { isAdminUser } from "@/lib/auth";
+import { isAdminUser, isDistributorUser } from "@/lib/auth";
 import { validateAndRefreshSession } from "@/lib/session-service";
 import { registerDeviceLogin } from "@/lib/device";
 import { refreshLicenseCacheIfNeeded } from "@/lib/license-cache";
@@ -153,6 +153,7 @@ function withAuthTimeout<T>(promise: Promise<T>, ms: number): Promise<T | undefi
 type AuthState = {
   user: User | null;
   isAdmin: boolean;
+  isDistributor: boolean;
   loading: boolean;
   refresh: () => Promise<void>;
 };
@@ -162,6 +163,7 @@ const AuthSessionContext = createContext<AuthState | null>(null);
 export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isDistributor, setIsDistributor] = useState(false);
   const [loading, setLoading] = useState(true);
   const userRef = useRef<User | null>(null);
 
@@ -176,6 +178,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         userRef.current = null;
         setUser(null);
         setIsAdmin(false);
+        setIsDistributor(false);
         clearAuthValidated();
         try { await supabase.auth.signOut({ scope: "local" }); } catch {}
       }
@@ -188,8 +191,10 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       clearExplicitLogout();
       markAuthValidated();
       setIsAdmin(await isAdminUser());
+      setIsDistributor(await isDistributorUser());
     } else {
       setIsAdmin(false);
+      setIsDistributor(false);
       clearAuthValidated();
     }
   };
@@ -258,6 +263,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         userRef.current = null;
         setUser(null);
         setIsAdmin(false);
+        setIsDistributor(false);
         setLoading(false);
         return;
       }
@@ -272,6 +278,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         userRef.current = null;
         setUser(null);
         setIsAdmin(false);
+        setIsDistributor(false);
         setLoading(false);
         return;
       }
@@ -310,6 +317,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
           userRef.current = null;
           setUser(null);
           setIsAdmin(false);
+          setIsDistributor(false);
         }
       } catch {
         // Transport failure / timeout with no prior confirmation → stay locked.
@@ -349,6 +357,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
           userRef.current = null;
           setUser(null);
           setIsAdmin(false);
+          setIsDistributor(false);
           return;
         }
         // Preserve a restored user in memory and let the background validation
@@ -361,6 +370,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         userRef.current = null;
         setUser(null);
         setIsAdmin(false);
+        setIsDistributor(false);
         clearAuthValidated();
         return;
       }
@@ -375,9 +385,11 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       window.setTimeout(async () => {
         try {
           setIsAdmin(await isAdminUser());
+          setIsDistributor(await isDistributorUser());
           await registerDeviceLogin();
         } catch {
           setIsAdmin(false);
+          setIsDistributor(false);
         }
         try {
           await refreshLicenseCacheIfNeeded();
@@ -390,6 +402,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
             clearAuthValidated();
             setUser(null);
             setIsAdmin(false);
+            setIsDistributor(false);
           }
         } catch {}
       }, 0);
@@ -460,7 +473,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const value = useMemo(() => ({ user, isAdmin, loading, refresh }), [user, isAdmin, loading]);
+  const value = useMemo(() => ({ user, isAdmin, isDistributor, loading, refresh }), [user, isAdmin, isDistributor, loading]);
 
   return <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>;
 }
@@ -493,6 +506,19 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
     return <Navigate to={`/auth?next=${next}`} replace />;
   }
   if (!isAdmin) return <Navigate to="/profile" replace state={{ deniedFrom: location.pathname }} />;
+  return <>{children}</>;
+}
+
+export function RequireDistributor({ children }: { children: ReactNode }) {
+  const { user, isAdmin, isDistributor, loading } = useAuthSession();
+  const location = useLocation();
+
+  if (loading) return <AuthLoading />;
+  if (!user) {
+    const next = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/auth?next=${next}`} replace />;
+  }
+  if (!isAdmin && !isDistributor) return <Navigate to="/profile" replace state={{ deniedFrom: location.pathname }} />;
   return <>{children}</>;
 }
 

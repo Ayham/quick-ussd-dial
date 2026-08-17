@@ -504,6 +504,19 @@ export async function isAdminUser(): Promise<boolean> {
   return (roleRows || []).some((r) => ["admin", "super_admin", "sys_admin"].includes(r.role));
 }
 
+export async function isDistributorUser(): Promise<boolean> {
+  const user = await getCurrentUser();
+  if (!user) return false;
+
+  try {
+    const { data, error } = await supabase.rpc("has_role", { _user_id: user.id, _role: "distributor" });
+    if (!error && typeof data === "boolean") return data;
+  } catch {}
+
+  const { data: roleRows } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
+  return (roleRows || []).some((r) => r.role === "distributor");
+}
+
 export async function getProfile(): Promise<UserProfile | null> {
   const user = await getCurrentUser();
   if (!user) return null;

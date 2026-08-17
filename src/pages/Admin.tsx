@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Shield, LogOut, LayoutGrid, Users, Activity, FileText, Database, KeyRound, UserCheck, Bell, RefreshCw, ChevronLeft, ChevronRight, Smartphone, MessageCircle } from "lucide-react";
+import { Shield, LogOut, LayoutGrid, Users, Activity, FileText, Database, KeyRound, UserCheck, Bell, RefreshCw, ChevronLeft, ChevronRight, Smartphone, MessageCircle, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { signOut } from "@/lib/auth";
@@ -15,11 +15,13 @@ import { NotificationManagement } from "@/components/admin/NotificationManagemen
 import { SyncMonitor } from "@/components/admin/SyncMonitor";
 import AppUpdatesAdmin from "@/components/admin/AppUpdatesAdmin";
 import ContactSettingsAdmin from "@/components/admin/ContactSettingsAdmin";
+import { DistributorManagement } from "@/components/admin/DistributorManagement";
 import { cn } from "@/lib/utils";
 
 const tabs = [
   { value: "overview", labelKey: "admin.dashboard", icon: LayoutGrid },
    { value: "users", labelKey: "admin.users", icon: Users },
+   { value: "distributors", labelKey: "adminDistributors.title", icon: Truck },
    { value: "transfers", labelKey: "admin.transfers", icon: Activity },
   { value: "licenses", labelKey: "admin.licenses", icon: KeyRound },
   { value: "activations", labelKey: "admin.activationRequests", icon: UserCheck },
@@ -78,6 +80,8 @@ const Admin = () => {
         return <DashboardOverview />;
       case "users":
         return <UsersRolesManager />;
+      case "distributors":
+        return <DistributorManagement />;
       case "transfers":
         return <TransfersViewer />;
       case "events":

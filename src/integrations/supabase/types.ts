@@ -391,6 +391,83 @@ export type Database = {
         }
         Relationships: []
       }
+      distributors: {
+        Row: {
+          code: string
+          commission_rate: number
+          company_name: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          code: string
+          commission_rate?: number
+          company_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          code?: string
+          commission_rate?: number
+          company_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      distributor_payouts: {
+        Row: {
+          id: string
+          distributor_id: string
+          amount: number
+          notes: string | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          distributor_id: string
+          amount: number
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          distributor_id?: string
+          amount?: number
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          { foreignKeyName: "distributor_payouts_distributor_id_fkey"; columns: ["distributor_id"]; isOneToOne: false; referencedRelation: "distributors"; referencedColumns: ["id"] }
+        ]
+      }
       devices: {
         Row: {
           android_id: string | null
@@ -659,51 +736,95 @@ export type Database = {
           amount: number
           approved_at: string | null
           approved_by: string | null
+          commission_amount: number | null
+          commission_rate: number | null
+          confirmed_at: string | null
+          confirmed_by: string | null
           created_at: string
+          created_by: string | null
           currency: string
+          customer_id: string | null
           device_id: string | null
+          distributor_id: string | null
           id: string
           method: string
           notes: string | null
+          payment_date: string
+          payment_for: string | null
           plan_id: string | null
           reference: string | null
           status: string
           updated_at: string
+          updated_by: string | null
           user_id: string
         }
         Insert: {
           amount: number
           approved_at?: string | null
           approved_by?: string | null
+          commission_amount?: number | null
+          commission_rate?: number | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
+          created_by?: string | null
           currency?: string
+          customer_id?: string | null
           device_id?: string | null
+          distributor_id?: string | null
           id?: string
           method?: string
           notes?: string | null
+          payment_date?: string
+          payment_for?: string | null
           plan_id?: string | null
           reference?: string | null
           status?: string
           updated_at?: string
+          updated_by?: string | null
           user_id: string
         }
         Update: {
           amount?: number
           approved_at?: string | null
           approved_by?: string | null
+          commission_amount?: number | null
+          commission_rate?: number | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
+          created_by?: string | null
           currency?: string
+          customer_id?: string | null
           device_id?: string | null
+          distributor_id?: string | null
           id?: string
           method?: string
           notes?: string | null
+          payment_date?: string
+          payment_for?: string | null
           plan_id?: string | null
           reference?: string | null
           status?: string
           updated_at?: string
+          updated_by?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "payments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payments_distributor_id_fkey"
+            columns: ["distributor_id"]
+            isOneToOne: false
+            referencedRelation: "distributors"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payments_plan_id_fkey"
             columns: ["plan_id"]
@@ -728,6 +849,7 @@ export type Database = {
           current_device: string | null
           customer_status: string | null
           display_name: string | null
+          distributor_id: string | null
           email: string | null
           emergency_phone: string | null
           expiry_date: string | null
@@ -763,6 +885,7 @@ export type Database = {
           current_device?: string | null
           customer_status?: string | null
           display_name?: string | null
+          distributor_id?: string | null
           email?: string | null
           emergency_phone?: string | null
           expiry_date?: string | null
@@ -798,6 +921,7 @@ export type Database = {
           current_device?: string | null
           customer_status?: string | null
           display_name?: string | null
+          distributor_id?: string | null
           email?: string | null
           emergency_phone?: string | null
           expiry_date?: string | null
@@ -1800,10 +1924,89 @@ export type Database = {
         Args: Record<string, never>
         Returns: Json
       }
+      generate_distributor_code: {
+        Args: Record<string, never>
+        Returns: string
+      }
+      admin_grant_distributor: {
+        Args: {
+          _user_id: string
+          _commission_rate?: number
+        }
+        Returns: Json
+      }
+      admin_revoke_distributor: {
+        Args: { _user_id: string }
+        Returns: Json
+      }
+      admin_update_distributor: {
+        Args: {
+          _user_id: string
+          _commission_rate?: number
+          _status?: string
+        }
+        Returns: Json
+      }
+      admin_get_distributors: {
+        Args: {
+          _search?: string
+          _status?: string
+          _page?: number
+          _page_size?: number
+        }
+        Returns: Json
+      }
+      admin_get_distributor_detail: {
+        Args: { _user_id: string }
+        Returns: Json
+      }
+      admin_assign_customer_to_distributor: {
+        Args: {
+          _customer_id: string
+          _distributor_user_id: string
+        }
+        Returns: Json
+      }
+      admin_remove_customer_from_distributor: {
+        Args: { _customer_id: string }
+        Returns: Json
+      }
+      link_to_distributor: {
+        Args: { _code: string }
+        Returns: Json
+      }
+      get_my_distributor: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      distributor_get_dashboard: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      distributor_get_customers: {
+        Args: {
+          _search?: string
+          _page?: number
+          _page_size?: number
+        }
+        Returns: Json
+      }
+      distributor_get_report: {
+        Args: { _period?: string }
+        Returns: Json
+      }
+      admin_record_distributor_payout: {
+        Args: { p_distributor_id: string; p_amount: number; p_notes?: string }
+        Returns: Json
+      }
+      distributor_get_payouts: {
+        Args: Record<string, never>
+        Returns: Json
+      }
     }
     Enums: {
       activation_status: "pending" | "approved" | "rejected"
-       app_role: "admin" | "user"
+       app_role: "admin" | "user" | "distributor"
       license_status: "active" | "expired" | "inactive" | "revoked" | "pending" | "suspended" | "trial" | "rejected" | "permanent" | "blocked"
       license_type: "trial" | "year_1" | "year_2" | "year_3" | "custom_date" | "lifetime"
       notification_action_type: "none" | "screen" | "url" | "custom"
@@ -1939,7 +2142,7 @@ export const Constants = {
   public: {
     Enums: {
       activation_status: ["pending", "approved", "rejected"],
-       app_role: ["admin", "user"],
+       app_role: ["admin", "user", "distributor"],
       license_status: ["active", "expired", "inactive", "revoked", "pending", "suspended", "trial", "rejected", "permanent", "blocked"],
       license_type: ["trial", "year_1", "year_2", "year_3", "custom_date", "lifetime"],
       notification_action_type: ["none", "screen", "url", "custom"],

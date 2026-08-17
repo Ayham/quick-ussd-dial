@@ -17,7 +17,7 @@ import Profile from "./pages/Profile";
 import Activation from "./pages/Activation";
 import LicenseLocked from "./pages/LicenseLocked";
 import About from "./pages/About";
-import { AuthSessionProvider, RequireAdmin, RequireAuth } from "@/lib/auth-session";
+import { AuthSessionProvider, RequireAdmin, RequireAuth, RequireDistributor } from "@/lib/auth-session";
 import { NotificationsProvider } from "@/hooks/use-notifications";
 import OnboardingGate from "@/components/OnboardingGate";
 import LicenseReminder from "@/components/LicenseReminder";
@@ -32,6 +32,7 @@ import { startCloudServices } from "@/cloud";
 const queryClient = new QueryClient();
 const Reports = lazy(() => import("./pages/Reports"));
 const Notifications = lazy(() => import("./pages/Notifications"));
+const DistributorPanel = lazy(() => import("./pages/DistributorPanel"));
 
 const AppContent = () => {
   const { t } = useTranslation();
@@ -110,6 +111,15 @@ const AppContent = () => {
               </RequireAuth>
             } />
             <Route path="/sys-panel" element={<RequireAuth><RequireAdmin><Admin /></RequireAdmin></RequireAuth>} />
+            <Route path="/distributor" element={
+              <RequireAuth>
+                <RequireDistributor>
+                  <Suspense fallback={<div className="min-h-dvh grid place-items-center text-sm text-muted-foreground">{t("common.loading")}</div>}>
+                    <DistributorPanel />
+                  </Suspense>
+                </RequireDistributor>
+              </RequireAuth>
+            } />
             <Route path="/updates" element={<RequireAuth><Updates /></RequireAuth>} />
             <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
             <Route path="/about" element={<RequireAuth><About /></RequireAuth>} />

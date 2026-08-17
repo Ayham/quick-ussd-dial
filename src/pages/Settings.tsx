@@ -5,7 +5,7 @@ import {
   AlertTriangle, Shield, Database, Settings as SettingsIcon,
   Download, Upload, Globe, ChevronDown, Lock, FolderOpen,
   Trash, RotateCw, HardDrive, Info, AlertCircle, CheckCircle,
-  Bell, Store, Palette, Wand2,
+  Bell, Store, Palette, Wand2, Truck,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
@@ -59,12 +59,13 @@ import { AccentColorDialog } from "@/components/theme/AccentColorDialog";
 import { useAccentTheme } from "@/components/theme/ThemeProvider";
 import SetupWizard from "@/components/SetupWizard";
 import { getSetupProgress } from "@/lib/setup-wizard";
+import { getMyDistributor, linkToDistributor } from "@/lib/distributor";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-type SettingsSection = "sim" | "codes" | "amounts" | "thresholds" | "suggestions" | "data" | "language" | "business" | "appearance" | "setupWizard";
+type SettingsSection = "sim" | "codes" | "amounts" | "thresholds" | "suggestions" | "data" | "language" | "business" | "appearance" | "setupWizard" | "distributor";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -88,10 +89,14 @@ const Settings = () => {
   const [thresholds, setThresholds] = useState<LowBalanceThresholds>(() => getLowBalanceThresholds());
   const [amountDisplayStyle, setAmountDisplayStyle] = useState<AmountDisplayStyle>(() => getAmountDisplayStyle());
   const [businessName, setBusinessName] = useState(() => getBusinessName());
+  const [distributorCode, setDistributorCode] = useState("");
+  const [distributorInfo, setDistributorInfo] = useState<{ linked: boolean; distributor_code?: string; distributor_name?: string; commission_rate?: number } | null>(null);
+  const [distributorLoading, setDistributorLoading] = useState(true);
 
   // Load credentials async on mount
   useEffect(() => {
     getCredentials().then(setCredentials);
+    getMyDistributor().then(setDistributorInfo).catch(() => setDistributorInfo({ linked: false })).finally(() => setDistributorLoading(false));
   }, []);
 
   // Load profile and setup progress for the Setup Wizard section
@@ -335,6 +340,7 @@ const handleDoRestore = async () => {
     { id: "suggestions", label: t("settings.sectionSuggestions"), icon: <HardDrive className="w-5 h-5" />, description: t("settings.sectionSuggestionsDesc") },
     { id: "data", label: t("settings.sectionData"), icon: <Database className="w-5 h-5" />, description: t("settings.sectionDataDesc") },
     { id: "language", label: t("settings.sectionLanguage"), icon: <Globe className="w-5 h-5" />, description: t("settings.sectionLanguageDesc") },
+    { id: "distributor", label: t("settings.sectionDistributor"), icon: <Truck className="w-5 h-5" />, description: t("settings.sectionDistributorDesc") },
   ];
 
   return (
@@ -1079,6 +1085,70 @@ const handleDoRestore = async () => {
                             {t("settings.english")}
                           </button>
                         </div>
+                      </div>
+                    </SettingsCard>
+                  )}
+
+                  {/* DISTRIBUTOR SECTION */}
+                  {section.id === "distributor" && (
+                    <SettingsCard title={t("settings.distributor")} icon={<Truck className="w-4 h-4" />}>
+                      <div className="space-y-3">
+                        {distributorLoading ? (
+                          <p className="text-xs text-muted-foreground">{t("common.loading")}</p>
+                        ) : distributorInfo?.linked ? (
+                          <div className="space-y-2">
+                            <div className="bg-green-50 text-green-700 rounded-xl p-3 text-sm flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                              {t("settings.distributorLinked")}
+                            </div>
+                            <div className="bg-muted/50 rounded-xl p-3">
+                              <div className="text-xs text-muted-foreground">{t("settings.distributorCode")}</div>
+                              <div className="font-mono font-semibold text-primary">{distributorInfo.distributor_code}</div>
+                            </div>
+                            <div className="bg-muted/50 rounded-xl p-3">
+                              <div className="text-xs text-muted-foreground">{t("settings.distributorName")}</div>
+                              <div className="font-medium">{distributorInfo.distributor_name}</div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <p className="text-xs text-muted-foreground">{t("settings.distributorEnterCode")}</p>
+                            <Input
+                              value={distributorCode}
+                              onChange={(e) => setDistributorCode(e.target.value)}
+                              placeholder={t("settings.distributorCodePlaceholder")}
+                              className="h-9"
+                              dir="ltr"
+                            />
+                            <Button
+                              size="sm"
+                              onClick={async () => {
+                                if (!distributorCode.trim()) return;
+                                try {
+                                  const result = await linkToDistributor(distributorCode.trim());
+                                  if (result.ok) {
+                                    toast.success(t("settings.distributorLinkedSuccess"));
+                                    setDistributorInfo({
+                                      linked: true,
+                                      distributor_code: result.distributor_code,
+                                      distributor_name: result.distributor_name,
+                                      commission_rate: result.commission_rate,
+                                    });
+                                    setDistributorCode("");
+                                  } else {
+                                    toast.error(result.error === "distributor_not_found" ? t("settings.distributorNotFound") : t("settings.distributorLinkFailed"));
+                                  }
+                                } catch (err) {
+                                  toast.error(err instanceof Error ? err.message : "Failed");
+                                }
+                              }}
+                              disabled={!distributorCode.trim()}
+                              className="w-full"
+                            >
+                              {t("settings.distributorLink")}
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </SettingsCard>
                   )}

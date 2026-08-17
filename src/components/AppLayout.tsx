@@ -7,12 +7,13 @@ import {
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { getCurrentUser, signOut, isAdminUser } from "@/lib/auth";
+import { getCurrentUser, signOut, isAdminUser, isDistributorUser } from "@/lib/auth";
 import { markExplicitLogout, clearAuthValidated, clearSupabaseLocalSession } from "@/lib/auth-session";
 import { getBusinessName } from "@/lib/onboarding";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { Truck } from "lucide-react";
 
 const BOTTOM_NAV_ITEMS = [
   { icon: Send, label: "تحويل", path: "/" },
@@ -53,6 +54,7 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<{ email?: string } | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isDistributor, setIsDistributor] = useState(false);
   const [brandTitle, setBrandTitle] = useState(() => getBusinessName() || t("appName"));
   const navigate = useNavigate();
   const location = useLocation();
@@ -63,6 +65,7 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
     // returning null, so the drawer never swaps the user for a "Login" button.
     getCurrentUser().then((u) => setUser(u ? { email: u.email } : null));
     isAdminUser().then(setIsAdmin).catch(() => setIsAdmin(false));
+    isDistributorUser().then(setIsDistributor).catch(() => setIsDistributor(false));
     setBrandTitle(getBusinessName() || t("appName"));
   }, [menuOpen]);
 
@@ -237,6 +240,30 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
                   <div className="text-right flex-1">
                     <span className="text-sm font-semibold block">{t("admin.administration")}</span>
                     <span className="text-[11px] text-muted-foreground line-clamp-1">{t("appLayout.adminDesc")}</span>
+                  </div>
+                </button>
+              </>
+            )}
+
+            {/* Distributor link */}
+            {isDistributor && (
+              <>
+                <div className="px-3 py-1.5 mt-4 mb-1">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t("appLayout.distributorSectionHeader")}</span>
+                </div>
+                <button
+                  onClick={() => { setMenuOpen(false); navigate("/distributor"); }}
+                  className={cn(
+                    "flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all w-full text-start",
+                    location.pathname === "/distributor" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
+                  )}
+                >
+                  <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center bg-primary text-white shadow-sm">
+                    <Truck className="w-4.5 h-4.5" />
+                  </div>
+                  <div className="text-right flex-1">
+                    <span className="text-sm font-semibold block">{t("nav.distributorPanel")}</span>
+                    <span className="text-[11px] text-muted-foreground line-clamp-1">{t("appLayout.distributorDesc")}</span>
                   </div>
                 </button>
               </>
