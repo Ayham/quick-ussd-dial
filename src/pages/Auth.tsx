@@ -13,8 +13,9 @@ import {
 } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { authTrace } from "@/lib/auth";
-import { Mail, Lock, User, Phone, Eye, EyeOff, Loader2, ArrowRight, LogOut, Shield, CheckCircle2, AlertCircle } from "lucide-react";
+import { Mail, Lock, User, Phone, Eye, EyeOff, Loader2, ArrowRight, LogOut, Shield, CheckCircle2, AlertCircle, MonitorSmartphone } from "lucide-react";
 import { useAuthSession, markExplicitLogout, clearAuthValidated, clearSupabaseLocalSession } from "@/lib/auth-session";
+import { useAppMode } from "@/features/customer-display/app-mode";
 
 type AuthMode = "signin" | "signup" | "forgot" | "reset" | "verify";
 
@@ -286,6 +287,8 @@ function GoogleIcon() {
 
 // === Sign In ===
 function SignInView({ t, isArabic, email, setEmail, password, setPassword, errors, clearErrors, showPassword, setShowPassword, rememberSession, setRememberSession, handleSignIn, handleGoogleSignIn, loading, setMode }: any) {
+  const { setMode: setAppMode } = useAppMode();
+  const nav = useNavigate();
   return (
     <ViewWrapper isArabic={isArabic}>
       <div className="flex flex-col items-center space-y-2 mb-6">
@@ -360,6 +363,27 @@ function SignInView({ t, isArabic, email, setEmail, password, setPassword, error
           onClick={() => setMode("signup")}>
           <User className="w-4 h-4 mr-2" />
           {t("auth.createAccount")}
+        </Button>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-border/60" />
+          </div>
+          <div className="relative flex justify-center text-xs">
+            <span className="bg-white px-2 text-muted-foreground">{t("auth.or")}</span>
+          </div>
+        </div>
+
+        <Button
+          variant="ghost"
+          className="w-full h-12 rounded-xl font-medium text-muted-foreground hover:text-primary hover:bg-primary/5"
+          onClick={() => {
+            setAppMode('customer-display');
+            nav('/customer-display', { replace: true });
+          }}
+        >
+          <MonitorSmartphone className="w-4 h-4 mr-2" />
+          {t("auth.useAsCustomerDisplay")}
         </Button>
       </CardWrapper>
     </ViewWrapper>

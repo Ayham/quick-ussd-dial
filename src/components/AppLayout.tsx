@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Truck } from "lucide-react";
+import { MonitorSmartphone } from "lucide-react";
+import { useCustomerDisplayServer } from "@/features/customer-display/seller/CustomerDisplayServerProvider";
 
 const BOTTOM_NAV_ITEMS = [
   { icon: Send, label: "تحويل", path: "/" },
@@ -58,6 +60,7 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
   const [brandTitle, setBrandTitle] = useState(() => getBusinessName() || t("appName"));
   const navigate = useNavigate();
   const location = useLocation();
+  const { serverRunning, customerConnected } = useCustomerDisplayServer();
 
   useEffect(() => {
     // getCurrentUser() is offline-resilient: on a network failure it falls back
@@ -101,6 +104,20 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
                 </button>
               )}
               <NotificationBell />
+              {serverRunning && location.pathname !== "/seller-display" && (
+                <button
+                  onClick={() => navigate("/seller-display")}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all active:scale-90 backdrop-blur-sm ${
+                    customerConnected
+                      ? 'bg-green-500/80 hover:bg-green-500/90'
+                      : 'bg-white/10 hover:bg-white/20'
+                  }`}
+                  aria-label={t("customerDisplay.seller.title")}
+                  title={customerConnected ? t('customerDisplay.seller.connected') : t('customerDisplay.seller.waiting')}
+                >
+                  <MonitorSmartphone className="w-5.5 h-5.5" />
+                </button>
+              )}
             </>
           )}
           <button 
@@ -268,6 +285,26 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
                 </button>
               </>
             )}
+
+            {/* Customer Display link */}
+            <div className="px-3 py-1.5 mt-4 mb-1">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t("customerDisplay.seller.title")}</span>
+            </div>
+            <button
+              onClick={() => { setMenuOpen(false); navigate("/seller-display"); }}
+              className={cn(
+                "flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all w-full text-start",
+                location.pathname === "/seller-display" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
+              )}
+            >
+              <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center bg-primary text-white shadow-sm">
+                <MonitorSmartphone className="w-4.5 h-4.5" />
+              </div>
+              <div className="text-right flex-1">
+                <span className="text-sm font-semibold block">{t("customerDisplay.seller.title")}</span>
+                <span className="text-[11px] text-muted-foreground line-clamp-1">{t("customerDisplay.seller.subtitle")}</span>
+              </div>
+            </button>
 
           </nav>
 

@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, FutureConfig } from "react-router-dom";
+import { BrowserRouter, Routes, Route, FutureConfig, Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Index from "./pages/Index";
 import Settings from "./pages/Settings";
@@ -23,6 +23,11 @@ import OnboardingGate from "@/components/OnboardingGate";
 import LicenseReminder from "@/components/LicenseReminder";
 import DeviceMismatchDialog from "@/components/DeviceMismatchDialog";
 import { UpdateBanner, ForcedUpdateGate, isForcedDismissed, dismissForcedUpdate } from "@/components/ForceUpdate";
+import CustomerDisplayEntry from "@/features/customer-display/customer/CustomerDisplayEntry";
+import SellerDisplayPage from "@/features/customer-display/seller/SellerDisplayPage";
+import { CustomerDisplayServerProvider } from "@/features/customer-display/seller/CustomerDisplayServerProvider";
+import { AppModeProvider } from "@/features/customer-display/app-mode";
+import { useAppMode } from "@/features/customer-display/app-mode";
 
 import "./lib/i18n";
 import { isWebBrowser } from "@/lib/platform";
@@ -39,6 +44,7 @@ const AppContent = () => {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [checking, setChecking] = useState(false);
   const isWeb = isWebBrowser();
+  const { isCustomerDisplay } = useAppMode();
 
   const doUpdateCheck = async () => {
     setChecking(true);
@@ -88,11 +94,14 @@ const AppContent = () => {
             <UpdateBanner updateInfo={updateInfo} onDismiss={() => setUpdateInfo(null)} />
           )}
           <LicenseReminder />
+          <CustomerDisplayServerProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/customer-display" element={<CustomerDisplayEntry />} />
+            <Route path="/seller-display" element={<RequireAuth><SellerDisplayPage /></RequireAuth>} />
             <Route path="/activation" element={<RequireAuth><Activation /></RequireAuth>} />
             <Route path="/license-locked" element={<RequireAuth><LicenseLocked /></RequireAuth>} />
-            <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
+            <Route path="/" element={isCustomerDisplay ? <Navigate to="/customer-display" replace /> : <RequireAuth><Index /></RequireAuth>} />
             <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
             <Route path="/reports" element={
               <RequireAuth>
@@ -125,6 +134,7 @@ const AppContent = () => {
             <Route path="/about" element={<RequireAuth><About /></RequireAuth>} />
             <Route path="*" element={<RequireAuth><NotFound /></RequireAuth>} />
           </Routes>
+          </CustomerDisplayServerProvider>
           <OnboardingGate />
           <DeviceMismatchDialog />
         </NotificationsProvider>
@@ -138,7 +148,9 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <AppContent />
+      <AppModeProvider>
+        <AppContent />
+      </AppModeProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

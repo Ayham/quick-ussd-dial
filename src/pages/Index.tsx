@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import { Phone, Clock, CheckCircle, Loader2, Send, TrendingUp, BookUser, UserPlus, Search, Pencil, X } from "lucide-react";
 import {
   detectOperator,
@@ -37,6 +38,7 @@ import { trackTransfer } from "@/lib/cloud-sync";
 import { ensureTransferAllowed } from "@/lib/license-cache";
 import { isSimConfigured, getBusinessName } from "@/lib/onboarding";
 import { incrementTransferCount } from "@/lib/setup-wizard";
+import { sendCustomerTransferResult, clearCustomerTransferPending } from "@/features/customer-display/transfer-callback";
 import { formatDate, formatDateTime } from "@/lib/format-date";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +76,7 @@ type ContactMatch = {
 const Index = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const [phone, setPhone] = useState("");
   const [selectedAmount, setSelectedAmount] = useState<AmountPreset | null>(null);
   const [presets, setPresets] = useState(() => getPresets());
@@ -99,6 +102,21 @@ const Index = () => {
   useEffect(() => {
     getCredentials().then(setCredentials);
   }, []);
+
+  // Handle customer display transfer request
+  const customerRequestDataRef = useRef<{ amount: number; price: number } | null>(null);
+  useEffect(() => {
+    const state = location.state as { customerTransferRequest?: { requestId: string; phone: string; amount: number; price: number } } | null;
+    const req = state?.customerTransferRequest;
+    if (req) {
+      customerRequestDataRef.current = { amount: req.amount, price: req.price };
+      setPhone(req.phone);
+      const matchingPreset: AmountPreset = { amount: req.amount, price: req.price };
+      setSelectedAmount(matchingPreset);
+      setCustomerTransferPending(req.requestId);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const contactsRef = useRef<HTMLDivElement>(null);
   const RECENT_LIMIT = 4;
@@ -203,6 +221,10 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
+    if (customerRequestDataRef.current) {
+      setSelectedAmount(customerRequestDataRef.current);
+      return;
+    }
     setSelectedAmount(null);
   }, [transferOperator]);
 
@@ -329,12 +351,15 @@ const Index = () => {
     try {
       const guard = await ensureTransferAllowed();
       if (!guard.allowed) {
-        toast.error(guard.reason || t("index.transferNotAllowed"));
+        const reason = guard.reason || t("index.transferNotAllowed");
+        toast.error(reason);
+        await sendCustomerTransferResult("failed", reason);
         return;
       }
       const freshCredentials = await getCredentials();
       if (!isSimConfigured(freshCredentials)) {
         toast.error(t("index.configureSimFirst"));
+        await sendCustomerTransferResult("failed", t("index.configureSimFirst"));
         navigate("/settings");
         return;
       }
@@ -361,19 +386,22 @@ const Index = () => {
       });
 
       toast.success(t("index.transferSuccess"));
+      await sendCustomerTransferResult("success", t("index.transferSuccess"));
 
       incrementTransferCount();
 
       await saveContactAfterTransfer(phone.trim(), nameInput.trim() || contactName);
       setContactsVersion(v => v + 1);
 
-      setPhone("");
-      setSelectedAmount(null);
+       setPhone("");
+       setSelectedAmount(null);
+       customerRequestDataRef.current = null;
       setContactName('');
       setShowSaveName(false);
       setNameInput('');
     } catch {
       toast.error(t("index.transferFailed"));
+      await sendCustomerTransferResult("failed", t("index.transferFailed"));
     } finally {
       setDialing(false);
     }
@@ -768,7 +796,7 @@ const Index = () => {
             </AlertDialogHeader>
             <AlertDialogFooter className="flex-row-reverse gap-2">
               <AlertDialogAction onClick={handleConfirmTransfer} className="rounded-xl flex-1 h-12 text-base font-bold shadow-sm">{t("index.confirmTransferAction")}</AlertDialogAction>
-              <AlertDialogCancel className="rounded-xl h-12 text-base">{t("common.cancel")}</AlertDialogCancel>
+              <AlertDialogCancel onClick={() => sendCustomerTransferResult("failed", t("common.cancel"))} className="rounded-xl h-12 text-base">{t("common.cancel")}</AlertDialogCancel>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

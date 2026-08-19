@@ -10,6 +10,8 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(TrialPlugin.class);
         registerPlugin(AndroidContactsPlugin.class);
         registerPlugin(SystemClockPlugin.class);
+        registerPlugin(CustomerDisplayServerPlugin.class);
+        registerPlugin(CustomerDisplayClientPlugin.class);
         super.onCreate(savedInstanceState);
     }
 
