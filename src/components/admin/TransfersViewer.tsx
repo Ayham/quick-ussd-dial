@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getActualDeductedAmount } from "@/lib/amount-utils";
 import { formatDateTime } from "@/lib/format-date";
 import { Input } from "@/components/ui/input";
-import { Search, AlertTriangle, RefreshCw } from "lucide-react";
+import { Search, AlertTriangle, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export interface Transfer {
@@ -19,7 +19,6 @@ export interface Transfer {
   synced_at: string;
   package_price?: number | null;
   package_name?: string | null;
-  sync_status?: string | null;
   profile_email?: string | null;
   profile_name?: string | null;
 }
@@ -33,6 +32,8 @@ export function TransfersViewer() {
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
   const [userFilter, setUserFilter] = useState("all");
   const [deviceFilter, setDeviceFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   const loadTransfers = useCallback(async () => {
     setLoading(true);
@@ -42,7 +43,7 @@ export function TransfersViewer() {
         .from("transfers")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(1000);
+        .limit(2000);
       if (error) throw error;
       const rows = (data || []) as Transfer[];
       const userIds = [...new Set(rows.map((row) => row.user_id).filter(Boolean))] as string[];
@@ -54,7 +55,6 @@ export function TransfersViewer() {
         ...row,
         profile_email: row.user_id ? profileMap[row.user_id]?.email ?? null : null,
         profile_name: row.user_id ? profileMap[row.user_id]?.display_name ?? null : null,
-        sync_status: row.synced_at ? "synced" : "pending",
       })));
     } catch (err) {
       const msg = err instanceof Error ? err.message : (err as any)?.message || JSON.stringify(err);
@@ -75,28 +75,50 @@ export function TransfersViewer() {
     if (!matchesSearch) return false;
     if (userFilter !== "all" && t.user_id !== userFilter) return false;
     if (deviceFilter !== "all" && t.device_id !== deviceFilter) return false;
-    if (dateRange.start) {
-      const transferDate = new Date(t.created_at).toISOString().split("T")[0];
-      if (transferDate < dateRange.start) return false;
-    }
-    if (dateRange.end) {
-      const transferDate = new Date(t.created_at).toISOString().split("T")[0];
-      if (transferDate > dateRange.end) return false;
-    }
+    const transferDate = (t.created_at || "").substring(0, 10);
+    if (dateRange.start && transferDate < dateRange.start) return false;
+    if (dateRange.end && transferDate > dateRange.end) return false;
     return true;
   }), [dateRange.end, dateRange.start, deviceFilter, search, transfers, userFilter]);
 
-  const stats = {
-    total: transfers.length,
-    succeeded: transfers.filter((t) => t.status === "success" || t.status === "completed").length,
-    failed: transfers.filter((t) => t.status === "failed").length,
-    pending: transfers.filter((t) => t.status === "pending").length,
-    totalAmount: transfers.reduce((sum, t) => sum + getActualDeductedAmount(t.operator, t.amount !== undefined ? t.amount : 0), 0),
-    mtn: transfers.filter((t) => (t.operator || "").toLowerCase() === "mtn").length,
-    syriatel: transfers.filter((t) => (t.operator || "").toLowerCase() === "syriatel").length,
-  };
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, dateRange.start, dateRange.end, userFilter, deviceFilter]);
 
-  const userOptions = useMemo(() => [...new Set(transfers.map((row) => row.user_id).filter(Boolean))].sort(), [transfers]);
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(filteredTransfers.length / pageSize)), [filteredTransfers.length, pageSize]);
+
+  useEffect(() => {
+    setPage((p) => Math.min(p, totalPages));
+  }, [totalPages]);
+
+  const pagedTransfers = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredTransfers.slice(start, start + pageSize);
+  }, [filteredTransfers, page, pageSize]);
+
+  // Statistics affected by selected filters
+  const stats = useMemo(() => ({
+    total: filteredTransfers.length,
+    succeeded: filteredTransfers.filter((t) => t.status === "success" || t.status === "completed").length,
+    failed: filteredTransfers.filter((t) => t.status === "failed").length,
+    pending: filteredTransfers.filter((t) => t.status === "pending").length,
+    mtn: filteredTransfers.filter((t) => (t.operator || "").toLowerCase() === "mtn").length,
+    syriatel: filteredTransfers.filter((t) => (t.operator || "").toLowerCase() === "syriatel").length,
+    totalAmount: filteredTransfers.reduce((sum, t) => sum + getActualDeductedAmount(t.operator, t.package_price ?? t.amount), 0),
+  }), [filteredTransfers]);
+
+  const userOptions = useMemo(() => {
+    const map = new Map<string, { user_id: string; label: string }>();
+    for (const row of transfers) {
+      if (row.user_id && !map.has(row.user_id)) {
+        const label = row.profile_name || row.profile_email || row.user_id;
+        map.set(row.user_id, { user_id: row.user_id, label });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [transfers]);
+
   const deviceOptions = useMemo(() => [...new Set(transfers.map((row) => row.device_id))].sort(), [transfers]);
 
   if (loading && transfers.length === 0) {
@@ -109,99 +131,100 @@ export function TransfersViewer() {
         <div className="border border-destructive/30 bg-destructive/5 rounded-2xl p-3 flex items-center gap-2 text-sm text-destructive">
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span className="flex-1">{loadError}</span>
-<Button variant="outline" size="sm" onClick={loadTransfers}>
-	             {t("common.retry")}
-	           </Button>
+          <Button variant="outline" size="sm" onClick={loadTransfers}>
+            {t("common.retry")}
+          </Button>
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-        <Input placeholder={t("adminTransfers.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
-<Button
-	           size="sm"
-	           variant="ghost"
-	           className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0 rounded-lg"
-	           onClick={loadTransfers}
-	           title={t("adminTransfers.refresh")}
-	         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-        </Button>
-      </div>
-        <div className="flex gap-2">
-<Input type="date" value={dateRange.start} onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })} className="h-10" placeholder={t("adminTransfers.fromDate")} />
-	           <Input type="date" value={dateRange.end} onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })} className="h-10" placeholder={t("adminTransfers.toDate")} />
+      {/* Filters */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          <Input placeholder={t("adminTransfers.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+          <Button
+            size="sm"
+            variant="ghost"
+            className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0 rounded-lg"
+            onClick={loadTransfers}
+            title={t("adminTransfers.refresh")}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+          </Button>
         </div>
         <div className="flex gap-2">
-          <select value={userFilter} onChange={(e) => setUserFilter(e.target.value)} className="h-10 flex-1 rounded-md border border-input bg-background px-3 text-sm">
+          <Input type="date" value={dateRange.start} onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })} className="h-10" placeholder={t("adminTransfers.fromDate")} />
+          <Input type="date" value={dateRange.end} onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })} className="h-10" placeholder={t("adminTransfers.toDate")} />
+        </div>
+        <div>
+          <select value={userFilter} onChange={(e) => setUserFilter(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
             <option value="all">{t("adminTransfers.allUsers")}</option>
-            {userOptions.map((userId) => <option key={userId} value={userId}>{userId}</option>)}
+            {userOptions.map((u) => <option key={u.user_id} value={u.user_id}>{u.label}</option>)}
           </select>
         </div>
-        <div className="flex gap-2">
-          <select value={deviceFilter} onChange={(e) => setDeviceFilter(e.target.value)} className="h-10 flex-1 rounded-md border border-input bg-background px-3 text-sm">
+        <div>
+          <select value={deviceFilter} onChange={(e) => setDeviceFilter(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
             <option value="all">{t("adminTransfers.allDevices")}</option>
             {deviceOptions.map((deviceId) => <option key={deviceId} value={deviceId}>{deviceId}</option>)}
           </select>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mb-4">
-        <div className="bg-card rounded-2xl p-2 text-center shadow-card">
-<div className="text-sm font-semibold">{stats.total}</div>
-	           <div className="text-xs text-muted-foreground">{t("adminTransfers.total")}</div>
+      {/* Statistics Header (Affected by filters) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 mb-4">
+        <div className="bg-card rounded-2xl p-2.5 text-center shadow-card border">
+          <div className="text-sm font-semibold">{stats.total}</div>
+          <div className="text-xs text-muted-foreground">{t("adminTransfers.total")}</div>
         </div>
-        <div className="bg-success/10 rounded-2xl p-2 text-center shadow-card">
-<div className="text-sm font-semibold text-success">{stats.succeeded}</div>
-	           <div className="text-xs text-muted-foreground">{t("adminTransfers.success")}</div>
+        <div className="bg-success/10 rounded-2xl p-2.5 text-center shadow-card border border-success/20">
+          <div className="text-sm font-semibold text-success">{stats.succeeded}</div>
+          <div className="text-xs text-muted-foreground">{t("adminTransfers.success")}</div>
         </div>
-        <div className="bg-destructive/10 rounded-2xl p-2 text-center shadow-card">
-<div className="text-sm font-semibold text-destructive">{stats.failed}</div>
-	           <div className="text-xs text-muted-foreground">{t("adminTransfers.failed")}</div>
+        <div className="bg-destructive/10 rounded-2xl p-2.5 text-center shadow-card border border-destructive/20">
+          <div className="text-sm font-semibold text-destructive">{stats.failed}</div>
+          <div className="text-xs text-muted-foreground">{t("adminTransfers.failed")}</div>
         </div>
-        <div className="bg-info/10 rounded-2xl p-2 text-center shadow-card">
-<div className="text-sm font-semibold text-info">{stats.pending}</div>
-	           <div className="text-xs text-muted-foreground">{t("admin.pending")}</div>
+        <div className="bg-info/10 rounded-2xl p-2.5 text-center shadow-card border border-info/20">
+          <div className="text-sm font-semibold text-info">{stats.pending}</div>
+          <div className="text-xs text-muted-foreground">{t("admin.pending")}</div>
         </div>
-        <div className="bg-operator-mtn/10 rounded-2xl p-2 text-center shadow-card">
-<div className="text-sm font-semibold text-operator-mtn">{stats.mtn}</div>
-	           <div className="text-xs text-muted-foreground">{t("operator.mtn")}</div>
+        <div className="bg-operator-mtn/10 rounded-2xl p-2.5 text-center shadow-card border border-operator-mtn/20">
+          <div className="text-sm font-semibold text-operator-mtn">{stats.mtn}</div>
+          <div className="text-xs text-muted-foreground">{t("operator.mtn")}</div>
         </div>
-        <div className="bg-primary/10 rounded-2xl p-2 text-center shadow-card">
-<div className="text-sm font-semibold text-primary">{stats.totalAmount.toLocaleString()}</div>
-	           <div className="text-xs text-muted-foreground">{t("adminTransfers.totalAmount")}</div>
+        <div className="bg-purple-500/10 rounded-2xl p-2.5 text-center shadow-card border border-purple-500/20">
+          <div className="text-sm font-semibold text-purple-600 dark:text-purple-400">{stats.syriatel}</div>
+          <div className="text-xs text-muted-foreground">{t("adminTransfers.syriatel")}</div>
+        </div>
+        <div className="bg-primary/10 rounded-2xl p-2.5 text-center shadow-card border border-primary/20 col-span-2 sm:col-span-4 md:col-span-1">
+          <div className="text-sm font-semibold text-primary">{stats.totalAmount.toLocaleString()}</div>
+          <div className="text-xs text-muted-foreground">{t("adminTransfers.totalAmount")}</div>
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Transfers Table (No sync column) */}
+      <div className="overflow-x-auto rounded-2xl border bg-card">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b">
-<th className="text-left p-3 font-semibold">{t("adminActivationRequests.user")}</th>
-	               <th className="text-left p-3 font-semibold">{t("adminTransfers.device")}</th>
-	               <th className="text-left p-3 font-semibold">{t("adminActivationRequests.phone")}</th>
-	               <th className="text-left p-3 font-semibold">{t("adminTransfers.operator")}</th>
-	                <th className="text-left p-3 font-semibold">{t("adminTransfers.price")}</th>
-	               <th className="text-left p-3 font-semibold">{t("adminTransfers.package")}</th>
-	               <th className="text-left p-3 font-semibold">{t("adminTransfers.sync")}</th>
-	               <th className="text-left p-3 font-semibold">{t("adminActivationRequests.date")}</th>
+            <tr className="border-b bg-muted/50">
+              <th className="text-left p-3 font-semibold">{t("adminActivationRequests.user")}</th>
+              <th className="text-left p-3 font-semibold">{t("adminTransfers.device")}</th>
+              <th className="text-left p-3 font-semibold">{t("adminActivationRequests.phone")}</th>
+              <th className="text-left p-3 font-semibold">{t("adminTransfers.operator")}</th>
+              <th className="text-left p-3 font-semibold">{t("adminTransfers.price")}</th>
+              <th className="text-left p-3 font-semibold">{t("adminTransfers.package")}</th>
+              <th className="text-left p-3 font-semibold">{t("adminActivationRequests.date")}</th>
             </tr>
           </thead>
           <tbody>
-            {filteredTransfers.map((transfer) => (
-              <tr key={transfer.id} className="border-b hover:bg-muted/50">
-                <td className="p-3 text-xs">{transfer.profile_name || transfer.profile_email || transfer.user_id || "—"}</td>
+            {pagedTransfers.map((transfer) => (
+              <tr key={transfer.id} className="border-b hover:bg-muted/50 last:border-0">
+                <td className="p-3 text-xs font-medium">{transfer.profile_name || transfer.profile_email || transfer.user_id || "—"}</td>
                 <td className="p-3 text-xs font-mono whitespace-nowrap">{transfer.device_id}</td>
                 <td className="p-3 font-mono text-xs" dir="ltr">{transfer.phone}</td>
                 <td className="p-3 text-xs">{transfer.operator === "mtn" ? t("adminTransfers.mtn") : transfer.operator === "syriatel" ? t("adminTransfers.syriatel") : t("adminTransfers.unknown")}</td>
                 <td className="p-3 font-semibold">{(transfer.package_price ?? getActualDeductedAmount(transfer.operator, transfer.amount)).toLocaleString()} {t("adminTransfers.currency")}</td>
                 <td className="p-3 text-xs">{transfer.package_name ? `${transfer.package_name} / ${transfer.package_price ?? 0}` : "—"}</td>
-                <td className="p-3">
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${transfer.sync_status === "synced" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>
-                    {transfer.sync_status === "synced" ? t("adminTransfers.synced") : t("admin.pending")}
-                  </span>
-                </td>
                 <td className="p-3 text-xs">{formatDateTime(transfer.created_at)}</td>
               </tr>
             ))}
@@ -209,13 +232,44 @@ export function TransfersViewer() {
         </table>
       </div>
 
-{filteredTransfers.length === 0 && (
-	         <div className="text-center py-8 text-muted-foreground">{t("adminTransfers.noTransfers")}</div>
-	       )}
+      {filteredTransfers.length === 0 && (
+        <div className="text-center py-8 text-muted-foreground">{t("adminTransfers.noTransfers")}</div>
+      )}
 
-<div className="text-xs text-muted-foreground pt-4">
-	         {t("adminTransfers.showing", { count: filteredTransfers.length, total: stats.total })}
-	       </div>
+      {/* Footer / Pagination */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+        <div className="text-xs text-muted-foreground">
+          {t("adminTransfers.showing", { count: filteredTransfers.length, total: transfers.length })}
+        </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center gap-3">
+            <Button
+              size="icon"
+              variant="outline"
+              disabled={page <= 1}
+              onClick={() => setPage((v) => Math.max(1, v - 1))}
+              aria-label={t("common.previous")}
+              className="rounded-xl h-9 w-9"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              {t("transferHistory.pageInfo", { page, totalPages })}
+            </span>
+            <Button
+              size="icon"
+              variant="outline"
+              disabled={page >= totalPages}
+              onClick={() => setPage((v) => Math.min(totalPages, v + 1))}
+              aria-label={t("common.next")}
+              className="rounded-xl h-9 w-9"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

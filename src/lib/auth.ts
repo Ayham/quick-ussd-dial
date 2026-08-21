@@ -4,6 +4,7 @@ import { Browser } from "@capacitor/browser";
 import { App } from "@capacitor/app";
 import { toast } from "sonner";
 import i18n from "@/lib/i18n";
+import { saveDistributorRate } from "@/lib/distributor-rate";
 
 const TRACE_TAG = "RASEED_AUTH";
 
@@ -106,6 +107,8 @@ export interface UserProfile {
   phone: string | null;
   language: string;
   shop_name: string | null;
+  /** Extra % paid to the distributor per transfer (7 => 1070 per 1000). */
+  distributor_rate: number | null;
 }
 
 export async function signInWithEmail(email: string, password: string) {
@@ -522,10 +525,14 @@ export async function getProfile(): Promise<UserProfile | null> {
   if (!user) return null;
   const { data } = await supabase
     .from("profiles")
-    .select("user_id, display_name, email, phone, language, shop_name")
+    .select("user_id, display_name, email, phone, language, shop_name, distributor_rate")
     .eq("user_id", user.id)
     .maybeSingle();
-  if (data) return data as UserProfile;
+  if (data) {
+    const profile = data as UserProfile;
+    saveDistributorRate(profile.distributor_rate);
+    return profile;
+  }
   // Fallback: profile row not yet inserted (trigger missed, OAuth flow, etc.)
   return {
     user_id: user.id,
@@ -534,15 +541,23 @@ export async function getProfile(): Promise<UserProfile | null> {
     phone: (user.user_metadata as { phone?: string })?.phone ?? null,
     language: "ar",
     shop_name: null,
+    distributor_rate: null,
   };
 }
 
-export async function updateProfile(patch: Partial<Pick<UserProfile, "display_name" | "phone" | "language" | "shop_name">>) {
+export async function updateProfile(patch: Partial<Pick<UserProfile, "display_name" | "phone" | "language" | "shop_name" | "distributor_rate">>) {
   const user = await getCurrentUser();
   if (!user) return { error: new Error(i18n.t("errors.notAuthenticated")) };
 
+  let normalizedRate: number | null | undefined;
+  if (patch.distributor_rate !== undefined) {
+    const parsed = Number(patch.distributor_rate);
+    normalizedRate = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+
   const normalizedPatch = {
     ...patch,
+    ...(normalizedRate !== undefined ? { distributor_rate: normalizedRate } : {}),
     phone: patch.phone === undefined ? undefined : normalizePhoneValue(patch.phone),
   };
 
@@ -559,6 +574,8 @@ export async function updateProfile(patch: Partial<Pick<UserProfile, "display_na
 
   if (error) return { error };
 
+  if (normalizedRate !== undefined) saveDistributorRate(normalizedRate);
+
   const metadataPatch: Record<string, unknown> = {};
   if (patch.display_name !== undefined) metadataPatch.full_name = patch.display_name ?? null;
   if (patch.phone !== undefined) metadataPatch.phone = normalizedPatch.phone;
@@ -569,10 +586,11 @@ export async function updateProfile(patch: Partial<Pick<UserProfile, "display_na
     if (metadataError) return { error: metadataError };
   }
 
-  const syncData: { phone?: string; shop_name?: string } = {};
+  const syncData: { phone?: string; shop_name?: string; distributor_rate?: number | null } = {};
   if (normalizedPatch.phone !== undefined) syncData.phone = normalizedPatch.phone ?? undefined;
   if (patch.shop_name !== undefined) syncData.shop_name = patch.shop_name ?? undefined;
-  if (syncData.phone || syncData.shop_name) {
+  if (normalizedRate !== undefined) syncData.distributor_rate = normalizedRate;
+  if (syncData.phone || syncData.shop_name || syncData.distributor_rate !== undefined) {
     const { trackProfileUpdate } = await import("@/lib/settings-sync");
     trackProfileUpdate(syncData);
   }

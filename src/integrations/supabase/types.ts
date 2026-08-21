@@ -851,6 +851,7 @@ export type Database = {
           display_name: string | null
           distributor_assignment_status: Database["public"]["Enums"]["distributor_assignment_status"]
           distributor_id: string | null
+          distributor_rate: number | null
           email: string | null
           emergency_phone: string | null
           expiry_date: string | null
@@ -888,6 +889,7 @@ export type Database = {
           display_name?: string | null
           distributor_assignment_status?: Database["public"]["Enums"]["distributor_assignment_status"]
           distributor_id?: string | null
+          distributor_rate?: number | null
           email?: string | null
           emergency_phone?: string | null
           expiry_date?: string | null
@@ -925,6 +927,7 @@ export type Database = {
           display_name?: string | null
           distributor_assignment_status?: Database["public"]["Enums"]["distributor_assignment_status"]
           distributor_id?: string | null
+          distributor_rate?: number | null
           email?: string | null
           emergency_phone?: string | null
           expiry_date?: string | null
@@ -1677,6 +1680,10 @@ export type Database = {
       }
       admin_suspend_user: {
         Args: { _target_user_id: string; _status: string; _reason?: string }
+        Returns: Json
+      }
+      admin_set_distributor_rate: {
+        Args: { _target_user_id: string; _rate?: number }
         Returns: Json
       }
       get_activation_requests: {

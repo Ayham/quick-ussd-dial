@@ -51,6 +51,9 @@ vi.mock("@capacitor/core", () => ({
     Plugins: {},
   },
   WebPlugin: class {},
+  registerPlugin: (name: string, options?: any) => {
+    return options?.web?.() || {};
+  },
 }));
 
 describe("Transfer phone input", () => {

@@ -1,6 +1,6 @@
 import { pushEvent } from "@/lib/supabase-sync";
 
-export function trackProfileUpdate(data: { phone?: string; shop_name?: string }) {
+export function trackProfileUpdate(data: { phone?: string; shop_name?: string; distributor_rate?: number | null }) {
   pushEvent("profile_update", data);
 }
 

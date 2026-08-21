@@ -35,6 +35,7 @@ interface UserInfo {
   notes: string | null;
   customer_status: string | null;
   shop_name: string | null;
+  distributor_rate: number | null;
   city: string | null;
   address: string | null;
   commission_type: string | null;
@@ -501,6 +502,7 @@ export function UsersRolesManager() {
                 <th className="text-start p-2.5 font-semibold text-xs text-muted-foreground whitespace-nowrap">{t("adminUsers.mtnSecretHeader")}</th>
                 <th className="text-start p-2.5 font-semibold text-xs text-muted-foreground whitespace-nowrap">{t("adminUsers.syriatelSerialHeader")}</th>
                 <th className="text-start p-2.5 font-semibold text-xs text-muted-foreground whitespace-nowrap">{t("adminUsers.syriatelDistributorHeader")}</th>
+                <th className="text-start p-2.5 font-semibold text-xs text-muted-foreground whitespace-nowrap">{t("adminUsers.distributorRateHeader")}</th>
                 <th className="text-start p-2.5 font-semibold text-xs text-muted-foreground whitespace-nowrap">{t("adminActivationRequests.actions")}</th>
               </tr>
             </thead>
@@ -568,6 +570,7 @@ export function UsersRolesManager() {
                       <td className="p-2.5 text-xs font-mono whitespace-nowrap" dir="ltr">{ussdOf(u).mtnSecret || "—"}</td>
                       <td className="p-2.5 text-xs font-mono whitespace-nowrap" dir="ltr">{ussdOf(u).syriatelSerial || "—"}</td>
                       <td className="p-2.5 text-xs font-mono whitespace-nowrap" dir="ltr">{ussdOf(u).syriatelDistributor || "—"}</td>
+                      <td className="p-2.5 text-xs whitespace-nowrap" dir="ltr">{u.distributor_rate != null ? `${u.distributor_rate}%` : "—"}</td>
                       <td className="p-2.5" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu dir={isArabic ? "rtl" : "ltr"}>
                           <DropdownMenuTrigger asChild>
@@ -659,6 +662,7 @@ export function UsersRolesManager() {
                 <Detail label={t("adminUsers.fullName")} value={detailsUser.full_name || "-"} ltr />
                 <Detail label={t("adminActivationRequests.phone")} value={detailsUser.phone || "-"} ltr />
                 <Detail label={t("adminUsers.businessNameHeader")} value={detailsUser.shop_name || "-"} />
+                <Detail label={t("adminUsers.distributorRateHeader")} value={detailsUser.distributor_rate != null ? `${detailsUser.distributor_rate}%` : "-"} ltr />
                 <Detail label={t("adminUsers.role")} value={detailsUser.role || "-"} />
                 <Detail label={t("adminUsers.accountStatus")} value={detailsUser.account_status || "-"} />
                 <Detail label={t("adminUsers.licenseStatus")} value={detailsUser.license_status || "-"} />

@@ -54,6 +54,10 @@ Deno.serve(async (req) => {
         const patch: Record<string, unknown> = { user_id: userId, updated_at: new Date().toISOString() };
         if (data.phone !== undefined) patch.phone = data.phone;
         if (data.shop_name !== undefined) patch.shop_name = data.shop_name;
+        if (data.distributor_rate !== undefined) {
+          const rate = Number(data.distributor_rate);
+          patch.distributor_rate = Number.isFinite(rate) && rate > 0 ? rate : null;
+        }
         result = await sb.from("profiles").upsert(patch, { onConflict: "user_id" });
       } else if (event.event === "ussd_credentials" && userId) {
         result = await sb.from("app_settings").upsert({

@@ -4,6 +4,7 @@ import i18n from "@/lib/i18n";
 import {
   Activity,
   BarChart3,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -11,6 +12,7 @@ import {
   Database,
   Download,
   Filter,
+  Loader2,
   Network,
   Phone,
   RefreshCw,
@@ -23,6 +25,7 @@ import {
   FileText,
   TrendingUp,
   User,
+  Wallet,
 } from "lucide-react";
 import {
   Bar,
@@ -46,14 +49,19 @@ import { cn } from "@/lib/utils";
 import { formatDate, formatDateTime } from "@/lib/format-date";
 import { useToast } from "@/hooks/use-toast";
 import {
+  buildDailyBreakdown,
+  buildFinancialSummary,
   fetchTransferReport,
+  type DailyBreakdownRow,
+  type FinancialBucket,
+  type FinancialBucketKey,
   type ReportDimension,
   type ReportFilters,
   type ReportPeriod,
   type ReportRow,
   type TransferReport,
 } from "@/lib/reports";
-import { supabase } from "@/integrations/supabase/client";
+import { getContactByPhone } from "@/lib/android-contacts";
 
 type Range = "today" | "yesterday" | "7" | "30" | "90" | "all" | "custom";
 type Dimension = "operator" | "user" | "device";
@@ -95,48 +103,6 @@ function saveNameCache() {
   } catch {}
 }
 
-async function resolveContactName(phone: string): Promise<string | null> {
-  if (nameCache[phone]) return nameCache[phone];
-  try {
-    const { data } = await supabase
-      .from("contacts")
-      .select("name")
-      .eq("phone_normalized", phone.replace(/[^\d+]/g, "").replace(/^\+963/, "0"))
-      .maybeSingle();
-    if (data?.name) {
-      nameCache[phone] = data.name;
-      saveNameCache();
-      return data.name;
-    }
-  } catch {}
-  return null;
-}
-
-async function resolveBatchNames(phones: string[]): Promise<Record<string, string>> {
-  const uncached = phones.filter((p) => !nameCache[p]);
-  if (uncached.length === 0) return nameCache;
-  try {
-    const normalized = uncached.map((p) => p.replace(/[^\d+]/g, "").replace(/^\+963/, "0"));
-    const { data } = await supabase
-      .from("contacts")
-      .select("phone_normalized, name")
-      .in("phone_normalized", normalized);
-    if (data) {
-      const phoneToNorm: Record<string, string> = {};
-      uncached.forEach((p, i) => { phoneToNorm[p] = normalized[i]; });
-      for (const row of data) {
-        for (const [orig, norm] of Object.entries(phoneToNorm)) {
-          if (row.phone_normalized === norm) {
-            nameCache[orig] = row.name;
-          }
-        }
-      }
-      saveNameCache();
-    }
-  } catch {}
-  return nameCache;
-}
-
 const Reports = () => {
 const { t, i18n } = useTranslation();
 const { toast } = useToast();
@@ -149,6 +115,8 @@ const { toast } = useToast();
   const [dimension, setDimension] = useState<Dimension>(defaultState.dimension);
   const [page, setPage] = useState(1);
   const [report, setReport] = useState<TransferReport | null>(null);
+  const [financial, setFinancial] = useState<FinancialBucket[]>(() => buildFinancialSummary());
+  const [dailyRows, setDailyRows] = useState<DailyBreakdownRow[]>(() => buildDailyBreakdown());
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
   const [sortField, setSortField] = useState<SortField>("date");
@@ -156,7 +124,6 @@ const { toast } = useToast();
   const [tabView, setTabView] = useState<TabView>("daily");
   const [showFilters, setShowFilters] = useState(false);
   const [contactNames, setContactNames] = useState<Record<string, string>>(nameCache);
-  const [resolvingNames, setResolvingNames] = useState(false);
 
   const mainFilters = useMemo<ReportFilters>(() => {
     let from: string | null = null;
@@ -197,6 +164,8 @@ const { toast } = useToast();
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setFinancial(buildFinancialSummary());
+    setDailyRows(buildDailyBreakdown());
     fetchTransferReport(mainFilters)
       .then((next) => { if (active) setReport(next); })
       .catch((err) => {
@@ -214,16 +183,21 @@ const { toast } = useToast();
     return allRows.filter((r) => r.phone.toLowerCase().includes(q));
   }, [allRows, phoneSearch]);
 
-  useEffect(() => {
-    const phones = [...new Set(allRows.map((r) => r.phone))];
-    const uncached = phones.filter((p) => !contactNames[p]);
-    if (uncached.length === 0) return;
-    setResolvingNames(true);
-    resolveBatchNames(phones).then((updated) => {
-      setContactNames({ ...updated });
-      setResolvingNames(false);
-    });
-  }, [allRows]);
+  const financialOperators = useMemo(() => {
+    const set = new Set<string>();
+    for (const bucket of financial) {
+      for (const dim of bucket.by_operator) set.add(dim.key);
+    }
+    return [...set];
+  }, [financial]);
+
+  const dailyOperators = useMemo(() => {
+    const set = new Set<string>();
+    for (const row of dailyRows) {
+      for (const dim of row.by_operator) set.add(dim.key);
+    }
+    return [...set];
+  }, [dailyRows]);
 
   const today = useMemo(() => {
     const now = new Date();
@@ -319,6 +293,35 @@ const { toast } = useToast();
     const start = (page - 1) * PAGE_SIZE;
     return sortedRows.slice(start, start + PAGE_SIZE);
   }, [sortedRows, page]);
+
+  useEffect(() => {
+    const phones = [...new Set([
+      ...pagedRows.map((r) => r.phone),
+      ...topCustomers.slice(0, 10).map((c) => c.phone),
+    ])].filter((p) => p && !nameCache[p]).slice(0, 20);
+    if (phones.length === 0) return;
+    let cancelled = false;
+    const timeout = setTimeout(async () => {
+      const { Capacitor } = await import("@capacitor/core");
+      if (!Capacitor.isNativePlatform()) return;
+      const next: Record<string, string> = {};
+      for (const phone of phones) {
+        if (cancelled) return;
+        const contact = await getContactByPhone(phone);
+        if (contact?.contactId && contact.displayName) {
+          next[phone] = contact.displayName;
+        }
+      }
+      if (cancelled || Object.keys(next).length === 0) return;
+      Object.assign(nameCache, next);
+      saveNameCache();
+      setContactNames({ ...nameCache });
+    }, 150);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [pagedRows, topCustomers]);
 
   const totalFiltered = sortedRows.length;
   const totalPages = Math.max(1, Math.ceil(totalFiltered / PAGE_SIZE));
@@ -446,6 +449,142 @@ const { toast } = useToast();
           />
         </div>
 
+        {/* 1.5 FINANCIAL SUMMARY (daily / weekly / monthly / all, per operator) */}
+        <div className="bg-white rounded-2xl shadow-sm border border-border/60 p-4.5">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <h3 className="flex items-center gap-2 text-sm font-bold">
+              <Wallet className="h-4 w-4 text-primary" /> {t("reports.financialSummary")}
+            </h3>
+            <span className="text-[10px] font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+              {t("reports.localData")}
+            </span>
+          </div>
+          {loading && !report ? (
+            <FinancialSkeleton />
+          ) : (
+            <div className="overflow-x-auto border border-border/60 rounded-xl">
+              <table className="w-full min-w-[720px] text-right text-xs">
+                <thead>
+                  <tr className="bg-muted/60 text-muted-foreground">
+                    <th className="p-3 font-semibold">{t("reports.periodCol")}</th>
+                    <th className="p-3 font-semibold">{t("reports.totalTransfersLabel")}</th>
+                    <th className="p-3 font-semibold" title={t("reports.salesHint")}>{t("reports.totalAmountLabel")}</th>
+                    <th className="p-3 font-semibold" title={t("reports.quantityHint")}>{t("reports.quantityLabel")}</th>
+                    <th className="p-3 font-semibold" title={t("reports.feeHint")}>{t("reports.distributorFeeCol")}</th>
+                    <th className="p-3 font-semibold" title={t("reports.profitHint")}>{t("reports.profitLabel")}</th>
+                    {financialOperators.map((op) => (
+                      <th key={op} className="p-3 font-semibold">{operatorDisplayName(op, t)}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {financial.map((bucket, idx) => {
+                    const profit = bucket.amount - bucket.quantity - bucket.distributor_fee;
+                    return (
+                      <tr key={bucket.key} className={cn("border-t border-border/60", idx % 2 === 0 ? "bg-white" : "bg-muted/20")}>
+                        <td className="p-3 font-bold whitespace-nowrap">
+                          {bucketLabel(bucket.key, t)}
+                        </td>
+                        <td className="p-3 text-muted-foreground">{fmt(bucket.count)}</td>
+                        <td className="p-3 font-bold whitespace-nowrap">{fmtCurrency(bucket.amount)}</td>
+                        <td className="p-3 font-semibold whitespace-nowrap">{fmtCurrency(bucket.quantity)}</td>
+                        <td className="p-3 whitespace-nowrap text-warning">{fmtCurrency(bucket.distributor_fee)}</td>
+                        <td className={cn(
+                          "p-3 font-bold whitespace-nowrap",
+                          profit > 0 ? "text-success" : profit < 0 ? "text-destructive" : ""
+                        )}>
+                          {fmtCurrency(profit)}
+                        </td>
+                        {financialOperators.map((op) => {
+                          const dim = bucket.by_operator.find((d) => d.key === op);
+                          if (!dim) return <td key={op} className="p-3 whitespace-nowrap">—</td>;
+                          return (
+                            <td key={op} className="p-3 whitespace-nowrap">
+                              <div>{fmtCurrency(dim.amount)}</div>
+                              <div className="text-[10px] text-muted-foreground">
+                                {t("reports.quantityLabel")}: {fmtCurrency(dim.quantity ?? 0)} • {t("reports.distributorFeeCol")}: {fmtCurrency(dim.distributor_fee ?? 0)}
+                              </div>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* 1.6 LAST 10 DAYS: one row per calendar date, per operator */}
+        <div className="bg-white rounded-2xl shadow-sm border border-border/60 p-4.5">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <h3 className="flex items-center gap-2 text-sm font-bold">
+              <CalendarDays className="h-4 w-4 text-primary" /> {t("reports.last10Detail")}
+            </h3>
+            <span className="text-[10px] text-muted-foreground">{t("reports.last10Hint")}</span>
+          </div>
+          {loading && !report ? (
+            <FinancialSkeleton />
+          ) : (
+            <div className="overflow-x-auto border border-border/60 rounded-xl">
+              <table className="w-full min-w-[760px] text-right text-xs">
+                <thead>
+                  <tr className="bg-muted/60 text-muted-foreground">
+                    <th className="p-3 font-semibold">{t("reports.dateCol")}</th>
+                    <th className="p-3 font-semibold">{t("reports.totalTransfersLabel")}</th>
+                    <th className="p-3 font-semibold" title={t("reports.salesHint")}>{t("reports.totalAmountLabel")}</th>
+                    <th className="p-3 font-semibold" title={t("reports.quantityHint")}>{t("reports.quantityLabel")}</th>
+                    <th className="p-3 font-semibold" title={t("reports.feeHint")}>{t("reports.distributorFeeCol")}</th>
+                    <th className="p-3 font-semibold" title={t("reports.profitHint")}>{t("reports.profitLabel")}</th>
+                    {dailyOperators.map((op) => (
+                      <th key={op} className="p-3 font-semibold">{operatorDisplayName(op, t)}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {dailyRows.map((row, idx) => {
+                    const profit = row.amount - row.quantity - row.distributor_fee;
+                    const empty = row.count === 0;
+                    return (
+                      <tr key={row.date} className={cn("border-t border-border/60", idx % 2 === 0 ? "bg-white" : "bg-muted/20", idx === 0 && "bg-primary/5 font-semibold")}>
+                        <td className="p-3 font-bold whitespace-nowrap">
+                          {formatDate(row.date)}
+                          {idx === 0 && <span className="text-[10px] text-muted-foreground"> ({t("reports.bucketToday")})</span>}
+                        </td>
+                        <td className="p-3 text-muted-foreground">{empty ? "—" : fmt(row.count)}</td>
+                        <td className="p-3 font-bold whitespace-nowrap">{empty ? "—" : fmtCurrency(row.amount)}</td>
+                        <td className="p-3 font-semibold whitespace-nowrap">{empty ? "—" : fmtCurrency(row.quantity)}</td>
+                        <td className="p-3 whitespace-nowrap text-warning">{empty ? "—" : fmtCurrency(row.distributor_fee)}</td>
+                        <td className={cn(
+                          "p-3 font-bold whitespace-nowrap",
+                          !empty && profit > 0 ? "text-success" : !empty && profit < 0 ? "text-destructive" : ""
+                        )}>
+                          {empty ? "—" : fmtCurrency(profit)}
+                        </td>
+                        {dailyOperators.map((op) => {
+                          const dim = row.by_operator.find((d) => d.key === op);
+                          if (!dim || dim.count === 0) {
+                            return <td key={op} className="p-3 text-muted-foreground">—</td>;
+                          }
+                          return (
+                            <td key={op} className="p-3 whitespace-nowrap">
+                              <div className="font-semibold">{fmt(dim.count)} {t("reports.transferUnit")} • {fmtCurrency(dim.amount)}</div>
+                              <div className="text-[10px] text-muted-foreground">
+                                {t("reports.quantityLabel")}: {fmtCurrency(dim.quantity ?? 0)} • {t("reports.distributorFeeCol")}: {fmtCurrency(dim.distributor_fee ?? 0)}
+                              </div>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
         {/* 2. TIME PERIOD CHARTS */}
         <div className="bg-white rounded-2xl shadow-sm border border-border/60 p-4.5">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -500,8 +639,15 @@ const { toast } = useToast();
               </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex items-center justify-center h-[260px] text-xs text-muted-foreground">
-              {loading ? t("common.loading") : t("reports.noPeriodData")}
+            <div className="flex items-center justify-center h-[260px] text-xs text-muted-foreground gap-2">
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t("common.loading")}
+                </>
+              ) : (
+                t("reports.noPeriodData")
+              )}
             </div>
           )}
           {periodChartData.length > 0 && (
@@ -766,6 +912,9 @@ const { toast } = useToast();
               <Button size="sm" variant="outline" onClick={exportCsv} disabled={!sortedRows.length} className="rounded-xl h-8 text-xs">
                 <Download className="ml-1 h-3 w-3" /> CSV
               </Button>
+              <Button size="icon" variant="outline" onClick={() => setReloadKey((k) => k + 1)} disabled={loading} title={t("common.refresh")} className="rounded-xl h-8 w-8">
+                <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+              </Button>
             </div>
           </div>
 
@@ -782,6 +931,7 @@ const { toast } = useToast();
                 </tr>
               </thead>
               <tbody>
+                {loading && pagedRows.length === 0 && <TableSkeletonRows cols={5} />}
                 {pagedRows.map((row, idx) => (
                   <tr key={row.id} className={cn("border-t border-border/60 align-top transition-colors hover:bg-muted/30", idx % 2 === 0 ? "bg-white" : "bg-muted/20")}>
                     <td className="whitespace-nowrap p-3">{formatDateTime(row.created_at)}</td>
@@ -800,6 +950,12 @@ const { toast } = useToast();
 
           {/* Mobile Cards */}
           <div className="md:hidden space-y-2">
+            {loading && pagedRows.length === 0 && [0, 1, 2].map((i) => (
+              <div key={`sk-m-${i}`} className="bg-white border border-border/60 rounded-xl p-3.5 space-y-2">
+                <div className="h-4 w-1/2 rounded bg-muted animate-pulse" />
+                <div className="h-4 w-3/4 rounded bg-muted animate-pulse" />
+              </div>
+            ))}
             {pagedRows.map((row) => (
               <MobileTransferCard key={row.id} row={row} name={contactNames[row.phone] || ""} />
             ))}
@@ -843,6 +999,35 @@ const { toast } = useToast();
 /* ============================================ */
 /* COMPONENTS                                   */
 /* ============================================ */
+
+function FinancialSkeleton() {
+  return (
+    <div className="space-y-2" aria-hidden>
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="flex items-center gap-3">
+          <div className="h-9 w-24 rounded-xl bg-muted animate-pulse" />
+          <div className="h-9 flex-1 rounded-xl bg-muted animate-pulse" />
+          <div className="hidden sm:block h-9 w-28 rounded-xl bg-muted animate-pulse" />
+          <div className="hidden sm:block h-9 w-28 rounded-xl bg-muted animate-pulse" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TableSkeletonRows({ cols }: { cols: number }) {
+  return (
+    <>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <tr key={`sk-${i}`} className="border-t border-border/60">
+          <td colSpan={cols} className="p-3">
+            <div className="h-4 rounded bg-muted animate-pulse" />
+          </td>
+        </tr>
+      ))}
+    </>
+  );
+}
 
 function SortHeader({ field, label, sortField, sortDir, onSort }: {
   field: SortField; label: string; sortField: SortField; sortDir: SortDir; onSort: (f: SortField) => void;
@@ -1009,6 +1194,20 @@ function dimItemLabel(dim: Dimension, item: ReportDimension): string {
     return k === "mtn" ? i18n.t("operator.mtn") : k === "syriatel" ? i18n.t("operator.syriatel") : (item.label || item.key || "").toUpperCase();
   }
   return item.label || item.key || "—";
+}
+
+function operatorDisplayName(key: string, t: (k: string) => string): string {
+  const k = (key || "").toLowerCase();
+  if (k === "mtn") return t("operator.mtn");
+  if (k === "syriatel") return t("operator.syriatel");
+  return (key || "—").toUpperCase();
+}
+
+function bucketLabel(key: FinancialBucketKey, t: (k: string) => string): string {
+  if (key === "today") return t("reports.bucketToday");
+  if (key === "week") return t("reports.bucketWeek");
+  if (key === "month") return t("reports.bucketMonth");
+  return t("reports.bucketAll");
 }
 
 function fmt(n: number): string {
