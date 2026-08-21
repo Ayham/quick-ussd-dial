@@ -292,19 +292,8 @@ export default function CustomerDisplayEntry() {
     processPayload(inputQr.trim());
   }, [inputQr, processPayload, t]);
 
-  const checkLicenseBeforeSend = useCallback((): boolean => {
-    const guard = getTransferGuard();
-    if (!guard.allowed) {
-      toast.error(guard.reason || t('customerDisplay.customer.licenseExpired'));
-      return false;
-    }
-    return true;
-  }, [t]);
-
   const sendTransferRequest = useCallback(async () => {
     if (!phone.trim() || !selectedAmount) return;
-
-    if (!checkLicenseBeforeSend()) return;
 
     setViewState('sending');
 
@@ -336,7 +325,7 @@ export default function CustomerDisplayEntry() {
       toast.error(t('customerDisplay.customer.sendFailed'));
       setViewState('connected');
     }
-  }, [phone, selectedAmount, t, checkLicenseBeforeSend]);
+  }, [phone, selectedAmount, t]);
 
   const handleNewTransfer = useCallback(() => {
     setPhone('');

@@ -569,5 +569,13 @@ export async function updateProfile(patch: Partial<Pick<UserProfile, "display_na
     if (metadataError) return { error: metadataError };
   }
 
+  const syncData: { phone?: string; shop_name?: string } = {};
+  if (normalizedPatch.phone !== undefined) syncData.phone = normalizedPatch.phone ?? undefined;
+  if (patch.shop_name !== undefined) syncData.shop_name = patch.shop_name ?? undefined;
+  if (syncData.phone || syncData.shop_name) {
+    const { trackProfileUpdate } = await import("@/lib/settings-sync");
+    trackProfileUpdate(syncData);
+  }
+
   return { error: null };
 }

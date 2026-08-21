@@ -108,12 +108,12 @@ const Index = () => {
   useEffect(() => {
     const state = location.state as { customerTransferRequest?: { requestId: string; phone: string; amount: number; price: number } } | null;
     const req = state?.customerTransferRequest;
+    console.log('[Index] Mounted, location.state:', location.state, 'req:', req);
     if (req) {
       customerRequestDataRef.current = { amount: req.amount, price: req.price };
       setPhone(req.phone);
       const matchingPreset: AmountPreset = { amount: req.amount, price: req.price };
       setSelectedAmount(matchingPreset);
-      setCustomerTransferPending(req.requestId);
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);

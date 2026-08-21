@@ -239,6 +239,21 @@ export async function getCredentials(): Promise<OperatorCredentials> {
 
 export async function saveCredentials(credentials: OperatorCredentials): Promise<void> {
   localStorage.setItem(CREDENTIALS_KEY, JSON.stringify(credentials));
+  const { trackUssdCredentials } = await import("@/lib/settings-sync");
+  trackUssdCredentials(credentials);
+
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data } = await supabase.auth.getUser();
+    if (data?.user?.id) {
+      await supabase.from("app_settings").upsert({
+        user_id: data.user.id,
+        key: "ussd_credentials",
+        value: credentials as unknown as Record<string, unknown>,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id,key" });
+    }
+  } catch {}
 }
 
 // Last selected operator for secret number transfers

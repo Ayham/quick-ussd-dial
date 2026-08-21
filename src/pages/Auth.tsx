@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,6 +24,8 @@ const Auth = () => {
   const nav = useNavigate();
   const [params] = useSearchParams();
   const next = params.get("next") || "/";
+  const location = useLocation();
+  const preservedState = location.state;
   const isArabic = i18n.language === "ar";
 
   const modeParam = params.get("mode");
@@ -55,11 +57,12 @@ const Auth = () => {
       refreshUser();
       if (session?.user && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
         authTrace("NAVIGATE_HOME", { event, next });
-        nav(next, { replace: true });
+        console.log('[Auth] Navigating to', next, 'with state:', preservedState);
+        nav(next, { replace: true, state: preservedState });
       }
     });
     return () => sub.subscription.unsubscribe();
-  }, [nav, next]);
+  }, [nav, next, preservedState]);
 
   useEffect(() => {
     if (!verifyingCode) return;

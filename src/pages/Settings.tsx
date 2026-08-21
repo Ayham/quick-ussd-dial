@@ -1,13 +1,12 @@
-import { useState, useCallback, useEffect } from "react";
+﻿import { useState, useCallback, useEffect } from "react";
 
 import {
   Plus, Trash2, Key, Code, ArrowUp, ArrowDown, Smartphone, Signal,
   AlertTriangle, Shield, Database, Settings as SettingsIcon,
-  Download, Upload, Globe, ChevronDown, Lock, FolderOpen,
+  Download, Upload, Globe, ChevronDown, FolderOpen,
   Trash, RotateCw, HardDrive, Info, AlertCircle, CheckCircle,
   Bell, Store, Palette, Wand2, Truck,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import { useTranslation } from "react-i18next";
 import { setLanguage, getLanguage } from "@/lib/i18n";
@@ -65,10 +64,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-type SettingsSection = "sim" | "codes" | "amounts" | "thresholds" | "suggestions" | "data" | "language" | "business" | "appearance" | "setupWizard" | "distributor";
+type SettingsSection = "connection" | "amounts" | "business" | "appearance" | "suggestions" | "data" | "distributor";
 
 const Settings = () => {
-  const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const isArabic = i18n.language === "ar";
   const { accentId, resetAccent } = useAccentTheme();
@@ -93,20 +91,6 @@ const Settings = () => {
   const [distributorInfo, setDistributorInfo] = useState<{ linked: boolean; distributor_code?: string; distributor_name?: string; commission_rate?: number } | null>(null);
   const [distributorLoading, setDistributorLoading] = useState(true);
 
-  // Load credentials async on mount
-  useEffect(() => {
-    getCredentials().then(setCredentials);
-    getMyDistributor().then(setDistributorInfo).catch(() => setDistributorInfo({ linked: false })).finally(() => setDistributorLoading(false));
-  }, []);
-
-  // Load profile and setup progress for the Setup Wizard section
-  useEffect(() => {
-    getProfile()
-      .then((p) => getSetupProgress(p))
-      .then((snapshot) => setSetupProgress(snapshot.overallProgress))
-      .catch(() => {});
-  }, []);
-
   const [backupPassword, setBackupPassword] = useState("");
   const [backupWithPassword, setBackupWithPassword] = useState(false);
   const [restorePreview, setRestorePreview] = useState<ReturnType<typeof getBackupPreview> | null>(null);
@@ -115,7 +99,32 @@ const Settings = () => {
   const [restoreLoading, setRestoreLoading] = useState(false);
   const [cleanupAge, setCleanupAge] = useState<number>(30 * 24 * 60 * 60 * 1000);
   const [storageStats, setStorageStats] = useState(() => getStorageStats());
-  const [showBackupInfo, setShowBackupInfo] = useState(false);
+
+  const [appLoaded, setAppLoaded] = useState(false);
+
+useEffect(() => {
+    Promise.all([
+      getCredentials().then(setCredentials),
+      getMyDistributor()
+        .then(setDistributorInfo)
+        .catch(() => setDistributorInfo({ linked: false }))
+        .finally(() => setDistributorLoading(false)),
+      getProfile()
+        .then((p) => getSetupProgress(p))
+        .then((snapshot) => setSetupProgress(snapshot.overallProgress))
+        .catch(() => {}),
+    ]).then(() => setAppLoaded(true));
+  }, []);
+
+  useEffect(() => { if (appLoaded) savePresets(presets); }, [presets, appLoaded]);
+  useEffect(() => { if (appLoaded) saveCredentials(credentials); }, [credentials, appLoaded]);
+  useEffect(() => { if (appLoaded) saveUssdTemplates(templates); }, [templates, appLoaded]);
+  useEffect(() => { if (appLoaded) savePrefixes(prefixes); }, [prefixes, appLoaded]);
+  useEffect(() => { if (appLoaded) saveSimAssignment(simAssignment); }, [simAssignment, appLoaded]);
+  useEffect(() => { if (appLoaded) saveBalanceTemplates(balanceTemplates); }, [balanceTemplates, appLoaded]);
+  useEffect(() => { if (appLoaded) saveLowBalanceThresholds(thresholds); }, [thresholds, appLoaded]);
+  useEffect(() => { if (appLoaded) saveSuggestionSettings(suggestionSettings); }, [suggestionSettings, appLoaded]);
+  useEffect(() => { if (appLoaded) saveBusinessName(businessName); }, [businessName, appLoaded]);
 
   const handleAdd = () => {
     const updated = { ...presets };
@@ -163,46 +172,16 @@ const Settings = () => {
     setPrefixes({ ...prefixes, [op]: prefixes[op].filter((p) => p !== prefix) });
   };
 
-  const handleSave = async () => {
-    if (!credentials.mtnSecret.trim()) {
-      toast.error(t("settings.mtnSecretRequired"));
-      return;
-    }
-    if (!credentials.syriatelSerial.trim()) {
-      toast.error(t("settings.syriatelSerialRequired"));
-      return;
-    }
-    if (!credentials.syriatelDistributor.trim()) {
-      toast.error(t("settings.syriatelDistributorRequired"));
-      return;
-    }
-    savePresets(presets);
-    await saveCredentials(credentials);
-    saveUssdTemplates(templates);
-    savePrefixes(prefixes);
-    saveSimAssignment(simAssignment);
-    saveBalanceTemplates(balanceTemplates);
-    saveLowBalanceThresholds(thresholds);
-    toast.success(t("settings.saveSuccess"));
-    navigate("/");
-  };
-
   const handleLanguageChange = (newLang: 'ar' | 'en') => {
     setLanguage(newLang);
     setLanguageState(newLang);
     toast.success(t('common.success'));
   };
 
-  const handleSaveBusinessName = () => {
-    saveBusinessName(businessName);
-    toast.success(t("settings.businessNameSaved"));
-  };
-
   const allHistory = getHistory();
   const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const olderThanMonth = allHistory.filter(r => r.timestamp <= monthAgo).length;
   const totalAmount = allHistory.filter(r => r.status === "success").reduce((s, r) => s + getActualDeductedAmount(r.operator, Number(r.amount)), 0);
-
 
   const handleExportBackup = async () => {
     try {
@@ -250,7 +229,7 @@ const Settings = () => {
     input.click();
   };
 
-const handleDoRestore = async () => {
+  const handleDoRestore = async () => {
     if (!restorePreview) return;
     setRestoreLoading(true);
     const input = document.createElement('input');
@@ -263,7 +242,6 @@ const handleDoRestore = async () => {
       reader.onload = async (ev) => {
         try {
           const data = JSON.parse(ev.target?.result as string);
-
           const result = await restoreBackup(data, restorePassword || undefined);
           if (result.success) {
             setPresets(getPresets());
@@ -330,595 +308,646 @@ const handleDoRestore = async () => {
   };
 
   const sections: { id: SettingsSection; label: string; icon: React.ReactNode; description: string }[] = [
-    { id: "sim", label: t("settings.sectionSim"), icon: <Smartphone className="w-5 h-5" />, description: t("settings.sectionSimDesc") },
-    { id: "business", label: t("settings.sectionBusiness"), icon: <Store className="w-5 h-5" />, description: t("settings.sectionBusinessDesc") },
-    { id: "setupWizard", label: t("settings.sectionSetupWizard"), icon: <Wand2 className="w-5 h-5" />, description: t("settings.sectionSetupWizardDesc") },
-    { id: "appearance", label: t("settings.sectionAppearance"), icon: <Palette className="w-5 h-5" />, description: t("settings.sectionAppearanceDesc") },
-    { id: "codes", label: t("settings.sectionCodes"), icon: <Code className="w-5 h-5" />, description: t("settings.sectionCodesDesc") },
+    { id: "connection", label: t("settings.sectionConnectionUssd"), icon: <Smartphone className="w-5 h-5" />, description: t("settings.sectionConnectionUssdDesc") },
     { id: "amounts", label: t("settings.sectionAmounts"), icon: <SettingsIcon className="w-5 h-5" />, description: t("settings.sectionAmountsDesc") },
-    { id: "thresholds", label: t("settings.sectionThresholds"), icon: <Bell className="w-5 h-5" />, description: t("settings.sectionThresholdsDesc") },
-    { id: "suggestions", label: t("settings.sectionSuggestions"), icon: <HardDrive className="w-5 h-5" />, description: t("settings.sectionSuggestionsDesc") },
+    { id: "business", label: t("settings.sectionBusinessSetup"), icon: <Store className="w-5 h-5" />, description: t("settings.sectionBusinessSetupDesc") },
+    { id: "appearance", label: t("settings.sectionAppearanceLang"), icon: <Palette className="w-5 h-5" />, description: t("settings.sectionAppearanceLangDesc") },
+    { id: "suggestions", label: t("settings.sectionSuggestionsAlerts"), icon: <Bell className="w-5 h-5" />, description: t("settings.sectionSuggestionsAlertsDesc") },
     { id: "data", label: t("settings.sectionData"), icon: <Database className="w-5 h-5" />, description: t("settings.sectionDataDesc") },
-    { id: "language", label: t("settings.sectionLanguage"), icon: <Globe className="w-5 h-5" />, description: t("settings.sectionLanguageDesc") },
     { id: "distributor", label: t("settings.sectionDistributor"), icon: <Truck className="w-5 h-5" />, description: t("settings.sectionDistributorDesc") },
   ];
 
-  return (
+﻿  return (
     <AppLayout title={t("settings.pageTitle")} hideNav>
-      <main className="flex-1 w-full max-w-lg mx-auto p-3 space-y-2.5 pb-8" dir={isArabic ? "rtl" : "ltr"}>
+      <main className="flex-1 w-full max-w-lg mx-auto px-4 pb-8" dir={isArabic ? "rtl" : "ltr"}>
+        <div className="flex items-center justify-center gap-1.5 py-2 mb-1 text-[11px] text-muted-foreground">
+          <CheckCircle className="w-3 h-3 text-success/70" />
+          <span>{t("settings.autoSaveNote")}</span>
+        </div>
 
-        {sections.map((section) => {
-          const isOpen = activeSection === section.id;
-          return (
-            <div key={section.id} className="animate-slide-up">
-              <button
-                onClick={() => setActiveSection(isOpen ? null : section.id)}
-                className={cn(
-                  "w-full flex items-center gap-3.5 p-4 rounded-2xl transition-all duration-200",
-                  isOpen
-                    ? "bg-primary/10 border-2 border-primary/20 shadow-sm"
-                    : "bg-white border border-border/60 shadow-sm hover:bg-muted/50 active:scale-[0.98]"
-                )}
-              >
-                <div className={cn(
-                  "w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all",
-                  isOpen ? "bg-primary text-white shadow-sm" : "bg-muted text-muted-foreground"
-                )}>
-                  {section.icon}
-                </div>
-                <div className="text-right flex-1">
-                  <span className={cn("text-sm font-bold block", isOpen ? "text-primary" : "text-foreground")}>{section.label}</span>
-                  <span className="text-[11px] text-muted-foreground">{section.description}</span>
-                </div>
-                <ChevronDown className={cn(
-                  "w-5 h-5 transition-transform duration-200",
-                  isOpen ? "text-primary rotate-180" : "text-muted-foreground"
-                )} />
-              </button>
+        <div className="space-y-2">
+          {sections.map((section) => {
+            const isOpen = activeSection === section.id;
+            return (
+              <div key={section.id} className="animate-slide-up">
+                <button
+                  onClick={() => setActiveSection(isOpen ? null : section.id)}
+                  className={cn(
+                    "w-full flex items-center gap-3 p-3.5 rounded-2xl transition-all duration-200",
+                    isOpen
+                      ? "bg-primary/10 border-2 border-primary/20 shadow-sm"
+                      : "bg-white border border-border/60 shadow-sm hover:bg-muted/50 active:scale-[0.98]"
+                  )}
+                >
+                  <div className={cn(
+                    "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all",
+                    isOpen ? "bg-primary text-white shadow-sm" : "bg-muted text-muted-foreground"
+                  )}>
+                    {section.icon}
+                  </div>
+                  <div className="text-right flex-1 min-w-0">
+                    <span className={cn("text-sm font-bold block leading-tight", isOpen ? "text-primary" : "text-foreground")}>{section.label}</span>
+                    <span className="text-[11px] text-muted-foreground leading-tight">{section.description}</span>
+                  </div>
+                  <ChevronDown className={cn(
+                    "w-4 h-4 transition-transform duration-200 shrink-0",
+                    isOpen ? "text-primary rotate-180" : "text-muted-foreground"
+                  )} />
+                </button>
 
-              {isOpen && (
-                <div className="mt-2.5 px-1 space-y-4 animate-slide-down">
-                  {/* SIM SECTION */}
-                  {section.id === "sim" && (
-                    <>
-                      <SettingsCard title={t("settings.simSection")} icon={<Key className="w-4 h-4" />}>
-                        <div className="space-y-3">
-                          <FieldInput label={t("settings.mtnSecretLabel")} value={credentials.mtnSecret}
-                            onChange={(v) => setCredentials({ ...credentials, mtnSecret: v })} placeholder={t("settings.mtnSecretPlaceholder")} />
-                          <FieldInput label={t("settings.syriatelSerialLabel")} value={credentials.syriatelSerial}
-                            onChange={(v) => setCredentials({ ...credentials, syriatelSerial: v })} placeholder={t("settings.syriatelSerialPlaceholder")} />
-                          <FieldInput label={t("settings.syriatelDistributorLabel")} value={credentials.syriatelDistributor}
-                            onChange={(v) => setCredentials({ ...credentials, syriatelDistributor: v })} placeholder={t("settings.syriatelDistributorPlaceholder")} />
-                        </div>
-                      </SettingsCard>
+                {isOpen && (
+                  <div className="mt-2 px-0.5 space-y-3 animate-slide-down">
 
-                      <SettingsCard title={t("settings.simAssignment")} icon={<Smartphone className="w-4 h-4" />}>
-                        <div className="space-y-4">
+                    {section.id === "connection" && (
+                      <>
+                        <SettingsCard title={t("settings.simSection")} icon={<Key className="w-4 h-4" />}>
+                          <div className="space-y-3">
+                            <FieldInput label={t("settings.mtnSecretLabel")} value={credentials.mtnSecret}
+                              onChange={(v) => setCredentials({ ...credentials, mtnSecret: v })} placeholder={t("settings.mtnSecretPlaceholder")} />
+                            <FieldInput label={t("settings.syriatelSerialLabel")} value={credentials.syriatelSerial}
+                              onChange={(v) => setCredentials({ ...credentials, syriatelSerial: v })} placeholder={t("settings.syriatelSerialPlaceholder")} />
+                            <FieldInput label={t("settings.syriatelDistributorLabel")} value={credentials.syriatelDistributor}
+                              onChange={(v) => setCredentials({ ...credentials, syriatelDistributor: v })} placeholder={t("settings.syriatelDistributorPlaceholder")} />
+                          </div>
+                        </SettingsCard>
+
+                        <SettingsCard title={t("settings.simAssignment")} icon={<Smartphone className="w-4 h-4" />}>
+                          <div className="space-y-4">
+                            {(["mtn", "syriatel"] as Operator[]).map((op) => (
+                              <div key={op} className="space-y-2">
+                                <p className={cn("font-bold text-sm", op === "mtn" ? "text-operator-mtn" : "text-operator-syriatel")}>
+                                  {op === "mtn" ? t("operator.mtn") : t("operator.syriatel")}
+                                </p>
+                                <div className="flex gap-2">
+                                  {([0, 1] as SimSlot[]).map((slot) => (
+                                    <button
+                                      key={slot}
+                                      onClick={() => setSimAssignment({ ...simAssignment, [op]: slot })}
+                                      className={cn(
+                                        "flex-1 py-3 rounded-xl text-sm font-bold transition-all border-2 active:scale-95",
+                                        simAssignment[op] === slot
+                                          ? op === "mtn"
+                                            ? "border-operator-mtn bg-operator-mtn/10 text-operator-mtn"
+                                            : "border-operator-syriatel bg-operator-syriatel/10 text-operator-syriatel"
+                                          : "border-border/60 text-muted-foreground bg-white"
+                                      )}
+                                    >
+                                      SIM {slot + 1}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </SettingsCard>
+
+                        <SettingsCard title={t("settings.prefixes")} icon={<Signal className="w-4 h-4" />}>
+                          <div className="space-y-4">
+                            {(["mtn", "syriatel"] as Operator[]).map((op) => (
+                              <div key={op} className="space-y-2">
+                                <p className={cn("font-bold text-sm", op === "mtn" ? "text-operator-mtn" : "text-operator-syriatel")}>
+                                  {op === "mtn" ? t("operator.mtn") : t("operator.syriatel")}
+                                </p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {prefixes[op].map((prefix) => (
+                                    <span key={prefix} className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-muted text-xs font-mono text-foreground shadow-sm">
+                                      {prefix}
+                                      <button onClick={() => handleRemovePrefix(op, prefix)} className="text-destructive hover:text-destructive/80 p-0.5">
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    </span>
+                                  ))}
+                                </div>
+                                <div className="flex gap-2">
+                                  <Input type="text" placeholder="09X" value={op === activeOperator ? newPrefix : ""}
+                                    onFocus={() => setActiveOperator(op)}
+                                    onChange={(e) => { setActiveOperator(op); setNewPrefix(e.target.value); }}
+                                    className="text-left h-9 text-xs font-mono flex-1 rounded-xl" dir="ltr" maxLength={3} inputMode="numeric" />
+                                  <Button size="sm" variant="outline" className="h-9 text-xs rounded-xl" onClick={() => handleAddPrefix(op)}>
+                                    <Plus className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </SettingsCard>
+
+                        <SettingsCard title={t("settings.ussdCodes")} icon={<Code className="w-4 h-4" />}>
+                          <div className="space-y-3">
+                            {(["mtn", "syriatel"] as Operator[]).map((op) => (
+                              <div key={op} className="space-y-1.5">
+                                <label className={cn("text-xs font-bold", op === "mtn" ? "text-operator-mtn" : "text-operator-syriatel")}>
+                                  {op === "mtn" ? t("operator.mtn") : t("operator.syriatel")}
+                                </label>
+                                <Input type="text" value={templates[op]}
+                                  onChange={(e) => setTemplates({ ...templates, [op]: e.target.value })}
+                                  className="text-left text-xs h-10 font-mono rounded-xl bg-background/50" dir="ltr" />
+                              </div>
+                            ))}
+                            <div className="text-[10px] text-muted-foreground bg-muted/60 rounded-xl p-3 border border-border/50">
+                              {t("settings.templateVariables")} <span className="font-mono bg-white px-1.5 py-0.5 rounded">{`{phone}`}</span> <span className="font-mono bg-white px-1.5 py-0.5 rounded">{`{amount}`}</span> <span className="font-mono bg-white px-1.5 py-0.5 rounded">{`{secret}`}</span> <span className="font-mono bg-white px-1.5 py-0.5 rounded">{`{serial}`}</span>
+                            </div>
+                          </div>
+                        </SettingsCard>
+
+                        <SettingsCard title={t("settings.balanceCodes")} icon={<Code className="w-4 h-4" />}>
+                          <div className="space-y-3">
+                            {(["mtn", "syriatel"] as Operator[]).map((op) => (
+                              <div key={op} className="space-y-1.5">
+                                <label className={cn("text-xs font-bold", op === "mtn" ? "text-operator-mtn" : "text-operator-syriatel")}>
+                                  {op === "mtn" ? t("operator.mtn") : t("operator.syriatel")}
+                                </label>
+                                <Input type="text" value={balanceTemplates[op]}
+                                  onChange={(e) => setBalanceTemplates({ ...balanceTemplates, [op]: e.target.value })}
+                                  className="text-left text-xs h-10 font-mono rounded-xl bg-background/50" dir="ltr" />
+                              </div>
+                            ))}
+                            <div className="text-[10px] text-muted-foreground bg-muted/60 rounded-xl p-3 border border-border/50">
+                              {t("settings.balanceTemplateVariables")} <span className="font-mono bg-white px-1.5 py-0.5 rounded">{`{secret}`}</span> <span className="font-mono bg-white px-1.5 py-0.5 rounded">{`{serial}`}</span>
+                            </div>
+                          </div>
+                        </SettingsCard>
+                      </>
+                    )}
+
+                    {section.id === "amounts" && (
+                      <>
+                        <div className="flex gap-2 p-1.5 bg-muted/80 rounded-xl border border-border/50">
                           {(["mtn", "syriatel"] as Operator[]).map((op) => (
-                            <div key={op} className="space-y-2">
-                              <p className={cn("font-bold text-sm", op === "mtn" ? "text-operator-mtn" : "text-operator-syriatel")}>
-                                {op === "mtn" ? t("operator.mtn") : t("operator.syriatel")}
-                              </p>
+                            <button key={op} onClick={() => setActiveOperator(op)}
+                              className={cn(
+                                "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all",
+                                activeOperator === op
+                                  ? op === "mtn" ? "bg-operator-mtn text-operator-mtn-foreground shadow-sm" : "bg-operator-syriatel text-white shadow-sm"
+                                  : "text-muted-foreground"
+                              )}>
+                              {op === "mtn" ? t("operator.mtn") : t("operator.syriatel")}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground px-1 font-medium">
+                            <span className="w-8" />
+                            <span className="flex-1">{t("settings.quantity")}</span>
+                            <span className="flex-1">{t("settings.priceHeader")}</span>
+                            <span className="w-9" />
+                          </div>
+                          {presets[activeOperator].map((preset, i) => (
+                            <div key={i} className="flex items-center gap-1.5 bg-white border border-border/60 rounded-xl p-1.5 shadow-sm">
+                              <div className="flex flex-col w-8">
+                                <button onClick={() => handleMovePreset(i, "up")} disabled={i === 0}
+                                  className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5">
+                                  <ArrowUp className="w-3.5 h-3.5" />
+                                </button>
+                                <button onClick={() => handleMovePreset(i, "down")} disabled={i === presets[activeOperator].length - 1}
+                                  className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5">
+                                  <ArrowDown className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                              <Input type="number" value={preset.amount || ""} onChange={(e) => handleChange(i, "amount", e.target.value)}
+                                placeholder={t("settings.quantityPlaceholder")} className="flex-1 text-left h-9 text-xs rounded-lg bg-background/50" dir="ltr" inputMode="numeric" />
+                              <Input type="number" value={preset.price || ""} onChange={(e) => handleChange(i, "price", e.target.value)}
+                                placeholder={t("settings.pricePlaceholder")} className="flex-1 text-left h-9 text-xs rounded-lg bg-background/50" dir="ltr" inputMode="numeric" />
+                              <button onClick={() => handleRemove(i)}
+                                className="w-9 h-9 flex items-center justify-center text-destructive rounded-lg hover:bg-destructive/10">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                          <button onClick={handleAdd}
+                            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors text-sm active:scale-[0.98] bg-white">
+                            <Plus className="w-4 h-4" />
+                            {t("settings.addAmount")}
+                          </button>
+                        </div>
+
+                        <SettingsCard title={t("settings.amountDisplay")} icon={<SettingsIcon className="w-4 h-4" />}>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              onClick={() => { setAmountDisplayStyle("grid"); saveAmountDisplayStyle("grid"); }}
+                              className={cn(
+                                "py-3 rounded-xl text-sm font-bold border-2 transition-all active:scale-95",
+                                amountDisplayStyle === "grid"
+                                  ? "border-primary bg-primary/10 text-primary shadow-sm"
+                                  : "border-border/60 text-muted-foreground bg-white hover:border-primary/30"
+                              )}
+                            >
+                              {t("settings.gridView")}
+                            </button>
+                            <button
+                              onClick={() => { setAmountDisplayStyle("horizontal"); saveAmountDisplayStyle("horizontal"); }}
+                              className={cn(
+                                "py-3 rounded-xl text-sm font-bold border-2 transition-all active:scale-95",
+                                amountDisplayStyle === "horizontal"
+                                  ? "border-primary bg-primary/10 text-primary shadow-sm"
+                                  : "border-border/60 text-muted-foreground bg-white hover:border-primary/30"
+                              )}
+                            >
+                              {t("settings.horizontalView")}
+                            </button>
+                          </div>
+                        </SettingsCard>
+                      </>
+                    )}
+
+﻿                    {section.id === "business" && (
+                      <>
+                        <SettingsCard title={t("settings.businessName")} icon={<Store className="w-4 h-4" />}>
+                          <div className="space-y-3">
+                            <p className="text-xs text-muted-foreground">
+                              {t("settings.businessNameDescription")}
+                            </p>
+                            <Input
+                              value={businessName}
+                              onChange={(e) => setBusinessName(e.target.value)}
+                              placeholder={t("settings.businessNamePlaceholder")}
+                              className="h-11 rounded-xl bg-background/50 text-base"
+                            />
+                          </div>
+                        </SettingsCard>
+
+                        <SettingsCard title={t("settings.setupWizardTitle")} icon={<Wand2 className="w-4 h-4" />}>
+                          <div className="space-y-3">
+                            <p className="text-xs text-muted-foreground">
+                              {t("settings.setupWizardDescription")}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {t("settings.setupWizardNote")}
+                            </p>
+                            {setupProgress !== null && (
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-bold text-foreground">{t("setupWizard.stepTitle")}</span>
+                                  <span className="text-xs font-semibold text-muted-foreground">{t("setupWizard.stepProgress", { progress: setupProgress })}</span>
+                                </div>
+                                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full bg-gradient-to-l from-primary to-[hsl(var(--primary-end))] transition-all duration-500"
+                                    style={{ width: `${setupProgress}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                            <Button onClick={() => setSetupWizardOpen(true)} className="w-full h-10 font-bold rounded-xl text-xs">
+                              {t("settings.openSetupWizard")}
+                            </Button>
+                          </div>
+                        </SettingsCard>
+                        {setupWizardOpen && (
+                          <SetupWizard onCompleted={() => {
+                            setSetupWizardOpen(false);
+                            setSetupProgress(null);
+                            getProfile()
+                              .then((p) => getSetupProgress(p))
+                              .then((snapshot) => setSetupProgress(snapshot.overallProgress))
+                              .catch(() => {});
+                          }} />
+                        )}
+                      </>
+                    )}
+
+                    {section.id === "appearance" && (
+                      <>
+                        <SettingsCard title={t("settings.appearanceTitle")} icon={<Palette className="w-4 h-4" />}>
+                          <div className="space-y-3">
+                            <p className="text-xs text-muted-foreground">{t("settings.appearanceDescription")}</p>
+                            <button
+                              type="button"
+                              onClick={() => setColorDialogOpen(true)}
+                              className="w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 border-border/60 bg-background/50 hover:border-primary/30 active:scale-[0.98] transition-all text-start"
+                            >
+                              <span
+                                className="w-10 h-10 rounded-full shrink-0"
+                                style={{
+                                  backgroundColor: "hsl(var(--primary))",
+                                  boxShadow: "0 0 0 2px hsl(var(--border)), 0 0 0 4px hsl(var(--background))",
+                                }}
+                              />
+                              <span className="flex-1">
+                                <span className="block text-sm font-bold text-foreground">{t("settings.applicationColor")}</span>
+                                <span className="block text-[11px] text-muted-foreground">{t(getAccentPreset(accentId).nameKey)}</span>
+                              </span>
+                              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                            </button>
+                            <Button variant="outline" size="sm" className="w-full h-9 text-xs rounded-xl" onClick={() => { resetAccent(); toast.success(t("settings.colorReset")); }}>
+                              <RotateCw className="w-3.5 h-3.5 me-1" />
+                              {t("settings.resetToDefault")}
+                            </Button>
+                          </div>
+                        </SettingsCard>
+                        <AccentColorDialog open={colorDialogOpen} onOpenChange={setColorDialogOpen} />
+
+                        <SettingsCard title={t("settings.language")} icon={<Globe className="w-4 h-4" />}>
+                          <div className="space-y-3">
+                            <p className="text-xs text-muted-foreground">{t("settings.languageChangeNote")}</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                onClick={() => handleLanguageChange('ar')}
+                                className={cn(
+                                  "py-3.5 rounded-xl text-sm font-bold transition-all border-2 active:scale-95",
+                                  language === 'ar'
+                                    ? "bg-primary text-white border-primary shadow-sm"
+                                    : "bg-white text-foreground border-border/60 hover:border-primary/30"
+                                )}
+                              >
+                                {t("settings.arabic")}
+                              </button>
+                              <button
+                                onClick={() => handleLanguageChange('en')}
+                                className={cn(
+                                  "py-3.5 rounded-xl text-sm font-bold transition-all border-2 active:scale-95",
+                                  language === 'en'
+                                    ? "bg-primary text-white border-primary shadow-sm"
+                                    : "bg-white text-foreground border-border/60 hover:border-primary/30"
+                                )}
+                              >
+                                {t("settings.english")}
+                              </button>
+                            </div>
+                          </div>
+                        </SettingsCard>
+                      </>
+                    )}
+
+                    {section.id === "suggestions" && (
+                      <>
+                        <SettingsCard title={t("settings.suggestions")} icon={<HardDrive className="w-4 h-4" />}>
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-foreground">{t("settings.enableSuggestions")}</span>
+                              <Switch
+                                checked={suggestionSettings.enabled}
+                                onCheckedChange={(v) => setSuggestionSettings({ ...suggestionSettings, enabled: v })}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-xs font-medium text-muted-foreground">{t("settings.maxSuggestions")}</label>
                               <div className="flex gap-2">
-                                {([0, 1] as SimSlot[]).map((slot) => (
+                                {[2, 5, 10, 15].map((n) => (
                                   <button
-                                    key={slot}
-                                    onClick={() => setSimAssignment({ ...simAssignment, [op]: slot })}
+                                    key={n}
+                                    onClick={() => setSuggestionSettings({ ...suggestionSettings, maxSuggestions: n })}
                                     className={cn(
-                                      "flex-1 py-3 rounded-xl text-sm font-bold transition-all border-2 active:scale-95",
-                                      simAssignment[op] === slot
-                                        ? op === "mtn"
-                                          ? "border-operator-mtn bg-operator-mtn/10 text-operator-mtn"
-                                          : "border-operator-syriatel bg-operator-syriatel/10 text-operator-syriatel"
-                                        : "border-border/60 text-muted-foreground bg-white"
+                                      "flex-1 py-2 rounded-xl text-sm font-bold border-2 transition-all",
+                                      suggestionSettings.maxSuggestions === n
+                                        ? "border-primary bg-primary/10 text-primary"
+                                        : "border-border/60 text-muted-foreground bg-white hover:border-primary/30"
                                     )}
                                   >
-                                    SIM {slot + 1}
+                                    {n}
                                   </button>
                                 ))}
                               </div>
                             </div>
-                          ))}
-                        </div>
-                      </SettingsCard>
-
-                      <SettingsCard title={t("settings.prefixes")} icon={<Signal className="w-4 h-4" />}>
-                        <div className="space-y-4">
-                          {(["mtn", "syriatel"] as Operator[]).map((op) => (
-                            <div key={op} className="space-y-2">
-                              <p className={cn("font-bold text-sm", op === "mtn" ? "text-operator-mtn" : "text-operator-syriatel")}>
-                                {op === "mtn" ? t("operator.mtn") : t("operator.syriatel")}
-                              </p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {prefixes[op].map((prefix) => (
-                                  <span key={prefix} className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-muted text-xs font-mono text-foreground shadow-sm">
-                                    {prefix}
-                                    <button onClick={() => handleRemovePrefix(op, prefix)} className="text-destructive hover:text-destructive/80 p-0.5">
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
-                                  </span>
-                                ))}
-                              </div>
-                              <div className="flex gap-2">
-                                <Input type="text" placeholder="09X" value={op === activeOperator ? newPrefix : ""}
-                                  onFocus={() => setActiveOperator(op)}
-                                  onChange={(e) => { setActiveOperator(op); setNewPrefix(e.target.value); }}
-                                  className="text-left h-9 text-xs font-mono flex-1 rounded-xl" dir="ltr" maxLength={3} inputMode="numeric" />
-                                <Button size="sm" variant="outline" className="h-9 text-xs rounded-xl" onClick={() => handleAddPrefix(op)}>
-                                  <Plus className="w-3.5 h-3.5" />
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </SettingsCard>
-
-                      <Button onClick={handleSave} className="w-full h-12 font-bold rounded-xl shadow-sm mt-2">{t("settings.saveSimSettings")}</Button>
-                    </>
-                  )}
-
-{/* BUSINESS SECTION */}
-                  {section.id === "business" && (
-                    <>
-                      <SettingsCard title={t("settings.businessName")} icon={<Store className="w-4 h-4" />}>
-                        <div className="space-y-3">
-                          <p className="text-xs text-muted-foreground">
-                            {t("settings.businessNameDescription")}
-                          </p>
-                          <Input
-                            value={businessName}
-                            onChange={(e) => setBusinessName(e.target.value)}
-                            placeholder={t("settings.businessNamePlaceholder")}
-                            className="h-11 rounded-xl bg-background/50 text-base"
-                          />
-                        </div>
-                      </SettingsCard>
-                       <Button onClick={handleSaveBusinessName} className="w-full h-12 font-bold rounded-xl shadow-sm mt-2">{t("settings.saveBusinessName")}</Button>
-                    </>
-                  )}
-
-                  {/* SETUP WIZARD SECTION */}
-                  {section.id === "setupWizard" && (
-                    <>
-                      <SettingsCard title={t("settings.setupWizardTitle")} icon={<Wand2 className="w-4 h-4" />}>
-                        <div className="space-y-3">
-                          <p className="text-xs text-muted-foreground">
-                            {t("settings.setupWizardDescription")}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {t("settings.setupWizardNote")}
-                          </p>
-                          {setupProgress !== null && (
-                            <div className="space-y-1.5">
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-bold text-foreground">{t("setupWizard.stepTitle")}</span>
-                                <span className="text-xs font-semibold text-muted-foreground">{t("setupWizard.stepProgress", { progress: setupProgress })}</span>
-                              </div>
-                              <div className="h-2 rounded-full bg-muted overflow-hidden">
-                                <div
-                                  className="h-full rounded-full bg-gradient-to-l from-primary to-[hsl(var(--primary-end))] transition-all duration-500"
-                                  style={{ width: `${setupProgress}%` }}
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </SettingsCard>
-                      <Button onClick={() => setSetupWizardOpen(true)} className="w-full h-12 font-bold rounded-xl shadow-sm mt-2">{t("settings.openSetupWizard")}</Button>
-                      {setupWizardOpen && (
-                        <SetupWizard onCompleted={() => {
-                          setSetupWizardOpen(false);
-                          setSetupProgress(null);
-                          getProfile()
-                            .then((p) => getSetupProgress(p))
-                            .then((snapshot) => setSetupProgress(snapshot.overallProgress))
-                            .catch(() => {});
-                        }} />
-                      )}
-                    </>
-                  )}
-
-                  {/* APPEARANCE SECTION */}
-                   {section.id === "appearance" && (
-                     <>
-                       <SettingsCard title={t("settings.appearanceTitle")} icon={<Palette className="w-4 h-4" />}>
-                         <div className="space-y-3">
-                           <p className="text-xs text-muted-foreground">{t("settings.appearanceDescription")}</p>
-                           <button
-                             type="button"
-                             onClick={() => setColorDialogOpen(true)}
-                             className="w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 border-border/60 bg-background/50 hover:border-primary/30 active:scale-[0.98] transition-all text-start"
-                           >
-                             <span
-                               className="w-10 h-10 rounded-full shrink-0"
-                               style={{
-                                 backgroundColor: "hsl(var(--primary))",
-                                 boxShadow: "0 0 0 2px hsl(var(--border)), 0 0 0 4px hsl(var(--background))",
-                               }}
-                             />
-                             <span className="flex-1">
-                               <span className="block text-sm font-bold text-foreground">{t("settings.applicationColor")}</span>
-                               <span className="block text-[11px] text-muted-foreground">{t(getAccentPreset(accentId).nameKey)}</span>
-                             </span>
-                             <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                           </button>
-                           <Button variant="outline" size="sm" className="w-full h-10 text-xs rounded-xl" onClick={() => { resetAccent(); toast.success(t("settings.colorReset")); }}>
-                             <RotateCw className="w-3.5 h-3.5 me-1" />
-                             {t("settings.resetToDefault")}
-                           </Button>
-                         </div>
-                       </SettingsCard>
-                       <AccentColorDialog open={colorDialogOpen} onOpenChange={setColorDialogOpen} />
-                     </>
-                   )}
-
-                   {/* CODES SECTION */}
-                  {section.id === "codes" && (
-                    <>
-                      <SettingsCard title={t("settings.ussdCodes")} icon={<Code className="w-4 h-4" />}>
-                        <div className="space-y-3">
-                          {(["mtn", "syriatel"] as Operator[]).map((op) => (
-                            <div key={op} className="space-y-1.5">
-                              <label className={cn("text-xs font-bold", op === "mtn" ? "text-operator-mtn" : "text-operator-syriatel")}>
-                                {op === "mtn" ? t("operator.mtn") : t("operator.syriatel")}
-                              </label>
-                              <Input type="text" value={templates[op]}
-                                onChange={(e) => setTemplates({ ...templates, [op]: e.target.value })}
-                                className="text-left text-xs h-10 font-mono rounded-xl bg-background/50" dir="ltr" />
-                            </div>
-                          ))}
-                          <div className="text-[10px] text-muted-foreground bg-muted/60 rounded-xl p-3 border border-border/50">
-                            {t("settings.templateVariables")} <span className="font-mono bg-white px-1.5 py-0.5 rounded">{`{phone}`}</span> <span className="font-mono bg-white px-1.5 py-0.5 rounded">{`{amount}`}</span> <span className="font-mono bg-white px-1.5 py-0.5 rounded">{`{secret}`}</span> <span className="font-mono bg-white px-1.5 py-0.5 rounded">{`{serial}`}</span>
-                          </div>
-                        </div>
-                      </SettingsCard>
-
-                      <SettingsCard title={t("settings.balanceCodes")} icon={<Code className="w-4 h-4" />}>
-                        <div className="space-y-3">
-                          {(["mtn", "syriatel"] as Operator[]).map((op) => (
-                            <div key={op} className="space-y-1.5">
-                              <label className={cn("text-xs font-bold", op === "mtn" ? "text-operator-mtn" : "text-operator-syriatel")}>
-                                {op === "mtn" ? t("operator.mtn") : t("operator.syriatel")}
-                              </label>
-                              <Input type="text" value={balanceTemplates[op]}
-                                onChange={(e) => setBalanceTemplates({ ...balanceTemplates, [op]: e.target.value })}
-                                className="text-left text-xs h-10 font-mono rounded-xl bg-background/50" dir="ltr" />
-                            </div>
-                          ))}
-                          <div className="text-[10px] text-muted-foreground bg-muted/60 rounded-xl p-3 border border-border/50">
-                            {t("settings.balanceTemplateVariables")} <span className="font-mono bg-white px-1.5 py-0.5 rounded">{`{secret}`}</span> <span className="font-mono bg-white px-1.5 py-0.5 rounded">{`{serial}`}</span>
-                          </div>
-                        </div>
-                      </SettingsCard>
-
-                      <Button onClick={handleSave} className="w-full h-12 font-bold rounded-xl shadow-sm mt-2">{t("settings.saveCodes")}</Button>
-                    </>
-                  )}
-
-                  {/* AMOUNTS SECTION */}
-                  {section.id === "amounts" && (
-                    <>
-                      <div className="flex gap-2 p-1.5 bg-muted/80 rounded-xl border border-border/50">
-                        {(["mtn", "syriatel"] as Operator[]).map((op) => (
-                          <button key={op} onClick={() => setActiveOperator(op)}
-                            className={cn(
-                              "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all",
-                              activeOperator === op
-                                ? op === "mtn" ? "bg-operator-mtn text-operator-mtn-foreground shadow-sm" : "bg-operator-syriatel text-white shadow-sm"
-                                : "text-muted-foreground"
-                            )}>
-                            {op === "mtn" ? t("operator.mtn") : t("operator.syriatel")}
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground px-1 font-medium">
-                          <span className="w-8" />
-                          <span className="flex-1">{t("settings.quantity")}</span>
-                          <span className="flex-1">{t("settings.priceHeader")}</span>
-                          <span className="w-10" />
-                        </div>
-                        {presets[activeOperator].map((preset, i) => (
-                          <div key={i} className="flex items-center gap-1.5 bg-white border border-border/60 rounded-xl p-1.5 shadow-sm">
-                            <div className="flex flex-col w-8">
-                              <button onClick={() => handleMovePreset(i, "up")} disabled={i === 0}
-                                className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5">
-                                <ArrowUp className="w-3.5 h-3.5" />
-                              </button>
-                              <button onClick={() => handleMovePreset(i, "down")} disabled={i === presets[activeOperator].length - 1}
-                                className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5">
-                                <ArrowDown className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                            <Input type="number" value={preset.amount || ""} onChange={(e) => handleChange(i, "amount", e.target.value)}
-                              placeholder={t("settings.quantityPlaceholder")} className="flex-1 text-left h-9 text-xs rounded-lg bg-background/50" dir="ltr" inputMode="numeric" />
-                            <Input type="number" value={preset.price || ""} onChange={(e) => handleChange(i, "price", e.target.value)}
-                              placeholder={t("settings.pricePlaceholder")} className="flex-1 text-left h-9 text-xs rounded-lg bg-background/50" dir="ltr" inputMode="numeric" />
-                            <button onClick={() => handleRemove(i)}
-                              className="w-9 h-9 flex items-center justify-center text-destructive rounded-lg hover:bg-destructive/10">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
-                        <button onClick={handleAdd}
-                          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors text-sm active:scale-[0.98] bg-white">
-                          <Plus className="w-4 h-4" />
-                          {t("settings.addAmount")}
-                        </button>
-                      </div>
-
-                      <SettingsCard title={t("settings.amountDisplay")} icon={<SettingsIcon className="w-4 h-4" />}>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            onClick={() => { setAmountDisplayStyle("grid"); saveAmountDisplayStyle("grid"); }}
-                            className={cn(
-                              "py-3.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95",
-                              amountDisplayStyle === "grid"
-                                ? "border-primary bg-primary/10 text-primary shadow-sm"
-                                : "border-border/60 text-muted-foreground bg-white hover:border-primary/30"
-                            )}
-                          >
-                            {t("settings.gridView")}
-                          </button>
-                          <button
-                            onClick={() => { setAmountDisplayStyle("horizontal"); saveAmountDisplayStyle("horizontal"); }}
-                            className={cn(
-                              "py-3.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95",
-                              amountDisplayStyle === "horizontal"
-                                ? "border-primary bg-primary/10 text-primary shadow-sm"
-                                : "border-border/60 text-muted-foreground bg-white hover:border-primary/30"
-                            )}
-                          >
-                            {t("settings.horizontalView")}
-                          </button>
-                        </div>
-                      </SettingsCard>
-
-                      <Button onClick={handleSave} className="w-full h-12 font-bold rounded-xl shadow-sm mt-2">{t("settings.saveAmounts")}</Button>
-                    </>
-                  )}
-
-                  {/* SUGGESTIONS SECTION */}
-                  {section.id === "suggestions" && (
-                    <>
-                      <SettingsCard title={t("settings.suggestions")} icon={<HardDrive className="w-4 h-4" />}>
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-foreground">{t("settings.enableSuggestions")}</span>
-                            <Switch
-                              checked={suggestionSettings.enabled}
-                              onCheckedChange={(v) => setSuggestionSettings({ ...suggestionSettings, enabled: v })}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-medium text-muted-foreground">{t("settings.maxSuggestions")}</label>
-                            <div className="flex gap-2">
-                              {[2, 5, 10, 15].map((n) => (
-                                <button
-                                  key={n}
-                                  onClick={() => setSuggestionSettings({ ...suggestionSettings, maxSuggestions: n })}
-                                  className={cn(
-                                    "flex-1 py-2 rounded-xl text-sm font-bold border-2 transition-all",
-                                    suggestionSettings.maxSuggestions === n
-                                      ? "border-primary bg-primary/10 text-primary"
-                                      : "border-border/60 text-muted-foreground bg-white hover:border-primary/30"
-                                  )}
-                                >
-                                  {n}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-medium text-muted-foreground">{t("settings.suggestionSource")}</label>
-                            <div className="space-y-1.5">
-                              {([
-                                { value: "both" as SuggestionSource, label: t("settings.sourceBoth"), desc: t("settings.sourceBothDesc") },
-                                { value: "history" as SuggestionSource, label: t("settings.sourceHistory"), desc: t("settings.sourceHistoryDesc") },
-                                { value: "contacts" as SuggestionSource, label: t("settings.sourceContacts"), desc: t("settings.sourceContactsDesc") },
-                              ]).map((opt) => (
-                                <button
-                                  key={opt.value}
-                                  onClick={() => setSuggestionSettings({ ...suggestionSettings, source: opt.value })}
-                                  className={cn(
-                                    "w-full flex items-center gap-2.5 p-3 rounded-xl border-2 transition-all text-start",
-                                    suggestionSettings.source === opt.value
-                                      ? "border-primary bg-primary/10"
-                                      : "border-border/60 bg-white hover:border-primary/30"
-                                  )}
-                                >
-                                  <span className={cn(
-                                    "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
-                                    suggestionSettings.source === opt.value
-                                      ? "border-primary bg-primary"
-                                      : "border-border bg-white"
-                                  )}>
-                                    {suggestionSettings.source === opt.value && (
-                                      <CheckCircle className="w-3.5 h-3.5 text-white" />
+                            <div className="space-y-2">
+                              <label className="text-xs font-medium text-muted-foreground">{t("settings.suggestionSource")}</label>
+                              <div className="space-y-1.5">
+                                {([
+                                  { value: "both" as SuggestionSource, label: t("settings.sourceBoth"), desc: t("settings.sourceBothDesc") },
+                                  { value: "history" as SuggestionSource, label: t("settings.sourceHistory"), desc: t("settings.sourceHistoryDesc") },
+                                  { value: "contacts" as SuggestionSource, label: t("settings.sourceContacts"), desc: t("settings.sourceContactsDesc") },
+                                ]).map((opt) => (
+                                  <button
+                                    key={opt.value}
+                                    onClick={() => setSuggestionSettings({ ...suggestionSettings, source: opt.value })}
+                                    className={cn(
+                                      "w-full flex items-center gap-2.5 p-3 rounded-xl border-2 transition-all text-start",
+                                      suggestionSettings.source === opt.value
+                                        ? "border-primary bg-primary/10"
+                                        : "border-border/60 bg-white hover:border-primary/30"
                                     )}
-                                  </span>
-                                  <span className="flex flex-col">
+                                  >
                                     <span className={cn(
-                                      "text-sm font-bold",
-                                      suggestionSettings.source === opt.value ? "text-primary" : "text-foreground"
+                                      "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+                                      suggestionSettings.source === opt.value
+                                        ? "border-primary bg-primary"
+                                        : "border-border bg-white"
                                     )}>
-                                      {opt.label}
+                                      {suggestionSettings.source === opt.value && (
+                                        <CheckCircle className="w-3.5 h-3.5 text-white" />
+                                      )}
                                     </span>
-                                    <span className="text-[11px] text-muted-foreground">{opt.desc}</span>
-                                  </span>
+                                    <span className="flex flex-col">
+                                      <span className={cn(
+                                        "text-sm font-bold",
+                                        suggestionSettings.source === opt.value ? "text-primary" : "text-foreground"
+                                      )}>
+                                        {opt.label}
+                                      </span>
+                                      <span className="text-[11px] text-muted-foreground">{opt.desc}</span>
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-foreground">{t("settings.showLastPrice")}</span>
+                              <Switch checked={suggestionSettings.showLastPrice} onCheckedChange={(v) => setSuggestionSettings({ ...suggestionSettings, showLastPrice: v })} />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-foreground">{t("settings.showTransferCount")}</span>
+                              <Switch checked={suggestionSettings.showCount} onCheckedChange={(v) => setSuggestionSettings({ ...suggestionSettings, showCount: v })} />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-foreground">{t("settings.showLastTime")}</span>
+                              <Switch checked={suggestionSettings.showLastTime} onCheckedChange={(v) => setSuggestionSettings({ ...suggestionSettings, showLastTime: v })} />
+                            </div>
+                          </div>
+                        </SettingsCard>
+
+                        <SettingsCard title={t("settings.lowBalance")} icon={<Bell className="w-4 h-4" />}>
+                          <div className="space-y-4">
+                            <p className="text-xs text-muted-foreground">{t("settings.lowBalanceDescription")}</p>
+                            <div className="space-y-3">
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-operator-mtn">{t("operator.mtn")}</label>
+                                <Input type="number" value={thresholds.mtn || ""}
+                                  onChange={(e) => setThresholds({ ...thresholds, mtn: Number(e.target.value) || 0 })}
+                                  placeholder="10000"
+                                  className="text-left h-10 rounded-xl bg-background/50 text-sm" dir="ltr" inputMode="numeric" />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-operator-syriatel">{t("operator.syriatel")}</label>
+                                <Input type="number" value={thresholds.syriatel || ""}
+                                  onChange={(e) => setThresholds({ ...thresholds, syriatel: Number(e.target.value) || 0 })}
+                                  placeholder="10000"
+                                  className="text-left h-10 rounded-xl bg-background/50 text-sm" dir="ltr" inputMode="numeric" />
+                              </div>
+                            </div>
+                          </div>
+                        </SettingsCard>
+                      </>
+                    )}
+
+﻿                    {section.id === "data" && (
+                      <>
+                        <SettingsCard title={t("settings.backupRestore")} icon={<Download className="w-4 h-4" />}>
+                          <div className="space-y-3">
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                              {t("settings.backupDescription")}
+                            </p>
+
+                            <div className="bg-muted/40 rounded-xl p-3.5 space-y-2.5 border border-border/40">
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t("settings.includedData")}</p>
+                              <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                                <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.appSettings")}</span>
+                                <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.ussdCodes")}</span>
+                                <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.readyAmounts")}</span>
+                                <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.prefixes")}</span>
+                                <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.simMaps")}</span>
+                                <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.balanceTemplates")}</span>
+                                <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.transferLog")}</span>
+                                <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.balanceData")}</span>
+                                <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.businessName")}</span>
+                              </div>
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-2 pt-2 border-t border-border/40">{t("settings.excludedData")}</p>
+                              <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                                <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> {t("settings.licenseKey")}</span>
+                                <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> {t("settings.deviceId")}</span>
+                                <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> {t("settings.activationStatus")}</span>
+                                <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> {t("settings.loginData")}</span>
+                                <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> {t("settings.supabaseData")}</span>
+                                <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> {t("settings.errorLogs")}</span>
+                                <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> {t("settings.secretSimData")}</span>
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                                <input type="checkbox" checked={backupWithPassword}
+                                  onChange={(e) => setBackupWithPassword(e.target.checked)}
+                                  className="w-4 h-4 accent-primary" />
+                                <Shield className="w-3.5 h-3.5" />
+                                {t("settings.encryptBackup")}
+                              </label>
+                              {backupWithPassword && (
+                                <Input type="password" placeholder={t("settings.backupPasswordPlaceholder")} value={backupPassword}
+                                  onChange={(e) => setBackupPassword(e.target.value)}
+                                  className="text-right h-10 rounded-xl bg-background/50 text-sm" />
+                              )}
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button onClick={handleExportBackup} variant="outline" size="sm"
+                                className="flex-1 text-xs h-10 rounded-xl">
+                                <Download className="w-3.5 h-3.5 me-1" />
+                                {t("settings.createBackupBtn")}
+                              </Button>
+                              <Button onClick={handleImportBackup} variant="outline" size="sm"
+                                className="flex-1 text-xs h-10 rounded-xl">
+                                <Upload className="w-3.5 h-3.5 me-1" />
+                                {t("settings.restoreBtn")}
+                              </Button>
+                            </div>
+                          </div>
+                        </SettingsCard>
+
+                        {restorePreview && (
+                          <SettingsCard title={t("settings.restorePreview")} icon={<FolderOpen className="w-4 h-4" />}>
+                            <div className="space-y-3">
+                              <div className="bg-muted/40 rounded-xl p-3 space-y-2 text-xs border border-border/40">
+                                <div className="flex justify-between"><span className="text-muted-foreground">{t("settings.version")}</span><span className="font-bold">{restorePreview.backupVersion}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">{t("settings.date")}</span><span className="font-bold">{restorePreview.createdAt}</span></div>
+                                <div className="flex justify-between items-center"><span className="text-muted-foreground">{t("settings.appVersion")}</span><span className={cn("font-bold", restorePreview.appVersion !== "0.4.5" ? "text-accent" : "")}>{restorePreview.appVersion}</span></div>
+                              </div>
+                              <div className="space-y-1.5">
+                                <div className="flex items-center gap-2 text-xs"><CheckCircle className="w-3.5 h-3.5 text-success" /><span>{t("settings.presetsCount", { count: restorePreview.presetsCount })}</span></div>
+                                <div className="flex items-center gap-2 text-xs"><CheckCircle className="w-3.5 h-3.5 text-success" /><span>{t("settings.transferCount", { count: restorePreview.transferCount })}</span></div>
+                                <div className="flex items-center gap-2 text-xs"><CheckCircle className="w-3.5 h-3.5 text-success" /><span>{t("settings.balanceEntries", { count: restorePreview.balanceEntries })}</span></div>
+                              </div>
+                              {restoreErrors.length > 0 && (
+                                <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-3 text-xs space-y-1">
+                                  {restoreErrors.map((err, i) => (
+                                    <p key={i} className="text-destructive flex items-center gap-1.5"><AlertCircle className="w-3 h-3" />{err}</p>
+                                  ))}
+                                </div>
+                              )}
+                              {restorePreview.appVersion !== "0.4.5" && (
+                                <p className="text-[11px] text-accent bg-accent/10 rounded-xl p-2.5 border border-accent/20">
+                                  {t("settings.versionMismatchWarning")}
+                                </p>
+                              )}
+                              <div className="flex gap-2">
+                                <Button onClick={() => { setRestorePreview(null); setRestoreErrors([]); setRestorePassword(""); }}
+                                  variant="outline" size="sm" className="flex-1 text-xs h-10 rounded-xl">{t("settings.cancel")}</Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button size="sm" className="flex-1 text-xs h-10 rounded-xl font-bold">{t("settings.restoreBtn")}</Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>{t("settings.restoreConfirmTitle")}</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        {t("settings.restoreConfirmDesc")}
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>{t("settings.cancel")}</AlertDialogCancel>
+                                      <AlertDialogAction onClick={handleDoRestore} disabled={restoreLoading}>
+                                        {restoreLoading ? t("settings.restoring") : t("settings.restoreBtn")}
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            </div>
+                          </SettingsCard>
+                        )}
+
+                        <SettingsCard title={t("settings.dataManagement")} icon={<Database className="w-4 h-4" />}>
+                          <div className="space-y-3">
+                            <div className="bg-muted/60 rounded-xl divide-y divide-border/60 border border-border/50 text-xs">
+                              <InfoRow label={t("settings.transferLog")} value={`${allHistory.length} ${t("settings.operations")}`} />
+                              <InfoRow label={t("settings.totalTransfers")} value={`${totalAmount.toLocaleString()} ${t("common.currencySymbol")}`} />
+                              <InfoRow label={t("settings.lastOperation")} value={allHistory.length > 0 ? getTimeSince(allHistory[0].timestamp, t) : "—"} />
+                              <InfoRow label={t("settings.oldOperations")} value={`${olderThanMonth} (${t("settings.moreThanMonth")})`} valueClassName={olderThanMonth > 0 ? "text-destructive" : undefined} />
+                              <InfoRow label={t("settings.storageUsage")} value={getFormattedSize(storageStats.totalBytes)} />
+                            </div>
+                          </div>
+                        </SettingsCard>
+
+                        <SettingsCard title={t("settings.cleanup")} icon={<Trash className="w-4 h-4" />}>
+                          <div className="space-y-3">
+                            <p className="text-[11px] text-muted-foreground">{t("settings.cleanupDescription")}</p>
+                            <div className="space-y-2">
+                              {([
+                                { label: t("settings.cleanupMonth"), ms: 30 * 24 * 60 * 60 * 1000 },
+                                { label: t("settings.cleanup3Months"), ms: 90 * 24 * 60 * 60 * 1000 },
+                                { label: t("settings.cleanupYear"), ms: 365 * 24 * 60 * 60 * 1000 },
+                              ]).map((option) => (
+                                <button key={option.ms} onClick={() => handleCleanup(option.ms)}
+                                  className={cn(
+                                    "w-full flex items-center justify-between p-3 rounded-xl border transition-all text-sm",
+                                    cleanupAge === option.ms
+                                      ? "border-primary bg-primary/5 text-primary"
+                                      : "border-border/60 bg-white text-foreground hover:border-primary/30"
+                                  )}>
+                                  <span>{option.label}</span>
+                                  {cleanupAge === option.ms && <CheckCircle className="w-4 h-4" />}
                                 </button>
                               ))}
                             </div>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-foreground">{t("settings.showLastPrice")}</span>
-                            <Switch
-                              checked={suggestionSettings.showLastPrice}
-                              onCheckedChange={(v) => setSuggestionSettings({ ...suggestionSettings, showLastPrice: v })}
-                            />
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-foreground">{t("settings.showTransferCount")}</span>
-                            <Switch
-                              checked={suggestionSettings.showCount}
-                              onCheckedChange={(v) => setSuggestionSettings({ ...suggestionSettings, showCount: v })}
-                            />
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-foreground">{t("settings.showLastTime")}</span>
-                            <Switch
-                              checked={suggestionSettings.showLastTime}
-                              onCheckedChange={(v) => setSuggestionSettings({ ...suggestionSettings, showLastTime: v })}
-                            />
-                          </div>
-                        </div>
-                      </SettingsCard>
-                      <Button onClick={() => { saveSuggestionSettings(suggestionSettings); toast.success(t("settings.suggestionsSaved")); }} className="w-full h-12 font-bold rounded-xl shadow-sm" variant="outline">
-                        {t("settings.saveSuggestions")}
-                      </Button>
-                    </>
-                  )}
-
-                  {/* THRESHOLDS SECTION */}
-                  {section.id === "thresholds" && (
-                    <>
-                      <SettingsCard title={t("settings.lowBalance")} icon={<Bell className="w-4 h-4" />}>
-                        <div className="space-y-4">
-                          <p className="text-xs text-muted-foreground">
-                            {t("settings.lowBalanceDescription")}
-                          </p>
-                          <div className="space-y-3">
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-bold text-operator-mtn">{t("operator.mtn")}</label>
-                              <Input type="number" value={thresholds.mtn || ""}
-                                onChange={(e) => setThresholds({ ...thresholds, mtn: Number(e.target.value) || 0 })}
-                                placeholder="10000"
-                                className="text-left h-11 rounded-xl border-2 bg-background/50" dir="ltr" inputMode="numeric" />
-                            </div>
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-bold text-operator-syriatel">{t("operator.syriatel")}</label>
-                              <Input type="number" value={thresholds.syriatel || ""}
-                                onChange={(e) => setThresholds({ ...thresholds, syriatel: Number(e.target.value) || 0 })}
-                                placeholder="10000"
-                                className="text-left h-11 rounded-xl border-2 bg-background/50" dir="ltr" inputMode="numeric" />
-                            </div>
-                          </div>
-                        </div>
-                      </SettingsCard>
-                      <Button onClick={handleSave} className="w-full h-12 font-bold rounded-xl shadow-sm mt-2">{t("settings.saveThresholds")}</Button>
-                    </>
-                  )}
-
-                   {/* DATA SECTION */}
-                  {section.id === "data" && (
-                    <>
-                      {/* Backup & Restore */}
-                      <SettingsCard title={t("settings.backupRestore")} icon={<Download className="w-4 h-4" />}>
-                        <div className="space-y-3">
-                          <p className="text-[11px] text-muted-foreground leading-relaxed">
-                            {t("settings.backupDescription")}
-                          </p>
-
-                          <div className="bg-muted/40 rounded-xl p-3.5 space-y-2.5 border border-border/40">
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t("settings.includedData")}</p>
-                            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.appSettings")}</span>
-                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.ussdCodes")}</span>
-                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.readyAmounts")}</span>
-                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.prefixes")}</span>
-                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.simMaps")}</span>
-                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.balanceTemplates")}</span>
-                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.transferLog")}</span>
-                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.balanceData")}</span>
-                              <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-success" /> {t("settings.businessName")}</span>
-                            </div>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-2 pt-2 border-t border-border/40">{t("settings.excludedData")}</p>
-                            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-                              <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> {t("settings.licenseKey")}</span>
-                              <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> {t("settings.deviceId")}</span>
-                              <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> {t("settings.activationStatus")}</span>
-                              <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> {t("settings.loginData")}</span>
-                              <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> {t("settings.supabaseData")}</span>
-                              <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> {t("settings.errorLogs")}</span>
-                              <span className="flex items-center gap-1.5"><Trash2 className="w-3 h-3 text-destructive" /> {t("settings.secretSimData")}</span>
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-                              <input type="checkbox" checked={backupWithPassword}
-                                onChange={(e) => setBackupWithPassword(e.target.checked)}
-                                className="w-4 h-4 accent-primary" />
-                              <Shield className="w-3.5 h-3.5" />
-                              {t("settings.encryptBackup")}
-                            </label>
-                            {backupWithPassword && (
-                              <Input type="password" placeholder={t("settings.backupPasswordPlaceholder")} value={backupPassword}
-                                onChange={(e) => setBackupPassword(e.target.value)}
-                                className="text-right h-10 rounded-xl bg-background/50 text-sm" />
-                            )}
-                          </div>
-
-                          <div className="flex gap-2">
-                            <Button onClick={handleExportBackup} variant="outline" size="sm"
-                              className="flex-1 text-xs h-10 rounded-xl">
-                              <Download className="w-3.5 h-3.5 me-1" />
-                              {t("settings.createBackupBtn")}
-                            </Button>
-                            <Button onClick={handleImportBackup} variant="outline" size="sm"
-                              className="flex-1 text-xs h-10 rounded-xl">
-                              <Upload className="w-3.5 h-3.5 me-1" />
-                              {t("settings.restoreBtn")}
-                            </Button>
-                          </div>
-                        </div>
-                      </SettingsCard>
-
-                      {/* Restore Preview */}
-                      {restorePreview && (
-                        <SettingsCard title={t("settings.restorePreview")} icon={<FolderOpen className="w-4 h-4" />}>
-                          <div className="space-y-3">
-                            <div className="bg-muted/40 rounded-xl p-3 space-y-2 text-xs border border-border/40">
-                              <div className="flex justify-between"><span className="text-muted-foreground">{t("settings.version")}</span><span className="font-bold">{restorePreview.backupVersion}</span></div>
-                              <div className="flex justify-between"><span className="text-muted-foreground">{t("settings.date")}</span><span className="font-bold">{restorePreview.createdAt}</span></div>
-                              <div className="flex justify-between items-center"><span className="text-muted-foreground">{t("settings.appVersion")}</span><span className={cn("font-bold", restorePreview.appVersion !== "0.4.5" ? "text-accent" : "")}>{restorePreview.appVersion}</span></div>
-                            </div>
-                            <div className="space-y-1.5">
-                              <div className="flex items-center gap-2 text-xs"><CheckCircle className="w-3.5 h-3.5 text-success" /><span>{t("settings.presetsCount", { count: restorePreview.presetsCount })}</span></div>
-                              <div className="flex items-center gap-2 text-xs"><CheckCircle className="w-3.5 h-3.5 text-success" /><span>{t("settings.transferCount", { count: restorePreview.transferCount })}</span></div>
-                              <div className="flex items-center gap-2 text-xs"><CheckCircle className="w-3.5 h-3.5 text-success" /><span>{t("settings.balanceEntries", { count: restorePreview.balanceEntries })}</span></div>
-                            </div>
-                            {restoreErrors.length > 0 && (
-                              <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-3 text-xs space-y-1">
-                                {restoreErrors.map((err, i) => (
-                                  <p key={i} className="text-destructive flex items-center gap-1.5"><AlertCircle className="w-3 h-3" />{err}</p>
-                                ))}
-                              </div>
-                            )}
-                            {restorePreview.appVersion !== "0.4.5" && (
-                              <p className="text-[11px] text-accent bg-accent/10 rounded-xl p-2.5 border border-accent/20">
-                                {t("settings.versionMismatchWarning")}
-                              </p>
-                            )}
-                            <div className="flex gap-2">
-                              <Button onClick={() => { setRestorePreview(null); setRestoreErrors([]); setRestorePassword(""); }}
-                                variant="outline" size="sm" className="flex-1 text-xs h-10 rounded-xl">{t("settings.cancel")}</Button>
+                            <div className="border-t border-border/40 pt-3 space-y-2">
+                              <p className="text-[11px] font-bold text-destructive">{t("settings.dangerZone")}</p>
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                  <Button size="sm" className="flex-1 text-xs h-10 rounded-xl font-bold">{t("settings.restoreBtn")}</Button>
+                                  <Button variant="destructive" size="sm" className="w-full text-xs h-10 rounded-xl">
+                                    <Trash2 className="w-3.5 h-3.5 me-1" />
+                                    {t("settings.deleteAllTransfers")}
+                                  </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
-                                    <AlertDialogTitle>{t("settings.restoreConfirmTitle")}</AlertDialogTitle>
+                                    <AlertDialogTitle>{t("settings.deleteAllTransfersTitle")}</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      {t("settings.restoreConfirmDesc")}
+                                      {t("settings.deleteAllTransfersDesc")}
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
                                     <AlertDialogCancel>{t("settings.cancel")}</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleDoRestore} disabled={restoreLoading}>
-                                      {restoreLoading ? t("settings.restoring") : t("settings.restoreBtn")}
+                                    <AlertDialogAction onClick={handleDeleteAllTransfers} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                      {t("settings.deleteAll")}
                                     </AlertDialogAction>
                                   </AlertDialogFooter>
                                 </AlertDialogContent>
@@ -926,252 +955,149 @@ const handleDoRestore = async () => {
                             </div>
                           </div>
                         </SettingsCard>
-                      )}
 
-                      {/* Data Management */}
-                      <SettingsCard title={t("settings.dataManagement")} icon={<Database className="w-4 h-4" />}>
-                        <div className="space-y-3">
-                          <div className="bg-muted/60 rounded-xl divide-y divide-border/60 border border-border/50 text-xs">
-                            <InfoRow label={t("settings.transferLog")} value={`${allHistory.length} ${t("settings.operations")}`} />
-                            <InfoRow label={t("settings.totalTransfers")} value={`${totalAmount.toLocaleString()} ${t("common.currencySymbol")}`} />
-                            <InfoRow label={t("settings.lastOperation")} value={allHistory.length > 0 ? getTimeSince(allHistory[0].timestamp, t) : "—"} />
-                            <InfoRow label={t("settings.oldOperations")} value={`${olderThanMonth} (${t("settings.moreThanMonth")})`} valueClassName={olderThanMonth > 0 ? "text-destructive" : undefined} />
-                            <InfoRow label={t("settings.storageUsage")} value={getFormattedSize(storageStats.totalBytes)} />
-                          </div>
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm" className="flex-1 text-xs h-10 rounded-xl"
-                              onClick={() => setActiveSection("data")}>
-                              {t("settings.manageHistory")}
-                            </Button>
-                          </div>
-                        </div>
-                      </SettingsCard>
-
-                      {/* Cleanup */}
-                      <SettingsCard title={t("settings.cleanup")} icon={<Trash className="w-4 h-4" />}>
-                        <div className="space-y-3">
-                          <p className="text-[11px] text-muted-foreground">{t("settings.cleanupDescription")}</p>
-                          <div className="space-y-2">
-                            {([
-                              { label: t("settings.cleanupMonth"), ms: 30 * 24 * 60 * 60 * 1000 },
-                              { label: t("settings.cleanup3Months"), ms: 90 * 24 * 60 * 60 * 1000 },
-                              { label: t("settings.cleanupYear"), ms: 365 * 24 * 60 * 60 * 1000 },
-                            ]).map((option) => (
-                              <button key={option.ms} onClick={() => handleCleanup(option.ms)}
-                                className={cn(
-                                  "w-full flex items-center justify-between p-3 rounded-xl border transition-all text-sm",
-                                  cleanupAge === option.ms
-                                    ? "border-primary bg-primary/5 text-primary"
-                                    : "border-border/60 bg-white text-foreground hover:border-primary/30"
-                                )}>
-                                <span>{option.label}</span>
-                                {cleanupAge === option.ms && <CheckCircle className="w-4 h-4" />}
-                              </button>
-                            ))}
-                          </div>
-                          <div className="border-t border-border/40 pt-3 space-y-2">
-                            <p className="text-[11px] font-bold text-destructive">{t("settings.dangerZone")}</p>
+                        <SettingsCard title={t("settings.advancedSettings")} icon={<AlertTriangle className="w-4 h-4" />} variant="warning">
+                          <div className="space-y-3">
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button variant="destructive" size="sm" className="w-full text-xs h-10 rounded-xl">
-                                  <Trash2 className="w-3.5 h-3.5 me-1" />
-                                  {t("settings.deleteAllTransfers")}
+                                <Button variant="outline" className="w-full text-xs h-10 rounded-xl">
+                                  <RotateCw className="w-3.5 h-3.5 me-1" />
+                                  {t("settings.resetAppSettings")}
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>{t("settings.deleteAllTransfersTitle")}</AlertDialogTitle>
+                                  <AlertDialogTitle>{t("settings.resetTitle")}</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    {t("settings.deleteAllTransfersDesc")}
+                                    {t("settings.resetDescription")}
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>{t("settings.cancel")}</AlertDialogCancel>
-                                  <AlertDialogAction onClick={handleDeleteAllTransfers} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                    {t("settings.deleteAll")}
-                                  </AlertDialogAction>
+                                  <AlertDialogAction onClick={handleResetSettings}>{t("settings.resetAction")}</AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
-                          </div>
-                        </div>
-                      </SettingsCard>
 
-                      {/* Advanced Settings */}
-                      <SettingsCard title={t("settings.advancedSettings")} icon={<AlertTriangle className="w-4 h-4" />} variant="warning">
+                            <div className="border-t border-border/40 pt-3">
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="destructive" className="w-full text-xs h-10 rounded-xl">
+                                    <Trash2 className="w-3.5 h-3.5 me-1" />
+                                    {t("settings.deleteAllData")}
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>{t("settings.deleteAllDataTitle")}</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      {t("settings.deleteAllDataDesc")}
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <div className="py-2">
+                                    <Input placeholder={t("settings.resetConfirmPlaceholder")}
+                                      onChange={(e) => {}}
+                                      className="text-right h-11 rounded-xl border-2 border-destructive/30 focus:border-destructive"
+                                      dir="ltr" />
+                                  </div>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>{t("settings.cancel")}</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleDeleteAllData} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                      {t("settings.deleteAllDataAction")}
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </div>
+                        </SettingsCard>
+                      </>
+                    )}
+
+                    {section.id === "distributor" && (
+                      <SettingsCard title={t("settings.distributor")} icon={<Truck className="w-4 h-4" />}>
                         <div className="space-y-3">
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="outline" className="w-full text-xs h-10 rounded-xl">
-                                <RotateCw className="w-3.5 h-3.5 me-1" />
-                                {t("settings.resetAppSettings")}
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>{t("settings.resetTitle")}</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  {t("settings.resetDescription")}
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>{t("settings.cancel")}</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleResetSettings}>{t("settings.resetAction")}</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-
-                          <div className="border-t border-border/40 pt-3">
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="destructive" className="w-full text-xs h-10 rounded-xl">
-                                  <Trash2 className="w-3.5 h-3.5 me-1" />
-                                  {t("settings.deleteAllData")}
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>{t("settings.deleteAllDataTitle")}</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    {t("settings.deleteAllDataDesc")}
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <div className="py-2">
-                                  <Input placeholder={t("settings.resetConfirmPlaceholder")}
-                                    onChange={(e) => { /* controlled for confirmation check */ }}
-                                    className="text-right h-11 rounded-xl border-2 border-destructive/30 focus:border-destructive"
-                                    dir="ltr" />
-                                </div>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>{t("settings.cancel")}</AlertDialogCancel>
-                                  <AlertDialogAction onClick={handleDeleteAllData} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                    {t("settings.deleteAllDataAction")}
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </div>
-                      </SettingsCard>
-                    </>
-                  )}
-
-                  {/* LANGUAGE SECTION */}
-                  {section.id === "language" && (
-                    <SettingsCard title={t("settings.language")} icon={<Globe className="w-4 h-4" />}>
-                      <div className="space-y-3">
-                        <p className="text-xs text-muted-foreground">{t("settings.languageChangeNote")}</p>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            onClick={() => handleLanguageChange('ar')}
-                            className={cn(
-                              "py-4 rounded-xl text-sm font-bold transition-all border-2 active:scale-95",
-                              language === 'ar'
-                                ? "bg-primary text-white border-primary shadow-sm"
-                                : "bg-white text-foreground border-border/60 hover:border-primary/30"
-                            )}
-                          >
-                            {t("settings.arabic")}
-                          </button>
-                          <button
-                            onClick={() => handleLanguageChange('en')}
-                            className={cn(
-                              "py-4 rounded-xl text-sm font-bold transition-all border-2 active:scale-95",
-                              language === 'en'
-                                ? "bg-primary text-white border-primary shadow-sm"
-                                : "bg-white text-foreground border-border/60 hover:border-primary/30"
-                            )}
-                          >
-                            {t("settings.english")}
-                          </button>
-                        </div>
-                      </div>
-                    </SettingsCard>
-                  )}
-
-                  {/* DISTRIBUTOR SECTION — Customer self-link if never linked before */}
-                  {section.id === "distributor" && (
-                    <SettingsCard title={t("settings.distributor")} icon={<Truck className="w-4 h-4" />}>
-                      <div className="space-y-3">
-                        {distributorLoading ? (
-                          <p className="text-xs text-muted-foreground">{t("common.loading")}</p>
-                        ) : distributorInfo?.assignment_status === "direct_locked" ? (
-                          <div className="bg-destructive/10 text-destructive rounded-xl p-3 text-sm flex items-center gap-2">
-                            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                            {t("settings.directLockedDesc")}
-                          </div>
-                        ) : distributorInfo?.linked ? (
-                          <div className="space-y-2">
-                            <div className="bg-green-50 text-green-700 rounded-xl p-3 text-sm flex items-center gap-2">
-                              <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                              {t("settings.distributorLinked")}
+                          {distributorLoading ? (
+                            <p className="text-xs text-muted-foreground">{t("common.loading")}</p>
+                          ) : distributorInfo?.assignment_status === "direct_locked" ? (
+                            <div className="bg-destructive/10 text-destructive rounded-xl p-3 text-sm flex items-center gap-2">
+                              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                              {t("settings.directLockedDesc")}
                             </div>
-                            <div className="bg-muted/50 rounded-xl p-3">
-                              <div className="text-xs text-muted-foreground">{t("settings.distributorCode")}</div>
-                              <div className="font-mono font-semibold text-primary">{distributorInfo.distributor_code}</div>
+                          ) : distributorInfo?.linked ? (
+                            <div className="space-y-2">
+                              <div className="bg-green-50 text-green-700 rounded-xl p-3 text-sm flex items-center gap-2">
+                                <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                                {t("settings.distributorLinked")}
+                              </div>
+                              <div className="bg-muted/50 rounded-xl p-3">
+                                <div className="text-xs text-muted-foreground">{t("settings.distributorCode")}</div>
+                                <div className="font-mono font-semibold text-primary">{distributorInfo.distributor_code}</div>
+                              </div>
+                              <div className="bg-muted/50 rounded-xl p-3">
+                                <div className="text-xs text-muted-foreground">{t("settings.distributorName")}</div>
+                                <div className="font-medium">{distributorInfo.distributor_name}</div>
+                              </div>
                             </div>
-                            <div className="bg-muted/50 rounded-xl p-3">
-                              <div className="text-xs text-muted-foreground">{t("settings.distributorName")}</div>
-                              <div className="font-medium">{distributorInfo.distributor_name}</div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <p className="text-xs text-muted-foreground">{t("settings.distributorEnterCode")}</p>
-                            <Input
-                              value={distributorCode}
-                              onChange={(e) => setDistributorCode(e.target.value)}
-                              placeholder={t("settings.distributorCodePlaceholder")}
-                              className="h-9"
-                              dir="ltr"
-                            />
-                            <Button
-                              size="sm"
-                              onClick={async () => {
-                                if (!distributorCode.trim()) return;
-                                try {
-                                  const result = await linkToDistributor(distributorCode.trim());
-                                  if (result.ok) {
-                                    toast.success(t("settings.distributorLinkedSuccess"));
-                                    setDistributorInfo({
-                                      linked: true,
-                                      distributor_code: result.distributor_code,
-                                      distributor_name: result.distributor_name,
-                                      commission_rate: result.commission_rate,
-                                    });
-                                    setDistributorCode("");
-                                  } else {
-                                     if (result.error === "admin_removed") {
-                                       toast.error(t("settings.distributorAdminRemoved"));
-                                     } else if (result.error === "direct_customer_locked") {
-                                       toast.error(t("settings.directLockedDesc"));
-                                     } else if (result.error === "distributor_not_found") {
-                                      toast.error(t("settings.distributorNotFound"));
-                                    } else if (result.error === "already_linked") {
-                                      toast.error(t("settings.distributorAlreadyLinked"));
+                          ) : (
+                            <div className="space-y-2">
+                              <p className="text-xs text-muted-foreground">{t("settings.distributorEnterCode")}</p>
+                              <Input
+                                value={distributorCode}
+                                onChange={(e) => setDistributorCode(e.target.value)}
+                                placeholder={t("settings.distributorCodePlaceholder")}
+                                className="h-9"
+                                dir="ltr"
+                              />
+                              <Button
+                                size="sm"
+                                onClick={async () => {
+                                  if (!distributorCode.trim()) return;
+                                  try {
+                                    const result = await linkToDistributor(distributorCode.trim());
+                                    if (result.ok) {
+                                      toast.success(t("settings.distributorLinkedSuccess"));
+                                      setDistributorInfo({
+                                        linked: true,
+                                        distributor_code: result.distributor_code,
+                                        distributor_name: result.distributor_name,
+                                        commission_rate: result.commission_rate,
+                                      });
+                                      setDistributorCode("");
                                     } else {
-                                      toast.error(t("settings.distributorLinkFailed"));
+                                      if (result.error === "admin_removed") {
+                                        toast.error(t("settings.distributorAdminRemoved"));
+                                      } else if (result.error === "direct_customer_locked") {
+                                        toast.error(t("settings.directLockedDesc"));
+                                      } else if (result.error === "distributor_not_found") {
+                                        toast.error(t("settings.distributorNotFound"));
+                                      } else if (result.error === "already_linked") {
+                                        toast.error(t("settings.distributorAlreadyLinked"));
+                                      } else {
+                                        toast.error(t("settings.distributorLinkFailed"));
+                                      }
                                     }
+                                  } catch (err) {
+                                    toast.error(err instanceof Error ? err.message : "Failed");
                                   }
-                                } catch (err) {
-                                  toast.error(err instanceof Error ? err.message : "Failed");
-                                }
-                              }}
-                              disabled={!distributorCode.trim()}
-                              className="w-full"
-                            >
-                              {t("settings.distributorLink")}
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </SettingsCard>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
+                                }}
+                                disabled={!distributorCode.trim()}
+                                className="w-full"
+                              >
+                                {t("settings.distributorLink")}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </SettingsCard>
+                    )}
+
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </main>
     </AppLayout>
   );
@@ -1194,7 +1120,7 @@ const SettingsCard = ({ title, icon, children, variant }: {
   variant?: "default" | "warning";
 }) => (
   <div className={cn(
-    "bg-white border rounded-2xl p-4.5 shadow-sm space-y-3.5",
+    "bg-white border rounded-2xl p-4 shadow-sm space-y-3",
     variant === "warning" ? "border-accent/30" : "border-border/60"
   )}>
     <h3 className={cn(
@@ -1217,10 +1143,10 @@ const FieldInput = ({ label, value, onChange, placeholder }: {
   label: string; value: string; onChange: (v: string) => void; placeholder: string;
 }) => (
   <div className="space-y-1.5">
-    <label className="text-sm font-medium text-muted-foreground">{label}</label>
+    <label className="text-xs font-bold text-muted-foreground">{label}</label>
     <Input type="number" placeholder={placeholder} value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="text-left h-11 rounded-xl border-2 bg-background/50" dir="ltr" inputMode="numeric" />
+      className="text-left h-10 rounded-xl border bg-background/50 text-sm" dir="ltr" inputMode="numeric" />
   </div>
 );
 

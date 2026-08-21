@@ -24,6 +24,12 @@ export function saveBusinessName(name: string): void {
   try {
     localStorage.setItem(BUSINESS_NAME_KEY, (name || "").trim());
     localStorage.removeItem(BUSINESS_SKIP_KEY);
+    const trimmed = (name || "").trim();
+    if (trimmed) {
+      import("@/lib/settings-sync").then(({ trackProfileUpdate }) => {
+        trackProfileUpdate({ shop_name: trimmed });
+      });
+    }
   } catch {
     /* ignore */
   }

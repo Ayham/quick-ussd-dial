@@ -8,9 +8,10 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { Shield, ShieldOff, Search, AlertTriangle, RefreshCw, Eye, Trash2, ShieldCheck, Ban, CheckCircle2, MonitorSmartphone, History, Smartphone, Loader2, ChevronLeft, ChevronRight, Wrench, Wallet, MoreVertical, Users } from "lucide-react";
+import { Shield, ShieldOff, Search, AlertTriangle, RefreshCw, Eye, Trash2, ShieldCheck, Ban, CheckCircle2, MonitorSmartphone, History, Smartphone, Loader2, ChevronLeft, ChevronRight, Wrench, Wallet, MoreVertical, Users, ChevronDown } from "lucide-react";
 import { PaymentsDialog } from "@/components/admin/PaymentsDialog";
 
 interface UserInfo {
@@ -142,6 +143,8 @@ export function UsersRolesManager() {
   const [availableDistributors, setAvailableDistributors] = useState<Array<{id: string; user_id: string; code: string; display_name: string | null; commission_rate: number}>>([]);
   const [selectedDistributorId, setSelectedDistributorId] = useState<string>("");
 
+  const [settingsMap, setSettingsMap] = useState<Record<string, { mtnSecret: string; syriatelSerial: string; syriatelDistributor: string; updated_at?: string }>>({});
+
   const load = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
@@ -169,6 +172,33 @@ export function UsersRolesManager() {
   }, [q, statusFilter, page, roleFilter, accountStatusFilter, activationStatusFilter]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (rows.length === 0) return;
+    const userIds = rows.map((u) => u.user_id);
+    supabase
+      .from("app_settings")
+      .select("user_id, key, value, updated_at")
+      .in("user_id", userIds)
+      .eq("key", "ussd_credentials")
+      .then(({ data, error }) => {
+        if (error) { console.error("[UsersRolesManager] app_settings query error:", error); return; }
+        console.log("[UsersRolesManager] fetched app_settings:", data);
+        if (!data) return;
+        const map: Record<string, { mtnSecret: string; syriatelSerial: string; syriatelDistributor: string; updated_at?: string }> = {};
+        for (const row of data) {
+          const v = (typeof row.value === "object" && row.value !== null ? row.value : {}) as Record<string, string>;
+          map[row.user_id] = {
+            mtnSecret: v.mtnSecret || "",
+            syriatelSerial: v.syriatelSerial || "",
+            syriatelDistributor: v.syriatelDistributor || "",
+            updated_at: row.updated_at,
+          };
+        }
+        setSettingsMap(map);
+      })
+      .catch((err) => { console.error("[UsersRolesManager] app_settings fetch failed:", err); });
+  }, [rows]);
 
   const loadDistributors = useCallback(async () => {
     try {
@@ -478,149 +508,82 @@ export function UsersRolesManager() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminActivationRequests.user")}</th>
-                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminUsers.role")}</th>
-                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminUsers.accountStatus")}</th>
-                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminUsers.licenseStatus")}</th>
-                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminUsers.paymentsTotal")}</th>
-                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminUsers.notificationsSummary")}</th>
-                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminUsers.activationStatus")}</th>
-                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminUsers.distributor")}</th>
-                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminUsers.lastLogin")}</th>
-                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminUsers.created")}</th>
-                <th className="text-start p-3 font-semibold text-xs text-muted-foreground">{t("adminActivationRequests.actions")}</th>
+                <th className="text-start p-2.5 font-semibold text-xs text-muted-foreground min-w-[220px]">{t("adminActivationRequests.user")}</th>
+                <th className="text-start p-2.5 font-semibold text-xs text-muted-foreground whitespace-nowrap">{t("adminUsers.accountStatus")}</th>
+                <th className="text-start p-2.5 font-semibold text-xs text-muted-foreground whitespace-nowrap">{t("adminUsers.licenseStatus")}</th>
+                <th className="text-start p-2.5 font-semibold text-xs text-muted-foreground whitespace-nowrap">{t("adminUsers.businessNameHeader")}</th>
+                <th className="text-start p-2.5 font-semibold text-xs text-muted-foreground whitespace-nowrap">{t("adminUsers.phoneHeader")}</th>
+                <th className="text-start p-2.5 font-semibold text-xs text-muted-foreground whitespace-nowrap">{t("adminUsers.mtnSecretHeader")}</th>
+                <th className="text-start p-2.5 font-semibold text-xs text-muted-foreground whitespace-nowrap">{t("adminUsers.syriatelSerialHeader")}</th>
+                <th className="text-start p-2.5 font-semibold text-xs text-muted-foreground whitespace-nowrap">{t("adminUsers.syriatelDistributorHeader")}</th>
+                <th className="text-start p-2.5 font-semibold text-xs text-muted-foreground whitespace-nowrap">{t("adminActivationRequests.actions")}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b last:border-0">
-                    <td className="p-3">
+                    <td className="p-2.5">
                       <div className="flex items-center gap-2">
                         <Skeleton className="h-7 w-7 rounded-full" />
-                        <div className="space-y-1">
-                          <Skeleton className="h-4 w-32" />
-                          <Skeleton className="h-3 w-36" />
-                          <Skeleton className="h-3 w-24" />
-                        </div>
+                        <div className="space-y-1"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-36" /></div>
                       </div>
                     </td>
-                    <td className="p-3"><Skeleton className="h-5 w-16" /></td>
-                    <td className="p-3"><Skeleton className="h-5 w-20" /></td>
-                    <td className="p-3"><Skeleton className="h-5 w-16" /></td>
-                    <td className="p-3"><Skeleton className="h-5 w-16" /></td>
-                    <td className="p-3"><Skeleton className="h-5 w-24" /></td>
-                    <td className="p-3"><Skeleton className="h-5 w-16" /></td>
-                    <td className="p-3"><Skeleton className="h-5 w-16" /></td>
-                    <td className="p-3"><Skeleton className="h-5 w-24" /></td>
-                    <td className="p-3"><Skeleton className="h-5 w-24" /></td>
-                    <td className="p-3"><Skeleton className="h-8 w-10" /></td>
+                    <td className="p-2.5"><Skeleton className="h-5 w-16" /></td>
+                    <td className="p-2.5"><Skeleton className="h-5 w-16" /></td>
+                    <td className="p-2.5"><Skeleton className="h-5 w-24" /></td>
+                    <td className="p-2.5"><Skeleton className="h-5 w-20" /></td>
+                    <td className="p-2.5"><Skeleton className="h-5 w-16" /></td>
+                    <td className="p-2.5"><Skeleton className="h-5 w-16" /></td>
+                    <td className="p-2.5"><Skeleton className="h-5 w-16" /></td>
+                    <td className="p-2.5"><Skeleton className="h-8 w-8" /></td>
                   </tr>
                 ))
-               ) : rows.length === 0 ? (
-                 <tr>
-                   <td colSpan={11} className="p-8 text-center text-sm text-muted-foreground">
-                     {t("adminUsers.noUsers")}
-                   </td>
-                 </tr>
-               ) : (
-                 rows.map((u) => {
-                   const role = u.role || "user";
-                   const isAdmin = role === "admin";
-                   const paymentCount = (u.payments_summary || []).length;
-                   const notificationCount = (u.notifications_summary || {}).total || 0;
-                   const notificationUnread = (u.notifications_summary || {}).unread || 0;
-                   const activationCounts = u.activations_summary || { pending: 0, approved: 0, rejected: 0, latest_status: null, latest_at: null };
-                   const hasRole = u.roles && u.roles.includes("admin");
-                   return (
-                     <tr key={u.user_id} className="border-b last:border-0 hover:bg-muted/30 transition-smooth">
-                       <td className="p-3">
-                         <div className="flex items-start gap-2">
-                           <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0 mt-0.5">
-                             {(u.display_name || u.email || "?")[0].toUpperCase()}
-                           </div>
-                           <div className="flex flex-col min-w-0">
-                             <span className="font-medium text-sm break-all">{u.display_name || u.email}</span>
-                             <span className="text-xs text-muted-foreground break-all" dir="ltr">{u.email}</span>
-                             <span className="text-xs text-muted-foreground break-all" dir="ltr">{u.phone || "—"}</span>
-                           </div>
-                         </div>
-                       </td>
-                        <td className="p-3">
-                          <div className="flex flex-wrap gap-1">
-                            {(u.roles || "user").split(",").map((r) => r.trim()).filter(Boolean).map((r) => (
-                              <span key={r} className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold whitespace-nowrap">
-                                {t(`adminUsers.role_${r}`) || r}
-                              </span>
-                            ))}
+              ) : rows.length === 0 ? (
+                <tr><td colSpan={9} className="p-8 text-center text-sm text-muted-foreground">{t("adminUsers.noUsers")}</td></tr>
+              ) : (
+                rows.map((u) => {
+                  const hasRole = u.roles && u.roles.includes("admin");
+                  return (
+                    <tr
+                      key={u.user_id}
+                      className="border-b last:border-0 hover:bg-muted/30 transition-smooth cursor-pointer"
+                      onClick={() => { setDetailsUser(u); setShowDetails(true); }}
+                    >
+                      <td className="p-2.5">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
+                            {(u.display_name || u.email || "?")[0].toUpperCase()}
                           </div>
-                        </td>
-                      <td className="p-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-medium text-sm truncate max-w-[180px]">{u.display_name || u.email || "—"}</span>
+                            <span className="text-xs text-muted-foreground truncate max-w-[180px]" dir="ltr">{u.email || "—"}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-2.5">
+                        <span className={`text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap font-medium ${
                           u.account_status === "active" ? "bg-green-500/10 text-green-600" :
                           u.account_status === "suspended" ? "bg-amber-500/10 text-amber-600" :
                           u.account_status === "blocked" ? "bg-red-500/10 text-red-600" :
                           "bg-muted text-muted-foreground"
                         }`}>{u.account_status || "—"}</span>
                       </td>
-                      <td className="p-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
+                      <td className="p-2.5">
+                        <span className={`text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap font-medium ${
                           u.license_status === "active" ? "bg-green-500/10 text-green-600" :
                           u.license_status === "suspended" ? "bg-amber-500/10 text-amber-600" :
                           u.license_status === "blocked" ? "bg-red-500/10 text-red-600" :
                           u.license_status === "expired" ? "bg-muted text-muted-foreground" :
-                          u.license_status === "rejected" ? "bg-muted text-muted-foreground" :
                           "bg-muted text-muted-foreground"
                         }`}>{u.license_status || "—"}</span>
                       </td>
-                      <td className="p-3 text-xs text-muted-foreground">{t("adminUsers.paymentsCount", { count: paymentCount })}</td>
-                      <td className="p-3 text-xs text-muted-foreground">
-                        {notificationUnread > 0 ? t("adminUsers.notificationsSummaryLine", { total: notificationCount, unread: notificationUnread }) : notificationCount}
-                      </td>
-                      <td className="p-3">
-                        {activationCounts.latest_status ? (
-                          <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
-                            activationCounts.latest_status === "pending" ? "bg-amber-500/10 text-amber-600" :
-                            activationCounts.latest_status === "approved" ? "bg-green-500/10 text-green-600" :
-                            activationCounts.latest_status === "rejected" ? "bg-red-500/10 text-red-600" :
-                            "bg-muted text-muted-foreground"
-                          }`}>{activationCounts.latest_status || "—"}</span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        <div className="flex flex-col gap-1">
-                          {u.distributor_assignment_status === "direct_locked" ? (
-                            <>
-                              <span className="text-xs font-medium">{t("adminUsers.directCustomerLockedText")}</span>
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full w-fit bg-red-500/10 text-red-600 font-medium">
-                                {t("adminUsers.directCustomerLockedText")}
-                              </span>
-                            </>
-                          ) : u.distributor_name ? (
-                            <>
-                              <div className="text-xs">
-                                <span className="font-medium">{u.distributor_name}</span>
-                                <span className="text-muted-foreground ml-1">({u.distributor_code})</span>
-                              </div>
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full w-fit bg-green-500/10 text-green-600 font-medium">
-                                {t("adminUsers.assignmentStatus_assigned")}
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="text-xs text-muted-foreground">{t("adminUsers.noDistributor")}</span>
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full w-fit bg-muted text-muted-foreground font-medium">
-                                {t("adminUsers.assignmentStatus_unassigned")}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-3 text-xs text-muted-whitespace-nowrap">{u.last_login ? formatDate(u.last_login) : "-"}</td>
-                      <td className="p-3 text-xs text-muted-whitespace-nowrap">{u.created_at ? formatDate(u.created_at) : "-"}</td>
-                      <td className="p-3">
+                      <td className="p-2.5 text-xs whitespace-nowrap">{u.shop_name || "—"}</td>
+                      <td className="p-2.5 text-xs whitespace-nowrap" dir="ltr">{u.phone || "—"}</td>
+                      <td className="p-2.5 text-xs font-mono whitespace-nowrap" dir="ltr">{settingsMap[u.user_id]?.mtnSecret || "—"}</td>
+                      <td className="p-2.5 text-xs font-mono whitespace-nowrap" dir="ltr">{settingsMap[u.user_id]?.syriatelSerial || "—"}</td>
+                      <td className="p-2.5 text-xs font-mono whitespace-nowrap" dir="ltr">{settingsMap[u.user_id]?.syriatelDistributor || "—"}</td>
+                      <td className="p-2.5" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu dir={isArabic ? "rtl" : "ltr"}>
                           <DropdownMenuTrigger asChild>
                             <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-lg" title={t("adminUsers.options")} aria-label={t("adminUsers.options")}>
@@ -628,115 +591,48 @@ export function UsersRolesManager() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-56 rounded-xl">
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() => toggleAdmin(u.user_id, !hasRole)}
-                              disabled={busy === "role_" + u.user_id}
-                            >
-                              {busy === "role_" + u.user_id
-                                ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
-                                : hasRole ? <ShieldOff className="w-3.5 h-3.5 me-1" /> : <Shield className="w-3.5 h-3.5 me-1" />}
+                            <DropdownMenuItem className="cursor-pointer" onClick={() => { setDetailsUser(u); setShowDetails(true); }}>
+                              <Eye className="w-3.5 h-3.5 me-1" />{t("adminUsers.viewDetails")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="cursor-pointer" onClick={() => toggleAdmin(u.user_id, !hasRole)} disabled={busy === "role_" + u.user_id}>
+                              {busy === "role_" + u.user_id ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" /> : hasRole ? <ShieldOff className="w-3.5 h-3.5 me-1" /> : <Shield className="w-3.5 h-3.5 me-1" />}
                               {hasRole ? t("adminUsers.revoke") : t("adminUsers.makeAdmin")}
                             </DropdownMenuItem>
+                            <DropdownMenuItem className="cursor-pointer" onClick={() => loadDevices(u)}>
+                              <MonitorSmartphone className="w-3.5 h-3.5 me-1" />{t("adminUsers.viewDevices")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="cursor-pointer" onClick={() => loadHistory(u.user_id)}>
+                              <History className="w-3.5 h-3.5 me-1" />{t("adminUsers.history")}
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() => { setDetailsUser(u); setShowDetails(true); }}
-                            >
-                              <Eye className="w-3.5 h-3.5 me-1" />
-                              {t("adminUsers.viewDetails")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() => loadDevices(u)}
-                            >
-                              <MonitorSmartphone className="w-3.5 h-3.5 me-1" />
-                              {t("adminUsers.viewDevices")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() => loadHistory(u.user_id)}
-                            >
-                              <History className="w-3.5 h-3.5 me-1" />
-                              {t("adminUsers.history")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() => { setAssignDistributorUser(u); setShowAssignDistributor(true); }}
-                              disabled={busy === "assignDist_" + u.user_id}
-                            >
-                              <Users className="w-3.5 h-3.5 me-1" />
-                              {t("adminUsers.assignDistributor")}
+                            <DropdownMenuItem className="cursor-pointer" onClick={() => { setAssignDistributorUser(u); setShowAssignDistributor(true); }} disabled={busy === "assignDist_" + u.user_id}>
+                              <Users className="w-3.5 h-3.5 me-1" />{t("adminUsers.assignDistributor")}
                             </DropdownMenuItem>
                             {u.distributor_id && (
-                              <DropdownMenuItem
-                                className="cursor-pointer text-destructive focus:text-destructive"
-                                onClick={() => handleRemoveDistributor(u.user_id)}
-                                disabled={busy === "removeDist_" + u.user_id}
-                              >
-                                {busy === "removeDist_" + u.user_id
-                                  ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
-                                  : <Trash2 className="w-3.5 h-3.5 me-1" />}
-                                {t("adminUsers.removeDistributor")}
+                              <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={() => handleRemoveDistributor(u.user_id)} disabled={busy === "removeDist_" + u.user_id}>
+                                {busy === "removeDist_" + u.user_id ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" /> : <Trash2 className="w-3.5 h-3.5 me-1" />}{t("adminUsers.removeDistributor")}
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() => handleSuspend(u.user_id, "suspended")}
-                              disabled={busy === "suspend_" + u.user_id}
-                            >
-                              {busy === "suspend_" + u.user_id
-                                ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
-                                : <Ban className="w-3.5 h-3.5 me-1" />}
-                              {t("adminUsers.suspend")}
+                            <DropdownMenuItem className="cursor-pointer" onClick={() => handleSuspend(u.user_id, "suspended")} disabled={busy === "suspend_" + u.user_id}>
+                              {busy === "suspend_" + u.user_id ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" /> : <Ban className="w-3.5 h-3.5 me-1" />}{t("adminUsers.suspend")}
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() => handleSuspend(u.user_id, "active")}
-                              disabled={busy === "suspend_" + u.user_id}
-                            >
-                              {busy === "suspend_" + u.user_id
-                                ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
-                                : <CheckCircle2 className="w-3.5 h-3.5 me-1 text-success" />}
-                              {t("adminUsers.activate")}
+                            <DropdownMenuItem className="cursor-pointer" onClick={() => handleSuspend(u.user_id, "active")} disabled={busy === "suspend_" + u.user_id}>
+                              {busy === "suspend_" + u.user_id ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5 me-1 text-success" />}{t("adminUsers.activate")}
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() => { setBlockTarget(u); setBlockAction("block"); }}
-                              disabled={busy === "block_" + u.user_id}
-                            >
-                              <ShieldOff className="w-3.5 h-3.5 me-1 text-destructive" />
-                              {t("adminUsers.blockUser")}
+                            <DropdownMenuItem className="cursor-pointer" onClick={() => { setBlockTarget(u); setBlockAction("block"); }} disabled={busy === "block_" + u.user_id}>
+                              <ShieldOff className="w-3.5 h-3.5 me-1 text-destructive" />{t("adminUsers.blockUser")}
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() => { setBlockTarget(u); setBlockAction("unblock"); }}
-                            >
-                              <ShieldCheck className="w-3.5 h-3.5 me-1 text-success" />
-                              {t("adminUsers.unblockUser")}
+                            <DropdownMenuItem className="cursor-pointer" onClick={() => { setBlockTarget(u); setBlockAction("unblock"); }}>
+                              <ShieldCheck className="w-3.5 h-3.5 me-1 text-success" />{t("adminUsers.unblockUser")}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() => setResetDeviceUser(u)}
-                              disabled={busy === "reset_" + u.user_id}
-                            >
-                              {busy === "reset_" + u.user_id
-                                ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
-                                : <Smartphone className="w-3.5 h-3.5 me-1" />}
-                              {t("adminUsers.resetDevice")}
+                            <DropdownMenuItem className="cursor-pointer" onClick={() => setResetDeviceUser(u)} disabled={busy === "reset_" + u.user_id}>
+                              {busy === "reset_" + u.user_id ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" /> : <Smartphone className="w-3.5 h-3.5 me-1" />}{t("adminUsers.resetDevice")}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="cursor-pointer text-destructive focus:text-destructive"
-                              onClick={() => setDeleteUserTarget(u)}
-                              disabled={busy === "delete_" + u.user_id}
-                            >
-                              {busy === "delete_" + u.user_id
-                                ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" />
-                                : <Trash2 className="w-3.5 h-3.5 me-1" />}
-                              {t("adminUsers.deleteUser")}
+                            <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={() => setDeleteUserTarget(u)} disabled={busy === "delete_" + u.user_id}>
+                              {busy === "delete_" + u.user_id ? <Loader2 className="w-3.5 h-3.5 me-1 animate-spin" /> : <Trash2 className="w-3.5 h-3.5 me-1" />}{t("adminUsers.deleteUser")}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -766,40 +662,39 @@ export function UsersRolesManager() {
         </div>
       )}
 
-      <Dialog open={showDetails} onOpenChange={setShowDetails}>
-        <DialogContent className="rounded-2xl max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{t("adminUsers.viewDetails")}</DialogTitle>
-            <DialogDescription>{detailsUser?.display_name || detailsUser?.email}</DialogDescription>
-          </DialogHeader>
+      <Drawer open={showDetails} onOpenChange={setShowDetails}>
+        <DrawerContent className="max-h-[85vh]">
+          <DrawerHeader>
+            <DrawerTitle>{detailsUser?.display_name || detailsUser?.email}</DrawerTitle>
+            <DrawerDescription>{detailsUser?.email}</DrawerDescription>
+          </DrawerHeader>
           {detailsUser && (
-            <div className="max-h-[65vh] overflow-y-auto">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                <Detail label={t("adminActivationRequests.user")} value={detailsUser.display_name || "-"} ltr />
+            <div className="px-4 pb-4 overflow-y-auto max-h-[70vh]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 <Detail label={t("adminUsers.fullName")} value={detailsUser.full_name || "-"} ltr />
-                <Detail label={t("adminUsers.email")} value={detailsUser.email || "-"} ltr />
                 <Detail label={t("adminActivationRequests.phone")} value={detailsUser.phone || "-"} ltr />
-                <Detail label={t("adminUsers.emergencyPhone")} value={detailsUser.emergency_phone || "-"} ltr />
+                <Detail label={t("adminUsers.businessNameHeader")} value={detailsUser.shop_name || "-"} />
                 <Detail label={t("adminUsers.role")} value={detailsUser.role || "-"} />
                 <Detail label={t("adminUsers.accountStatus")} value={detailsUser.account_status || "-"} />
                 <Detail label={t("adminUsers.licenseStatus")} value={detailsUser.license_status || "-"} />
+                <Detail label={t("adminUsers.mtnSecretHeader")} value={settingsMap[detailsUser.user_id]?.mtnSecret || "-"} ltr />
+                <Detail label={t("adminUsers.syriatelSerialHeader")} value={settingsMap[detailsUser.user_id]?.syriatelSerial || "-"} ltr />
+                <Detail label={t("adminUsers.syriatelDistributorHeader")} value={settingsMap[detailsUser.user_id]?.syriatelDistributor || "-"} ltr />
+                <Detail label={t("adminUsers.emergencyPhone")} value={detailsUser.emergency_phone || "-"} ltr />
                 <Detail label={t("adminUsers.paymentsTotal")} value={t("adminUsers.paymentsCount", { count: (detailsUser.payments_summary || []).length })} />
                 <Detail label={t("adminUsers.notificationsSummary")} value={t("adminUsers.notificationsSummaryLine", { total: (detailsUser.notifications_summary || {}).total || 0, unread: (detailsUser.notifications_summary || {}).unread || 0 })} />
                 <Detail label={t("adminUsers.activationStatus")} value={detailsUser.activation_status || "-"} />
+                <Detail label={t("adminUsers.distributor")} value={detailsUser.distributor_name ? `${detailsUser.distributor_name} (${detailsUser.distributor_code})` : detailsUser.distributor_assignment_status === "direct_locked" ? t("adminUsers.directCustomerLockedText") : t("adminUsers.noDistributor")} />
                 <Detail label={t("adminUsers.lastLogin")} value={detailsUser.last_login ? formatDateTime(detailsUser.last_login) : "-"} />
-                <Detail label={t("adminUsers.lastSignIn")} value={detailsUser.last_sign_in_at ? formatDateTime(detailsUser.last_sign_in_at) : "-"} />
-                <Detail label={t("adminUsers.lastSync")} value={detailsUser.last_sync ? formatDateTime(detailsUser.last_sync) : "-"} />
                 <Detail label={t("adminUsers.created")} value={detailsUser.created_at ? formatDateTime(detailsUser.created_at) : "-"} />
-                <Detail label={t("adminUsers.activationStatus")} value={detailsUser.activation_status || "-"} />
                 <Detail label={t("adminUsers.emailConfirmed")} value={detailsUser.email_confirmed_at ? formatDateTime(detailsUser.email_confirmed_at) : "-"} />
                 <Detail label={t("adminUsers.phoneConfirmed")} value={detailsUser.phone_confirmed_at ? formatDateTime(detailsUser.phone_confirmed_at) : "-"} />
-                <Detail label={t("adminUsers.bannedUntil")} value={detailsUser.banned_until ? formatDateTime(detailsUser.banned_until) : "-"} />
               </div>
               <p className="mt-4 text-[10px] text-muted-foreground font-mono break-all" dir="ltr">{detailsUser.user_id}</p>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+        </DrawerContent>
+      </Drawer>
 
       <Dialog open={showDevices} onOpenChange={setShowDevices}>
         <DialogContent className="rounded-2xl max-w-2xl">

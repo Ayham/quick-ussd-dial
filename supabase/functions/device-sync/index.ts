@@ -36,28 +36,44 @@ Deno.serve(async (req) => {
 
     for (const event of events.slice(0, 100)) {
       const data = event.data || {};
-      const result = event.event === "transfer"
-        ? await sb.from("transfers").upsert({
-            client_id: event.id,
-            device_id: clientId,
-            user_id: userId,
-            phone: String(data.phone || ""),
-            amount: Number(data.amount || 0),
-            package_price: Number(data.package_price || 0),
-            operator: String(data.operator || "unknown"),
-            status: String(data.status || "completed"),
-            created_at: event.timestamp,
-          }, { onConflict: "device_id,client_id" })
-        : await sb.from("app_events").upsert({
-            client_id: event.id,
-            device_id: clientId,
-            user_id: userId,
-            event: event.event,
-            data,
-            created_at: event.timestamp,
-          }, { onConflict: "device_id,client_id" });
+      let result: { error: unknown } | undefined;
 
-      if (result.error) {
+      if (event.event === "transfer") {
+        result = await sb.from("transfers").upsert({
+          client_id: event.id,
+          device_id: clientId,
+          user_id: userId,
+          phone: String(data.phone || ""),
+          amount: Number(data.amount || 0),
+          package_price: Number(data.package_price || 0),
+          operator: String(data.operator || "unknown"),
+          status: String(data.status || "completed"),
+          created_at: event.timestamp,
+        }, { onConflict: "device_id,client_id" });
+      } else if (event.event === "profile_update" && userId) {
+        const patch: Record<string, unknown> = { user_id: userId, updated_at: new Date().toISOString() };
+        if (data.phone !== undefined) patch.phone = data.phone;
+        if (data.shop_name !== undefined) patch.shop_name = data.shop_name;
+        result = await sb.from("profiles").upsert(patch, { onConflict: "user_id" });
+      } else if (event.event === "ussd_credentials" && userId) {
+        result = await sb.from("app_settings").upsert({
+          user_id: userId,
+          key: "ussd_credentials",
+          value: data,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id,key" });
+      } else {
+        result = await sb.from("app_events").upsert({
+          client_id: event.id,
+          device_id: clientId,
+          user_id: userId,
+          event: event.event,
+          data,
+          created_at: event.timestamp,
+        }, { onConflict: "device_id,client_id" });
+      }
+
+      if (result!.error) {
         errors++;
         if (event.id) failedEventIds.push(event.id);
       } else {

@@ -491,7 +491,8 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   if (loading) return <AuthLoading />;
   if (!user) {
     const next = encodeURIComponent(location.pathname + location.search);
-    return <Navigate to={`/auth?next=${next}`} replace />;
+    console.log('[AuthGuard] Redirecting to /auth, state:', location.state);
+    return <Navigate to={`/auth?next=${next}`} replace state={location.state} />;
   }
   return <>{children}</>;
 }

@@ -31,7 +31,7 @@ function useMenuItems() {
     { icon: History, label: t("nav.transferHistory", "سجل التحويلات"), path: "/transfer-history", description: t("nav.transferHistoryDesc", "All previous transfers") },
     { icon: Wallet, label: t("nav.balance"), path: "/balance", description: t("nav.balanceDesc", "Track balance") },
     { icon: BarChart3, label: t("nav.reports"), path: "/reports", description: t("nav.reportsDesc", "Transfer statistics") },
-    { icon: Bell, label: t("nav.notifications", "الإشعارات"), path: "/notifications", description: t("nav.notificationsDesc", "Notifications") },
+    // { icon: Bell, label: t("nav.notifications", "الإشعارات"), path: "/notifications", description: t("nav.notificationsDesc", "Notifications") },
     { icon: User, label: t("nav.profile", "الملف الشخصي"), path: "/profile", description: t("nav.profileDesc", "Account & language") },
     { icon: Settings, label: t("nav.settings"), path: "/settings", description: t("nav.settingsDesc", "App settings") },
     { icon: Download, label: t("nav.updates"), path: "/updates", description: t("nav.updatesDesc", "Check for updates") },
