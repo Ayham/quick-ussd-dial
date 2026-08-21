@@ -16,6 +16,7 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Truck } from "lucide-react";
 import { MonitorSmartphone } from "lucide-react";
 import { useCustomerDisplayServer } from "@/features/customer-display/seller/CustomerDisplayServerProvider";
+import { useAppMode } from "@/features/customer-display/app-mode";
 
 const BOTTOM_NAV_ITEMS = [
   { icon: Send, label: "تحويل", path: "/" },
@@ -61,6 +62,7 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
   const navigate = useNavigate();
   const location = useLocation();
   const { serverRunning, customerConnected } = useCustomerDisplayServer();
+  const { setMode: setAppMode } = useAppMode();
 
   useEffect(() => {
     // getCurrentUser() is offline-resilient: on a network failure it falls back
@@ -302,6 +304,18 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
               </div>
               <div className="text-right flex-1">
                 <span className="text-sm font-semibold block">{t("customerDisplay.seller.title")}</span>
+                <span className="text-[11px] text-muted-foreground line-clamp-1">{t("customerDisplay.seller.subtitle")}</span>
+              </div>
+            </button>
+            <button
+              onClick={() => { setMenuOpen(false); setAppMode('customer-display'); navigate("/customer-display", { replace: true }); }}
+              className="flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all w-full text-start text-foreground hover:bg-muted"
+            >
+              <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center bg-muted text-muted-foreground">
+                <MonitorSmartphone className="w-4.5 h-4.5" />
+              </div>
+              <div className="text-right flex-1">
+                <span className="text-sm font-semibold block">{t("auth.useAsCustomerDisplay")}</span>
                 <span className="text-[11px] text-muted-foreground line-clamp-1">{t("customerDisplay.seller.subtitle")}</span>
               </div>
             </button>

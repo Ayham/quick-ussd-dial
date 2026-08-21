@@ -60,6 +60,8 @@ interface UserInfo {
   distributor_code: string | null;
   distributor_name: string | null;
   distributor_assignment_status: string | null;
+  // Returned by admin_get_users_admin (SECURITY DEFINER — bypasses RLS).
+  ussd_credentials: { mtnSecret?: string | null; syriatelSerial?: string | null; syriatelDistributor?: string | null } | null;
 }
 
 interface DeviceInfo {
@@ -106,6 +108,18 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={"text-xs px-2 py-0.5 rounded-full whitespace-nowrap " + c.cls}>{c.label}</span>;
 }
 
+// USSD credentials come straight from admin_get_users_admin (SECURITY DEFINER,
+// bypasses RLS). A direct app_settings query from the client is filtered by the
+// owner-only RLS policy and silently returns zero rows for other users.
+function ussdOf(u: UserInfo | null | undefined): { mtnSecret: string; syriatelSerial: string; syriatelDistributor: string } {
+  const v = u?.ussd_credentials;
+  return {
+    mtnSecret: String(v?.mtnSecret ?? ""),
+    syriatelSerial: String(v?.syriatelSerial ?? ""),
+    syriatelDistributor: String(v?.syriatelDistributor ?? ""),
+  };
+}
+
 export function UsersRolesManager() {
   const { t, i18n } = useTranslation();
   const isArabic = i18n.language === "ar";
@@ -143,8 +157,6 @@ export function UsersRolesManager() {
   const [availableDistributors, setAvailableDistributors] = useState<Array<{id: string; user_id: string; code: string; display_name: string | null; commission_rate: number}>>([]);
   const [selectedDistributorId, setSelectedDistributorId] = useState<string>("");
 
-  const [settingsMap, setSettingsMap] = useState<Record<string, { mtnSecret: string; syriatelSerial: string; syriatelDistributor: string; updated_at?: string }>>({});
-
   const load = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
@@ -172,33 +184,6 @@ export function UsersRolesManager() {
   }, [q, statusFilter, page, roleFilter, accountStatusFilter, activationStatusFilter]);
 
   useEffect(() => { load(); }, [load]);
-
-  useEffect(() => {
-    if (rows.length === 0) return;
-    const userIds = rows.map((u) => u.user_id);
-    supabase
-      .from("app_settings")
-      .select("user_id, key, value, updated_at")
-      .in("user_id", userIds)
-      .eq("key", "ussd_credentials")
-      .then(({ data, error }) => {
-        if (error) { console.error("[UsersRolesManager] app_settings query error:", error); return; }
-        console.log("[UsersRolesManager] fetched app_settings:", data);
-        if (!data) return;
-        const map: Record<string, { mtnSecret: string; syriatelSerial: string; syriatelDistributor: string; updated_at?: string }> = {};
-        for (const row of data) {
-          const v = (typeof row.value === "object" && row.value !== null ? row.value : {}) as Record<string, string>;
-          map[row.user_id] = {
-            mtnSecret: v.mtnSecret || "",
-            syriatelSerial: v.syriatelSerial || "",
-            syriatelDistributor: v.syriatelDistributor || "",
-            updated_at: row.updated_at,
-          };
-        }
-        setSettingsMap(map);
-      })
-      .catch((err) => { console.error("[UsersRolesManager] app_settings fetch failed:", err); });
-  }, [rows]);
 
   const loadDistributors = useCallback(async () => {
     try {
@@ -580,9 +565,9 @@ export function UsersRolesManager() {
                       </td>
                       <td className="p-2.5 text-xs whitespace-nowrap">{u.shop_name || "—"}</td>
                       <td className="p-2.5 text-xs whitespace-nowrap" dir="ltr">{u.phone || "—"}</td>
-                      <td className="p-2.5 text-xs font-mono whitespace-nowrap" dir="ltr">{settingsMap[u.user_id]?.mtnSecret || "—"}</td>
-                      <td className="p-2.5 text-xs font-mono whitespace-nowrap" dir="ltr">{settingsMap[u.user_id]?.syriatelSerial || "—"}</td>
-                      <td className="p-2.5 text-xs font-mono whitespace-nowrap" dir="ltr">{settingsMap[u.user_id]?.syriatelDistributor || "—"}</td>
+                      <td className="p-2.5 text-xs font-mono whitespace-nowrap" dir="ltr">{ussdOf(u).mtnSecret || "—"}</td>
+                      <td className="p-2.5 text-xs font-mono whitespace-nowrap" dir="ltr">{ussdOf(u).syriatelSerial || "—"}</td>
+                      <td className="p-2.5 text-xs font-mono whitespace-nowrap" dir="ltr">{ussdOf(u).syriatelDistributor || "—"}</td>
                       <td className="p-2.5" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu dir={isArabic ? "rtl" : "ltr"}>
                           <DropdownMenuTrigger asChild>
@@ -677,9 +662,9 @@ export function UsersRolesManager() {
                 <Detail label={t("adminUsers.role")} value={detailsUser.role || "-"} />
                 <Detail label={t("adminUsers.accountStatus")} value={detailsUser.account_status || "-"} />
                 <Detail label={t("adminUsers.licenseStatus")} value={detailsUser.license_status || "-"} />
-                <Detail label={t("adminUsers.mtnSecretHeader")} value={settingsMap[detailsUser.user_id]?.mtnSecret || "-"} ltr />
-                <Detail label={t("adminUsers.syriatelSerialHeader")} value={settingsMap[detailsUser.user_id]?.syriatelSerial || "-"} ltr />
-                <Detail label={t("adminUsers.syriatelDistributorHeader")} value={settingsMap[detailsUser.user_id]?.syriatelDistributor || "-"} ltr />
+                <Detail label={t("adminUsers.mtnSecretHeader")} value={ussdOf(detailsUser).mtnSecret || "-"} ltr />
+                <Detail label={t("adminUsers.syriatelSerialHeader")} value={ussdOf(detailsUser).syriatelSerial || "-"} ltr />
+                <Detail label={t("adminUsers.syriatelDistributorHeader")} value={ussdOf(detailsUser).syriatelDistributor || "-"} ltr />
                 <Detail label={t("adminUsers.emergencyPhone")} value={detailsUser.emergency_phone || "-"} ltr />
                 <Detail label={t("adminUsers.paymentsTotal")} value={t("adminUsers.paymentsCount", { count: (detailsUser.payments_summary || []).length })} />
                 <Detail label={t("adminUsers.notificationsSummary")} value={t("adminUsers.notificationsSummaryLine", { total: (detailsUser.notifications_summary || {}).total || 0, unread: (detailsUser.notifications_summary || {}).unread || 0 })} />

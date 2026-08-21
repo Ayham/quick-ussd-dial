@@ -58,8 +58,14 @@ export function pushEvent(event: string, data: Record<string, unknown> = {}) {
   }
 }
 
+// Lease-based guard: the flag stores the flush START TIME and expires after
+// SYNC_LEASE_MS. A crash / app kill mid-flush can no longer wedge syncing
+// forever (the legacy "true" value from old builds also reads as expired).
+const SYNC_LEASE_MS = 2 * 60 * 1000;
+
 export function isSyncing(): boolean {
-  return localStorage.getItem(SYNC_IN_PROGRESS_KEY) === 'true';
+  const startedAt = Number(localStorage.getItem(SYNC_IN_PROGRESS_KEY));
+  return Number.isFinite(startedAt) && startedAt > 0 && Date.now() - startedAt < SYNC_LEASE_MS;
 }
 
 // Simple retry backoff: after repeated failures we stop hammering the server.
@@ -88,7 +94,7 @@ export async function flush(options: { force?: boolean } = {}): Promise<{ sent: 
 
   if (!options.force && isSyncing()) return { sent: 0, errors: 0 };
 
-  localStorage.setItem(SYNC_IN_PROGRESS_KEY, 'true');
+  localStorage.setItem(SYNC_IN_PROGRESS_KEY, String(Date.now()));
 
   try {
     const events = queue.slice(0, BATCH_MAX);
@@ -106,7 +112,7 @@ export async function flush(options: { force?: boolean } = {}): Promise<{ sent: 
 
     if (error) {
       markSyncFailure();
-      localStorage.setItem(SYNC_IN_PROGRESS_KEY, 'false');
+      localStorage.removeItem(SYNC_IN_PROGRESS_KEY);
       return { sent: 0, errors: events.length };
     }
 
@@ -117,12 +123,12 @@ export async function flush(options: { force?: boolean } = {}): Promise<{ sent: 
     ];
     saveQueue(remaining);
     localStorage.setItem(LAST_KEY, new Date().toISOString());
-    localStorage.setItem(SYNC_IN_PROGRESS_KEY, 'false');
+    localStorage.removeItem(SYNC_IN_PROGRESS_KEY);
     markSyncSuccess();
     return { sent: events.length - failedIds.size, errors: failedIds.size };
   } catch (e) {
     markSyncFailure();
-    localStorage.setItem(SYNC_IN_PROGRESS_KEY, 'false');
+    localStorage.removeItem(SYNC_IN_PROGRESS_KEY);
     return { sent: 0, errors: 1 };
   }
 }

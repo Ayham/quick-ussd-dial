@@ -89,6 +89,14 @@ export function startCloudServices(): void {
     startSupabaseSync();
   } catch {}
 
+  // Migrate credentials saved locally by old builds (localStorage-only) to the
+  // server once, so the admin Users page can show them. No-op when synced.
+  try {
+    void import("@/lib/ussd-profiles")
+      .then((m) => m.uploadLocalCredentialsIfNeeded())
+      .catch(() => {});
+  } catch {}
+
   // Contact settings (About page) — refresh the local cache in the background
   // when online. Offline: no network attempt, cache is used as-is.
   try {

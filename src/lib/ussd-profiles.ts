@@ -246,13 +246,52 @@ export async function saveCredentials(credentials: OperatorCredentials): Promise
     const { supabase } = await import("@/integrations/supabase/client");
     const { data } = await supabase.auth.getUser();
     if (data?.user?.id) {
-      await supabase.from("app_settings").upsert({
+      const { error } = await supabase.from("app_settings").upsert({
         user_id: data.user.id,
         key: "ussd_credentials",
         value: credentials as unknown as Record<string, unknown>,
         updated_at: new Date().toISOString(),
       }, { onConflict: "user_id,key" });
+      if (error) console.warn("[ussd-profiles] app_settings upsert failed:", error.message);
     }
+  } catch {}
+}
+
+const CREDENTIALS_SERVER_SYNC_KEY = "ussd_credentials_server_sync_v1";
+
+/**
+ * One-shot migration for devices upgrading from builds that stored credentials
+ * in localStorage ONLY (<= 1.2.4): if the user has non-empty local credentials
+ * and the server has no row for them yet, push them once. An existing server
+ * row always wins (never clobbered by a possibly stale local copy). Runs on
+ * every startup; cheap no-op once the server row exists.
+ */
+export async function uploadLocalCredentialsIfNeeded(): Promise<void> {
+  try {
+    const credentials = await getCredentials();
+    if (!credentials.mtnSecret && !credentials.syriatelSerial && !credentials.syriatelDistributor) return;
+
+    const fingerprint = JSON.stringify(credentials);
+    if (localStorage.getItem(CREDENTIALS_SERVER_SYNC_KEY) === fingerprint) return;
+
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data } = await supabase.auth.getUser();
+    if (!data?.user?.id) return;
+
+    const { data: existing, error } = await supabase
+      .from("app_settings")
+      .select("user_id")
+      .eq("user_id", data.user.id)
+      .eq("key", "ussd_credentials")
+      .maybeSingle();
+    if (error) return;
+    if (existing) {
+      localStorage.setItem(CREDENTIALS_SERVER_SYNC_KEY, fingerprint);
+      return;
+    }
+
+    await saveCredentials(credentials);
+    localStorage.setItem(CREDENTIALS_SERVER_SYNC_KEY, fingerprint);
   } catch {}
 }
 
