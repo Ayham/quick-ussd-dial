@@ -70,6 +70,9 @@ public class CustomerDisplayServerPlugin extends Plugin {
                 result.put("port", actualPort);
                 result.put("started", true);
 
+                // Keep the server alive with screen off / app in background
+                CustomerDisplayKeepAliveService.start(getContext());
+
                 notifyListeners("serverStarted", result);
                 call.resolve(result);
 
@@ -193,6 +196,7 @@ public class CustomerDisplayServerPlugin extends Plugin {
     @PluginMethod
     public void stopServer(PluginCall call) {
         running.set(false);
+        CustomerDisplayKeepAliveService.stop(getContext());
         try {
             synchronized (clientLock) {
                 if (clientSocket != null && !clientSocket.isClosed()) {

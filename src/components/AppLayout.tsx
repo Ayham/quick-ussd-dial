@@ -14,9 +14,10 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Truck } from "lucide-react";
-import { MonitorSmartphone } from "lucide-react";
+import { MonitorSmartphone, ClipboardList } from "lucide-react";
 import { useCustomerDisplayServer } from "@/features/customer-display/seller/CustomerDisplayServerProvider";
 import { useAppMode } from "@/features/customer-display/app-mode";
+import { getCustomerOrders } from "@/features/customer-display/orders";
 
 const BOTTOM_NAV_ITEMS = [
   { icon: Send, label: "تحويل", path: "/" },
@@ -63,6 +64,7 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
   const location = useLocation();
   const { serverRunning, customerConnected } = useCustomerDisplayServer();
   const { setMode: setAppMode } = useAppMode();
+  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
 
   useEffect(() => {
     // getCurrentUser() is offline-resilient: on a network failure it falls back
@@ -72,7 +74,18 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
     isAdminUser().then(setIsAdmin).catch(() => setIsAdmin(false));
     isDistributorUser().then(setIsDistributor).catch(() => setIsDistributor(false));
     setBrandTitle(getBusinessName() || t("appName"));
+    setPendingOrdersCount(getCustomerOrders().filter((o) => o.status === "pending").length);
   }, [menuOpen]);
+
+  useEffect(() => {
+    const refresh = () => setPendingOrdersCount(getCustomerOrders().filter((o) => o.status === "pending").length);
+    window.addEventListener("customer-orders-changed", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener("customer-orders-changed", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
 
   const isBottomNavActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
@@ -106,10 +119,10 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
                 </button>
               )}
               <NotificationBell />
-              {serverRunning && location.pathname !== "/seller-display" && (
+              {serverRunning && location.pathname !== "/customer-orders" && (
                 <button
-                  onClick={() => navigate("/seller-display")}
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all active:scale-90 backdrop-blur-sm ${
+                  onClick={() => navigate("/customer-orders")}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all active:scale-90 backdrop-blur-sm relative ${
                     customerConnected
                       ? 'bg-green-500/80 hover:bg-green-500/90'
                       : 'bg-white/10 hover:bg-white/20'
@@ -118,6 +131,11 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
                   title={customerConnected ? t('customerDisplay.seller.connected') : t('customerDisplay.seller.waiting')}
                 >
                   <MonitorSmartphone className="w-5.5 h-5.5" />
+                  {pendingOrdersCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-background">
+                      {pendingOrdersCount > 9 ? "9+" : pendingOrdersCount}
+                    </span>
+                  )}
                 </button>
               )}
             </>
@@ -305,6 +323,21 @@ const AppLayout = ({ title, titleIcon, onTitleClick, children, hideNav, headerRi
               <div className="text-right flex-1">
                 <span className="text-sm font-semibold block">{t("customerDisplay.seller.title")}</span>
                 <span className="text-[11px] text-muted-foreground line-clamp-1">{t("customerDisplay.seller.subtitle")}</span>
+              </div>
+            </button>
+            <button
+              onClick={() => { setMenuOpen(false); navigate("/customer-orders"); }}
+              className={cn(
+                "flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all w-full text-start",
+                location.pathname === "/customer-orders" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
+              )}
+            >
+              <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center bg-muted text-muted-foreground">
+                <ClipboardList className="w-4.5 h-4.5" />
+              </div>
+              <div className="text-right flex-1">
+                <span className="text-sm font-semibold block">{t("customerOrders.title")}</span>
+                <span className="text-[11px] text-muted-foreground line-clamp-1">{t("customerOrders.subtitle")}</span>
               </div>
             </button>
             <button

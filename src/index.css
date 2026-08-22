@@ -161,6 +161,14 @@
     min-height: 100dvh;
   }
 
+  /* While the QR scanner camera is live, the native preview sits BEHIND the
+     WebView - html/body/#root must become transparent or it stays invisible */
+  html.cd-scanning,
+  html.cd-scanning body,
+  html.cd-scanning #root {
+    background-color: transparent !important;
+  }
+
   input, select, textarea {
     @apply font-tajawal;
   }

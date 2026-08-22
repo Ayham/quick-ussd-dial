@@ -2,14 +2,17 @@ import { createContext, useContext, useState, useCallback, useRef, type ReactNod
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { Preferences } from '@capacitor/preferences';
 import { CustomerDisplayServer } from '../protocol/server-plugin';
 import { setupServerListeners, sendServerMessage } from '../protocol/messaging';
 import { generateSessionId, generatePairingToken, isExpired } from '../protocol/crypto';
 import { setCustomerTransferPending } from '../transfer-callback';
+import { upsertCustomerOrder, markCustomerOrderCancelled } from '../orders';
 import {
   WS_SERVER_PORT,
   CUSTOMER_DISPLAY_PROTOCOL_VERSION,
-  QR_CODE_EXPIRY_MS,
+  STORAGE_KEY_SELLER_SESSION_ID,
+  STORAGE_KEY_SELLER_PAIRING_TOKEN,
 } from '../constants';
 import type { ProtocolMessage, DisplayConfig, TransferRequestStatus } from '../types';
 import { getPresets } from '@/lib/ussd-profiles';
@@ -73,18 +76,32 @@ export function CustomerDisplayServerProvider({ children }: ProviderProps) {
   const [pendingRequest, setPendingRequest] = useState<PendingCustomerRequest | null>(null);
 
   const pendingRequestRef = useRef<PendingCustomerRequest | null>(null);
-  const qrExpiresAtRef = useRef(0);
   const cleanupRef = useRef<(() => void) | null>(null);
   const tokenRef = useRef('');
   const sessionIdRef = useRef('');
 
+  // Load persisted session credentials (or create them once) so the QR stays
+  // valid across app restarts until the seller explicitly regenerates it.
+  const ensureSessionCredentials = useCallback(async (): Promise<{ id: string; token: string }> => {
+    try {
+      const [{ value: savedId }, { value: savedToken }] = await Promise.all([
+        Preferences.get({ key: STORAGE_KEY_SELLER_SESSION_ID }),
+        Preferences.get({ key: STORAGE_KEY_SELLER_PAIRING_TOKEN }),
+      ]);
+      if (savedId && savedToken) {
+        return { id: savedId, token: savedToken };
+      }
+    } catch {}
+    const id = generateSessionId();
+    const token = generatePairingToken();
+    await Preferences.set({ key: STORAGE_KEY_SELLER_SESSION_ID, value: id });
+    await Preferences.set({ key: STORAGE_KEY_SELLER_PAIRING_TOKEN, value: token });
+    return { id, token };
+  }, []);
+
   const handleClientMessage = useCallback(async (msg: ProtocolMessage) => {
     switch (msg.type) {
       case 'pair': {
-        if (isExpired(qrExpiresAtRef.current)) {
-          await sendServerMessage({ type: 'pair-reject', reason: 'QR expired' });
-          return;
-        }
         const tokenValid = msg.token === tokenRef.current && msg.sessionId === sessionIdRef.current;
         if (!tokenValid) {
           await sendServerMessage({ type: 'pair-reject', reason: 'Invalid token' });
@@ -145,6 +162,19 @@ export function CustomerDisplayServerProvider({ children }: ProviderProps) {
         pendingRequestRef.current = req;
         setCustomerTransferPending(msg.requestId);
 
+        // Persist every request independently in the customer orders log —
+        // newer requests never replace older ones.
+        upsertCustomerOrder({
+          requestId: msg.requestId,
+          phone: msg.phone,
+          amount: msg.amount,
+          price: msg.price,
+          operator: null,
+          createdAt: msg.timestamp,
+          receivedAt: Date.now(),
+          status: 'pending',
+        });
+
         await sendServerMessage({
           type: 'transfer-request-ack',
           requestId: msg.requestId,
@@ -181,10 +211,7 @@ export function CustomerDisplayServerProvider({ children }: ProviderProps) {
   const startServer = useCallback(async () => {
     setLoading(true);
     try {
-      const id = generateSessionId();
-      const token = generatePairingToken();
-      const now = Date.now();
-      qrExpiresAtRef.current = now + QR_CODE_EXPIRY_MS;
+      const { id, token } = await ensureSessionCredentials();
       tokenRef.current = token;
       sessionIdRef.current = id;
 
@@ -246,10 +273,11 @@ export function CustomerDisplayServerProvider({ children }: ProviderProps) {
     if (!serverRunning) return;
     const id = generateSessionId();
     const token = generatePairingToken();
-    const now = Date.now();
-    qrExpiresAtRef.current = now + QR_CODE_EXPIRY_MS;
     tokenRef.current = token;
     sessionIdRef.current = id;
+
+    Preferences.set({ key: STORAGE_KEY_SELLER_SESSION_ID, value: id }).catch(() => {});
+    Preferences.set({ key: STORAGE_KEY_SELLER_PAIRING_TOKEN, value: token }).catch(() => {});
 
     setSessionId(id);
     setPairingToken(token);
@@ -274,6 +302,7 @@ export function CustomerDisplayServerProvider({ children }: ProviderProps) {
     if (!req) return;
     setPendingRequest(null);
     pendingRequestRef.current = null;
+    markCustomerOrderCancelled(req.requestId);
     await sendServerMessage({
       type: 'transfer-result',
       requestId: req.requestId,
@@ -289,7 +318,7 @@ export function CustomerDisplayServerProvider({ children }: ProviderProps) {
         sessionId,
         token: pairingToken,
         protocolVersion: CUSTOMER_DISPLAY_PROTOCOL_VERSION,
-        expiresAt: qrExpiresAtRef.current,
+        expiresAt: 0,
         sellerDeviceId: 'seller',
       })
     : '';

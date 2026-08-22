@@ -33,12 +33,14 @@ import {
   type AndroidContact,
 } from "@/lib/android-contacts";
 import { getAmountDisplayStyle, type AmountDisplayStyle } from "@/lib/amount-display";
+import { getShowTransferConfirmation } from "@/lib/transfer-confirmation";
 import { dialUssdDirect } from "@/lib/ussd-dialer";
 import { trackTransfer } from "@/lib/cloud-sync";
 import { ensureTransferAllowed } from "@/lib/license-cache";
 import { isSimConfigured, getBusinessName } from "@/lib/onboarding";
 import { incrementTransferCount } from "@/lib/setup-wizard";
 import { sendCustomerTransferResult, clearCustomerTransferPending } from "@/features/customer-display/transfer-callback";
+import { markCustomerOrderExecuted } from "@/features/customer-display/orders";
 import { formatDate, formatDateTime } from "@/lib/format-date";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,6 +95,7 @@ const Index = () => {
   const [androidContacts, setAndroidContacts] = useState<ContactMatch[]>([]);
   const [contactsVersion, setContactsVersion] = useState(0);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const editNameInputRef = useRef<HTMLInputElement>(null);
   const [editNameInput, setEditNameInput] = useState('');
   const [savingContactName, setSavingContactName] = useState(false);
   const [amountDisplayStyle, setAmountDisplayStyle] = useState<AmountDisplayStyle>(() => getAmountDisplayStyle());
@@ -104,13 +107,13 @@ const Index = () => {
   }, []);
 
   // Handle customer display transfer request
-  const customerRequestDataRef = useRef<{ amount: number; price: number } | null>(null);
+  const customerRequestDataRef = useRef<{ requestId?: string; amount: number; price: number } | null>(null);
   useEffect(() => {
     const state = location.state as { customerTransferRequest?: { requestId: string; phone: string; amount: number; price: number } } | null;
     const req = state?.customerTransferRequest;
     console.log('[Index] Mounted, location.state:', location.state, 'req:', req);
     if (req) {
-      customerRequestDataRef.current = { amount: req.amount, price: req.price };
+      customerRequestDataRef.current = { requestId: req.requestId, amount: req.amount, price: req.price };
       setPhone(req.phone);
       const matchingPreset: AmountPreset = { amount: req.amount, price: req.price };
       setSelectedAmount(matchingPreset);
@@ -198,6 +201,27 @@ const Index = () => {
     return out;
   }, [history]);
 
+  const [recentContactNames, setRecentContactNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadNames = async () => {
+      const { Capacitor } = await import('@capacitor/core');
+      if (!Capacitor.isNativePlatform() || cancelled || recentNumbers.length === 0) return;
+      const entries = await Promise.all(
+        recentNumbers.map(async (item) => {
+          const contact = await getContactByPhone(item.phone);
+          return [item.phone, contact?.displayName || ''] as const;
+        })
+      );
+      if (!cancelled) {
+        setRecentContactNames(Object.fromEntries(entries.filter(([, name]) => name)));
+      }
+    };
+    loadNames();
+    return () => { cancelled = true; };
+  }, [recentNumbers, contactsVersion]);
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (contactsRef.current && !contactsRef.current.contains(e.target as Node)) {
@@ -227,6 +251,73 @@ const Index = () => {
     }
     setSelectedAmount(null);
   }, [transferOperator]);
+
+  const handleConfirmTransfer = useCallback(async () => {
+    if (!transferOperator || !selectedAmount) return;
+    setShowConfirm(false);
+    setDialing(true);
+
+    try {
+      const guard = await ensureTransferAllowed();
+      if (!guard.allowed) {
+        const reason = guard.reason || t("index.transferNotAllowed");
+        toast.error(reason);
+        await sendCustomerTransferResult("failed", reason);
+        return;
+      }
+      const freshCredentials = await getCredentials();
+      if (!isSimConfigured(freshCredentials)) {
+        toast.error(t("index.configureSimFirst"));
+        await sendCustomerTransferResult("failed", t("index.configureSimFirst"));
+        navigate("/settings");
+        return;
+      }
+      setCredentials(freshCredentials);
+      const ussd = buildUssdCode(transferOperator, phone.trim(), String(selectedAmount.amount), freshCredentials);
+      const simAssignment = getSimAssignment();
+      const simSlot = simAssignment[transferOperator];
+
+      await dialUssdDirect(ussd, simSlot);
+
+      addToHistory({
+        phone: phone.trim(),
+        amount: String(selectedAmount.amount),
+        price: String(selectedAmount.price),
+        operator: transferOperator,
+        timestamp: Date.now(),
+        status: "success",
+        transferType: operator ? "phone" : "secret",
+      });
+      setHistory(getHistory());
+      trackTransfer(phone.trim(), String(selectedAmount.amount), transferOperator, "success", {
+        package_price: selectedAmount.price,
+        package_name: `${selectedAmount.amount}`,
+      });
+      if (customerRequestDataRef.current?.requestId) {
+        markCustomerOrderExecuted(customerRequestDataRef.current.requestId);
+      }
+
+      toast.success(t("index.transferSuccess"));
+      await sendCustomerTransferResult("success", t("index.transferSuccess"));
+
+      incrementTransferCount();
+
+      await saveContactAfterTransfer(phone.trim(), nameInput.trim() || contactName);
+      setContactsVersion(v => v + 1);
+
+       setPhone("");
+       setSelectedAmount(null);
+       customerRequestDataRef.current = null;
+      setContactName('');
+      setShowSaveName(false);
+      setNameInput('');
+    } catch {
+      toast.error(t("index.transferFailed"));
+      await sendCustomerTransferResult("failed", t("index.transferFailed"));
+    } finally {
+      setDialing(false);
+    }
+  }, [phone, transferOperator, selectedAmount, credentials, operator, contactName, nameInput, navigate]);
 
   const handleTransferClick = useCallback(async () => {
     if (!phone.trim()) {
@@ -271,11 +362,15 @@ const Index = () => {
         }
         return;
       }
+      if (!getShowTransferConfirmation()) {
+        await handleConfirmTransfer();
+        return;
+      }
       setShowConfirm(true);
     } finally {
       setValidating(false);
     }
-  }, [phone, isSecretNumber, transferOperator, selectedAmount, credentials, navigate]);
+  }, [phone, isSecretNumber, transferOperator, selectedAmount, credentials, navigate, handleConfirmTransfer]);
 
   const saveNameToAndroid = useCallback(
     async (phoneNumber: string, name: string): Promise<{ ok: boolean; code?: string; message?: string }> => {
@@ -304,6 +399,15 @@ const Index = () => {
     setEditNameInput(contactName || '');
     setEditDialogOpen(true);
   }, [contactName]);
+
+  useEffect(() => {
+    if (!editDialogOpen) return;
+    const id = requestAnimationFrame(() => {
+      editNameInputRef.current?.focus();
+      editNameInputRef.current?.select();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [editDialogOpen]);
 
   const handleSaveContactName = useCallback(async () => {
     const newName = editNameInput.trim();
@@ -342,70 +446,6 @@ const Index = () => {
       setSavingContactName(false);
     }
   }, [editNameInput, contactName, phone, t]);
-
-  const handleConfirmTransfer = useCallback(async () => {
-    if (!transferOperator || !selectedAmount) return;
-    setShowConfirm(false);
-    setDialing(true);
-
-    try {
-      const guard = await ensureTransferAllowed();
-      if (!guard.allowed) {
-        const reason = guard.reason || t("index.transferNotAllowed");
-        toast.error(reason);
-        await sendCustomerTransferResult("failed", reason);
-        return;
-      }
-      const freshCredentials = await getCredentials();
-      if (!isSimConfigured(freshCredentials)) {
-        toast.error(t("index.configureSimFirst"));
-        await sendCustomerTransferResult("failed", t("index.configureSimFirst"));
-        navigate("/settings");
-        return;
-      }
-      setCredentials(freshCredentials);
-      const ussd = buildUssdCode(transferOperator, phone.trim(), String(selectedAmount.amount), freshCredentials);
-      const simAssignment = getSimAssignment();
-      const simSlot = simAssignment[transferOperator];
-
-      await dialUssdDirect(ussd, simSlot);
-
-      addToHistory({
-        phone: phone.trim(),
-        amount: String(selectedAmount.amount),
-        price: String(selectedAmount.price),
-        operator: transferOperator,
-        timestamp: Date.now(),
-        status: "success",
-        transferType: operator ? "phone" : "secret",
-      });
-      setHistory(getHistory());
-      trackTransfer(phone.trim(), String(selectedAmount.amount), transferOperator, "success", {
-        package_price: selectedAmount.price,
-        package_name: `${selectedAmount.amount}`,
-      });
-
-      toast.success(t("index.transferSuccess"));
-      await sendCustomerTransferResult("success", t("index.transferSuccess"));
-
-      incrementTransferCount();
-
-      await saveContactAfterTransfer(phone.trim(), nameInput.trim() || contactName);
-      setContactsVersion(v => v + 1);
-
-       setPhone("");
-       setSelectedAmount(null);
-       customerRequestDataRef.current = null;
-      setContactName('');
-      setShowSaveName(false);
-      setNameInput('');
-    } catch {
-      toast.error(t("index.transferFailed"));
-      await sendCustomerTransferResult("failed", t("index.transferFailed"));
-    } finally {
-      setDialing(false);
-    }
-  }, [phone, transferOperator, selectedAmount, credentials, operator, contactName, nameInput, navigate]);
 
   const selectContact = (contact: ContactMatch) => {
     setPhone(contact.phone);
@@ -543,10 +583,14 @@ const Index = () => {
                       className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted transition-smooth text-start first:rounded-t-xl last:rounded-b-xl active:bg-muted/80"
                       dir="ltr"
                     >
-                      <span className="font-mono text-muted-foreground text-sm tracking-wider">{item.phone}</span>
-                      <span className="text-[10px] text-muted-foreground/60 font-medium">
-                        {formatDate(item.lastTimestamp)}
-                      </span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-mono text-muted-foreground text-sm tracking-wider">{item.phone}</span>
+                        {recentContactNames[item.phone] && (
+                          <span className="text-xs font-medium text-foreground truncate" dir="auto">
+                            {recentContactNames[item.phone]}
+                          </span>
+                        )}
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -819,6 +863,7 @@ const Index = () => {
               </label>
               <Input
                 id="edit-contact-name"
+                ref={editNameInputRef}
                 value={editNameInput}
                 onChange={(e) => setEditNameInput(e.target.value)}
                 placeholder={t("index.namePlaceholder")}

@@ -72,7 +72,11 @@ export interface QrPairingData {
   sessionId: string;
   token: string;
   protocolVersion: number;
-  expiresAt: number;
+  /**
+   * Kept for wire compatibility with older QR payloads.
+   * 0 (or missing) = never expires.
+   */
+  expiresAt?: number;
   sellerDeviceId: string;
 }
 

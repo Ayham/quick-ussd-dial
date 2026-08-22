@@ -1,8 +1,36 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Shield, LogOut, LayoutGrid, Users, Activity, FileText, Database, KeyRound, UserCheck, Bell, RefreshCw, ChevronLeft, ChevronRight, Smartphone, MessageCircle, Truck, MonitorSmartphone } from "lucide-react";
+import { SubscriptionPlansAdmin } from "@/components/admin/SubscriptionPlansAdmin";
+import { PaymentMethodsAdmin } from "@/components/admin/PaymentMethodsAdmin";
+import { 
+  Shield, 
+  LogOut, 
+  LayoutGrid, 
+  Users, 
+  MonitorSmartphone, 
+  Truck, 
+  Activity, 
+  KeyRound, 
+  Package, 
+  CreditCard, 
+  UserCheck, 
+  Bell, 
+  RefreshCw, 
+  Smartphone, 
+  MessageCircle, 
+  Database, 
+  ChevronLeft, 
+  ChevronRight,
+  Menu
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { signOut } from "@/lib/auth";
 import { DashboardOverview } from "@/components/admin/DashboardOverview";
@@ -20,18 +48,20 @@ import { DevicesManager } from "@/components/admin/DevicesManager";
 import { cn } from "@/lib/utils";
 
 const tabs = [
-  { value: "overview", labelKey: "admin.dashboard", icon: LayoutGrid },
+   { value: "overview", labelKey: "admin.dashboard", icon: LayoutGrid },
    { value: "users", labelKey: "admin.users", icon: Users },
    { value: "devices", labelKey: "adminDevices.title", icon: MonitorSmartphone },
    { value: "distributors", labelKey: "adminDistributors.title", icon: Truck },
    { value: "transfers", labelKey: "admin.transfers", icon: Activity },
-  { value: "licenses", labelKey: "admin.licenses", icon: KeyRound },
-  { value: "activations", labelKey: "admin.activationRequests", icon: UserCheck },
-  { value: "notifications", labelKey: "admin.notifications", icon: Bell },
-  { value: "sync", labelKey: "admin.sync", icon: RefreshCw },
-  { value: "updates", labelKey: "admin.appUpdates", icon: Smartphone },
-  { value: "contactSettings", labelKey: "admin.contactSettings", icon: MessageCircle },
-  { value: "events", labelKey: "admin.events", icon: Database },
+   { value: "licenses", labelKey: "admin.licenses", icon: KeyRound },
+   { value: "plans", labelKey: "admin.subscriptionPlans", icon: Package },
+   { value: "paymentMethods", labelKey: "admin.paymentMethods", icon: CreditCard },
+   { value: "activations", labelKey: "admin.activationRequests", icon: UserCheck },
+   { value: "notifications", labelKey: "admin.notifications", icon: Bell },
+   { value: "sync", labelKey: "admin.sync", icon: RefreshCw },
+   { value: "updates", labelKey: "admin.appUpdates", icon: Smartphone },
+   { value: "contactSettings", labelKey: "admin.contactSettings", icon: MessageCircle },
+   { value: "events", labelKey: "admin.events", icon: Database },
 ];
 
 const Admin = () => {
@@ -39,14 +69,15 @@ const Admin = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const tabsRef = useRef<HTMLDivElement>(null);
+  const activeTabRef = useRef<HTMLButtonElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
   const checkScroll = () => {
     if (tabsRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = tabsRef.current;
-      setCanScrollLeft(scrollLeft > 0);
-      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 4);
+      setCanScrollLeft(scrollLeft > 5);
+      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 5);
     }
   };
 
@@ -55,14 +86,33 @@ const Admin = () => {
     const el = tabsRef.current;
     if (el) {
       el.addEventListener("scroll", checkScroll);
-      return () => el.removeEventListener("scroll", checkScroll);
+      window.addEventListener("resize", checkScroll);
+      return () => {
+        el.removeEventListener("scroll", checkScroll);
+        window.removeEventListener("resize", checkScroll);
+      };
     }
   }, []);
 
+  useEffect(() => {
+    if (activeTabRef.current && tabsRef.current) {
+      activeTabRef.current.scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest",
+      });
+    }
+    checkScroll();
+  }, [activeTab]);
+
   const scrollTabs = (direction: "left" | "right") => {
     if (tabsRef.current) {
-      const amount = 200;
-      tabsRef.current.scrollBy({ left: direction === "right" ? amount : -amount, behavior: "smooth" });
+      const amount = 250;
+      const isRtl = document.documentElement.dir === "rtl";
+      const scrollDirection = isRtl
+        ? direction === "right" ? -amount : amount
+        : direction === "right" ? amount : -amount;
+      tabsRef.current.scrollBy({ left: scrollDirection, behavior: "smooth" });
     }
   };
 
@@ -92,6 +142,10 @@ const Admin = () => {
         return <EventsViewer />;
       case "licenses":
         return <LicenseManagement />;
+      case "plans":
+        return <SubscriptionPlansAdmin />;
+      case "paymentMethods":
+        return <PaymentMethodsAdmin />;
       case "notifications":
         return <NotificationManagement />;
         case "sync":
@@ -109,55 +163,109 @@ const Admin = () => {
 
   return (
     <div className="min-h-dvh bg-background">
-      <header className="header-gradient px-5 pb-4 pt-[calc(var(--sat)+14px)] flex flex-col gap-4 shadow-[0_2px_20px_-4px_hsl(var(--primary)/0.35)]">
-        <div className="flex items-center justify-between gap-2">
+      <header className="header-gradient px-4 sm:px-6 pb-4 pt-[calc(var(--sat)+16px)] flex flex-col gap-4 shadow-[0_4px_25px_-5px_hsl(var(--primary)/0.4)]">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-white/15 flex items-center justify-center shadow-inner">
-              <Shield className="w-5.5 h-5.5 text-white" />
+            <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shadow-inner backdrop-blur-sm">
+              <Shield className="w-6 h-6 text-white" />
             </div>
             <div>
-<h1 className="text-white text-lg font-bold tracking-tight">{t("admin.administration")}</h1>
-               <p className="text-xs text-white/70">{t("admin.subtitle")}</p>
+              <h1 className="text-white text-lg sm:text-xl font-bold tracking-tight">{t("admin.administration")}</h1>
+              <p className="text-xs sm:text-sm text-white/80">{t("admin.subtitle")}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="text-white hover:bg-white/10 h-9 rounded-xl text-xs font-semibold">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-white hover:bg-white/20 h-9 px-3 rounded-xl text-xs sm:text-sm font-semibold gap-1.5 border border-white/20 shadow-sm backdrop-blur-sm">
+                  <Menu className="w-4 h-4" />
+                  <span className="hidden xs:inline">{t("admin.sections", "الأقسام")}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64 max-h-[75vh] overflow-y-auto rounded-2xl p-2 shadow-xl border-border/80 z-50">
+                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                  {t("admin.selectSection", "اختر القسم للانتقال السريع")}
+                </div>
+                {tabs.map((tab) => {
+                  const active = activeTab === tab.value;
+                  const Icon = tab.icon;
+                  return (
+                    <DropdownMenuItem
+                      key={tab.value}
+                      onClick={() => setActiveTab(tab.value)}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all my-0.5",
+                        active ? "bg-primary text-primary-foreground font-semibold shadow-sm" : "hover:bg-muted"
+                      )}
+                    >
+                      <Icon className="w-4 h-4 shrink-0" />
+                      <span className="truncate">{t(tab.labelKey)}</span>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="text-white hover:bg-white/20 h-9 px-3.5 rounded-xl text-xs sm:text-sm font-semibold transition-all">
               {t("admin.backToApp")}
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout} className="text-white hover:bg-white/10 rounded-xl h-9 w-9">
+            <Button variant="ghost" size="icon" onClick={handleLogout} className="text-white hover:bg-white/20 rounded-xl h-9 w-9 transition-all" title={t("admin.signOut")}>
               <LogOut className="w-4 h-4" />
             </Button>
           </div>
         </div>
 
-        <div className="relative">
+        {/* Navigation Tabs Bar */}
+        <div className="relative flex items-center gap-1.5 pt-1">
           {canScrollLeft && (
-            <button onClick={() => scrollTabs("left")} className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-lg bg-white/90 shadow-sm flex items-center justify-center text-foreground backdrop-blur-sm">
+            <button 
+              type="button"
+              onClick={() => scrollTabs("left")} 
+              className="hidden sm:flex items-center justify-center w-8 h-9 rounded-xl bg-white/20 hover:bg-white/30 text-white shadow-sm backdrop-blur-sm transition-all shrink-0"
+              aria-label="Scroll left"
+            >
               <ChevronRight className="w-4 h-4" />
             </button>
           )}
-          <div ref={tabsRef} className="overflow-x-auto scrollbar-none" onScroll={checkScroll}>
-            <div className="flex gap-2 rounded-2xl bg-white/10 backdrop-blur-sm p-1.5 min-w-fit">
+
+          <div 
+            ref={tabsRef} 
+            className="overflow-x-auto scrollbar-none flex-1 -mx-1 px-1 py-1 focus:outline-none focus:ring-1 focus:ring-white/30 rounded-2xl" 
+            onScroll={checkScroll}
+            tabIndex={0}
+          >
+            <div className="flex gap-2 rounded-2xl bg-white/10 backdrop-blur-md p-1.5 min-w-fit shadow-inner">
               {tabs.map((tab) => {
                 const active = activeTab === tab.value;
                 return (
                   <button
                     key={tab.value}
+                    ref={active ? activeTabRef : null}
                     onClick={() => setActiveTab(tab.value)}
+                    role="tab"
+                    aria-selected={active}
                     className={cn(
-                      "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all whitespace-nowrap",
-                      active ? 'bg-white text-primary shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white'
+                      "inline-flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 whitespace-nowrap shrink-0 select-none",
+                      active 
+                        ? 'bg-white text-primary shadow-lg ring-2 ring-white/50 scale-[1.01] font-bold' 
+                        : 'text-white/80 hover:bg-white/15 hover:text-white'
                     )}
                   >
-                    <tab.icon className="h-4 w-4" />
-                    {t(tab.labelKey)}
+                    <tab.icon className={cn("h-4 w-4 shrink-0 transition-transform", active ? "text-primary scale-110" : "text-white/80")} />
+                    <span>{t(tab.labelKey)}</span>
                   </button>
                 );
               })}
             </div>
           </div>
+
           {canScrollRight && (
-            <button onClick={() => scrollTabs("right")} className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-lg bg-white/90 shadow-sm flex items-center justify-center text-foreground backdrop-blur-sm">
+            <button 
+              type="button"
+              onClick={() => scrollTabs("right")} 
+              className="hidden sm:flex items-center justify-center w-8 h-9 rounded-xl bg-white/20 hover:bg-white/30 text-white shadow-sm backdrop-blur-sm transition-all shrink-0"
+              aria-label="Scroll right"
+            >
               <ChevronLeft className="w-4 h-4" />
             </button>
           )}

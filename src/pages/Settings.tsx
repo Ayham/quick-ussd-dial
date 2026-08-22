@@ -45,6 +45,10 @@ import {
   type AmountDisplayStyle,
 } from "@/lib/amount-display";
 import {
+  getShowTransferConfirmation,
+  saveShowTransferConfirmation,
+} from "@/lib/transfer-confirmation";
+import {
   createBackup, validateBackup, restoreBackup,
   getBackupPreview, cleanOldHistory, deleteAllHistory,
   deleteAllData, getStorageStats, getFormattedSize,
@@ -86,6 +90,7 @@ const Settings = () => {
   const [suggestionSettings, setSuggestionSettings] = useState<SuggestionSettings>(() => getSuggestionSettings());
   const [thresholds, setThresholds] = useState<LowBalanceThresholds>(() => getLowBalanceThresholds());
   const [amountDisplayStyle, setAmountDisplayStyle] = useState<AmountDisplayStyle>(() => getAmountDisplayStyle());
+  const [showTransferConfirmation, setShowTransferConfirmation] = useState(() => getShowTransferConfirmation());
   const [businessName, setBusinessName] = useState(() => getBusinessName());
   const [distributorCode, setDistributorCode] = useState("");
   const [distributorInfo, setDistributorInfo] = useState<{ linked: boolean; distributor_code?: string; distributor_name?: string; commission_rate?: number } | null>(null);
@@ -125,6 +130,7 @@ useEffect(() => {
   useEffect(() => { if (appLoaded) saveLowBalanceThresholds(thresholds); }, [thresholds, appLoaded]);
   useEffect(() => { if (appLoaded) saveSuggestionSettings(suggestionSettings); }, [suggestionSettings, appLoaded]);
   useEffect(() => { if (appLoaded) saveBusinessName(businessName); }, [businessName, appLoaded]);
+  useEffect(() => { if (appLoaded) saveShowTransferConfirmation(showTransferConfirmation); }, [showTransferConfirmation, appLoaded]);
 
   const handleAdd = () => {
     const updated = { ...presets };
@@ -465,6 +471,15 @@ useEffect(() => {
                             <div className="text-[10px] text-muted-foreground bg-muted/60 rounded-xl p-3 border border-border/50">
                               {t("settings.balanceTemplateVariables")} <span className="font-mono bg-white px-1.5 py-0.5 rounded">{`{secret}`}</span> <span className="font-mono bg-white px-1.5 py-0.5 rounded">{`{serial}`}</span>
                             </div>
+                          </div>
+                        </SettingsCard>
+                        <SettingsCard title={t("settings.transferOptions")} icon={<Shield className="w-4 h-4" />}>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-foreground">{t("settings.showTransferConfirmation")}</span>
+                            <Switch
+                              checked={showTransferConfirmation}
+                              onCheckedChange={(v) => setShowTransferConfirmation(v)}
+                            />
                           </div>
                         </SettingsCard>
                       </>

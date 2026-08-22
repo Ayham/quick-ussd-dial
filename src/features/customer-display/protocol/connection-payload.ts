@@ -1,6 +1,5 @@
 import type { QrPairingData } from '../types';
 import { CUSTOMER_DISPLAY_PROTOCOL_VERSION } from '../constants';
-import { isExpired } from './crypto';
 
 export type ParseResult =
   | { ok: true; data: QrPairingData }
@@ -35,9 +34,6 @@ export function parseConnectionPayload(raw: string): ParseResult {
   if (typeof obj.protocolVersion !== 'number') {
     return { ok: false, error: 'missing_protocol_version' };
   }
-  if (typeof obj.expiresAt !== 'number') {
-    return { ok: false, error: 'missing_expires_at' };
-  }
   if (typeof obj.sellerDeviceId !== 'string') {
     return { ok: false, error: 'missing_seller_device_id' };
   }
@@ -46,9 +42,8 @@ export function parseConnectionPayload(raw: string): ParseResult {
     return { ok: false, error: 'unsupported_protocol_version' };
   }
 
-  if (isExpired(obj.expiresAt as number)) {
-    return { ok: false, error: 'expired' };
-  }
+  // Note: expiresAt is no longer required and is never enforced.
+  // Pairing data stays valid until the seller explicitly regenerates the QR.
 
   const data: QrPairingData = {
     ip: obj.ip as string,
@@ -56,7 +51,7 @@ export function parseConnectionPayload(raw: string): ParseResult {
     sessionId: obj.sessionId as string,
     token: obj.token as string,
     protocolVersion: obj.protocolVersion as number,
-    expiresAt: obj.expiresAt as number,
+    expiresAt: typeof obj.expiresAt === 'number' ? obj.expiresAt : 0,
     sellerDeviceId: obj.sellerDeviceId as string,
   };
 
@@ -72,10 +67,8 @@ export function getParseErrorTranslation(error: string): string {
     missing_session_id: 'customerDisplay.customer.errorMissingFields',
     missing_token: 'customerDisplay.customer.errorMissingFields',
     missing_protocol_version: 'customerDisplay.customer.errorMissingFields',
-    missing_expires_at: 'customerDisplay.customer.errorMissingFields',
     missing_seller_device_id: 'customerDisplay.customer.errorMissingFields',
     unsupported_protocol_version: 'customerDisplay.customer.errorUnsupportedVersion',
-    expired: 'customerDisplay.customer.errorExpired',
   };
   return map[error] || 'customerDisplay.customer.errorInvalidData';
 }

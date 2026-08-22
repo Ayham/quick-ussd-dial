@@ -4,4 +4,8 @@
     <string name="title_activity_main">Raseed</string>
     <string name="package_name">com.BlueOrbitTechnologies.Raseed</string>
     <string name="custom_url_scheme">com.blueorbittechnologies.raseed</string>
+    <string name="cd_keepalive_channel_name">شاشة الزبون</string>
+    <string name="cd_keepalive_channel_desc">إبقاء خدمة شاشة الزبون نشطة</string>
+    <string name="cd_keepalive_title">شاشة الزبون نشطة</string>
+    <string name="cd_keepalive_text">بانتظار اتصال الزبائن عبر شبكة Wi-Fi</string>
 </resources>

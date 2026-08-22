@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import Balance from "./pages/Balance";
 import TransferHistory from "./pages/TransferHistory";
+import CustomerOrders from "./pages/CustomerOrders";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import Updates from "./pages/Updates";
@@ -112,6 +113,7 @@ const AppContent = () => {
             } />
             <Route path="/balance" element={<RequireAuth><Balance /></RequireAuth>} />
             <Route path="/transfer-history" element={<RequireAuth><TransferHistory /></RequireAuth>} />
+            <Route path="/customer-orders" element={<RequireAuth><CustomerOrders /></RequireAuth>} />
             <Route path="/notifications" element={
               <RequireAuth>
                 <Suspense fallback={<div className="min-h-dvh grid place-items-center text-sm text-muted-foreground">{t("common.loading")}</div>}>
